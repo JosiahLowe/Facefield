@@ -1,5 +1,5 @@
-import { FACE_COUNT, renderFace } from './faces.js?v=face-border-1';
-import { animateFaces } from './behavior.js?v=face-border-1';
+import { FACE_COUNT, renderFace } from './faces.js?v=border-removed-1';
+import { animateFaces } from './behavior.js?v=border-removed-1';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');

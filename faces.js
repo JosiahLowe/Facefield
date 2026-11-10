@@ -91,6 +91,6 @@ export function renderFace(seed, index, revision = 0) {
   const radius = stream('corners')() < .3 ? 12 : 0;
   // A second palette color fills the rounded corners: no gutters or black gaps.
   const backingColor = radius ? choose(stream('backing'), COLORS.filter(c => c !== color)) : color;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect width="100" height="100" rx="${radius}" fill="${color}"/><rect data-feature="border" x="1" y="1" width="98" height="98" rx="${Math.max(0, radius - 1)}" fill="none" stroke="black" stroke-width="2"/>${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect width="100" height="100" rx="${radius}" fill="${color}"/>${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</svg>`;
   return { color, backingColor, svg };
 }
