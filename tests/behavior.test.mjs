@@ -45,3 +45,23 @@ test('mouth targets choose a different neutral, smiling, or frowning expression'
   assert.ok(asymmetry > 0);
   assert.equal(transitions.size, 6);
 });
+
+test('neutral is guaranteed within two expressive targets and has a distinct rest', async () => {
+  const { mouthTarget, mouthPause } = await import('../behavior.js');
+  for (const name of ['curious', 'sleepy', 'nervous', 'calm', 'observant']) {
+    // Choose random values that would otherwise repeatedly avoid neutral.
+    let bend = 12, expressive = 0, neutralCount = 0;
+    for (let i = 0; i < 20; i++) {
+      const target = mouthTarget(bend, name, () => .99, expressive >= 1);
+      bend = target.bend;
+      expressive = bend === 0 ? 0 : expressive + 1;
+      assert.ok(expressive <= 1);
+      if (bend === 0) {
+        neutralCount++;
+        assert.equal(target.corner, 0);
+        assert.ok(mouthPause(name, true, () => 0) >= 4000);
+      }
+    }
+    assert.ok(neutralCount >= 9);
+  }
+});

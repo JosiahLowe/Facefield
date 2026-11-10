@@ -8,7 +8,8 @@ const assert=require('node:assert/strict');
  await page.waitForSelector('.face svg');
  const result=await page.evaluate(async()=>{
   const start=performance.now();let frames=0, bounds=true, coordinated=true, closed=false;
-  const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true;
+  const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true,neutralRest=false;
+  const neutralStarts=new Map(),previousBends=new Map();
   const mouthPaths=[...document.querySelectorAll('svg > path:not([data-feature]):not([data-animation])')];
   const mouthRest=mouthPaths.map(p=>p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));
   const noses=[...document.querySelectorAll('[data-feature=nose]')].map(p=>p.getAttribute('d'));
@@ -19,6 +20,12 @@ const assert=require('node:assert/strict');
      const c=[...tile.querySelectorAll('circle')]; const offsets=[];
      const mouth=mouthPaths[index].getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number), rest=mouthRest[index];
      if(mouth.some((n,i)=>Math.abs(n-rest[i])>.0001))mouthMoved.add(index);
+     const bend=mouth[3]-(mouth[1]+mouth[5])/2;
+     const now=performance.now();
+     if(bend===0 && previousBends.has(index) && previousBends.get(index)!==0)neutralStarts.set(index,now);
+     if(bend!==0)neutralStarts.delete(index);
+     if(neutralStarts.has(index)&&now-neutralStarts.get(index)>=3900)neutralRest=true;
+     previousBends.set(index,bend);
      mouthBounds&&=mouth[0]===rest[0]&&mouth[2]===rest[2]&&mouth[4]===rest[4]&&Math.abs(mouth[3]-rest[1])<=Math.max(16,Math.abs(rest[3]-rest[1]))+.001&&Math.abs(mouth[1]-rest[1])<=.7701&&Math.abs(mouth[5]-rest[5])<=.7701;
      nosesUnchanged&&=tile.querySelector('[data-feature=nose]').getAttribute('d')===noses[index];
      for(let i=0;i<4;i+=2){const num=(e,a)=>+e.getAttribute(a);const eye=c[i],p=c[i+1],r=num(eye,'r'),pr=num(p,'r'); const dx=num(p,'cx')-num(eye,'cx'),dy=num(p,'cy')-num(eye,'cy');bounds&&=Math.hypot(dx,dy)+pr<=r+.003;offsets.push([dx/(r-pr),dy/(r-pr)]);}
@@ -27,10 +34,11 @@ const assert=require('node:assert/strict');
      const lids=[...tile.querySelectorAll('[data-animation=blink]')];
      if(lids.length){blinked.add(index);const paths=lids.map(l=>l.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));closed||=paths[0][1]>=paths[1][1];}
     });
-    if(performance.now()-start>10000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked],mouthMoved:[...mouthMoved],mouthBounds,nosesUnchanged});else requestAnimationFrame(check);
+    if(performance.now()-start>10000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked],mouthMoved:[...mouthMoved],mouthBounds,nosesUnchanged,neutralRest});else requestAnimationFrame(check);
    }check();
   });
  });
+ assert.ok(result.neutralRest,'a transitioned neutral mouth rests visibly for at least four seconds');
  assert.ok(result.mouthMoved.length>4&&result.mouthBounds&&result.nosesUnchanged);
  assert.ok(result.mouthMoved.every(i=>i<40));
  assert.ok(result.frames>100);assert.ok(result.bounds&&result.coordinated&&result.closed);assert.ok(result.moved.length>4&&result.blinked.length>4);

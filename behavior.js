@@ -23,15 +23,22 @@ const MOUTH_PROFILES = {
   calm: { pause: [5000, 8000], amount: 1.2 },
   observant: { pause: [4000, 6000], amount: 1.6 },
 };
-export function mouthTarget(currentBend, name, random = Math.random) {
+export function mouthTarget(currentBend, name, random = Math.random, requireNeutral = false) {
   const { amount } = MOUTH_PROFILES[name];
   const current = Math.abs(currentBend) < 3 ? 0 : Math.sign(currentBend);
   const choices = [-1, 0, 1].filter(expression => expression !== current);
-  const expression = choices[Math.floor(random() * choices.length)];
+  const expression = requireNeutral && current !== 0 ? 0 : choices[Math.floor(random() * choices.length)];
   const magnitude = name === 'sleepy' ? 8 + random() * 2 : 10 + random() * 6;
   const bend = expression * magnitude;
   const corner = expression && random() < .22 ? (random() * 2 - 1) * amount * .35 : 0;
   return { bend, corner };
+}
+
+export function mouthPause(name, neutral, random = Math.random) {
+  const [low, high] = MOUTH_PROFILES[name].pause;
+  const minimum = neutral ? Math.max(4000, low) : low;
+  const maximum = neutral ? Math.max(6000, high) : high;
+  return minimum + random() * (maximum - minimum);
 }
 
 const between = (a, b) => a + Math.random() * (b - a);
@@ -61,7 +68,7 @@ export function animateFaces(grid) {
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
     s.nextBlink = now + between(2000, 8000);
     s.double = false;
-    s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
+    s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
   }
   function restore(s) {
     for (const eye of s.eyes) {
@@ -77,6 +84,7 @@ export function animateFaces(grid) {
     s.mouth.current = { bend: s.mouth.restBend, corner: 0 };
     s.mouth.motion = null;
     s.mouth.manual = false;
+    s.mouth.sinceNeutral = 0;
   }
   function makeBlinkLids(s) {
     for (const eye of s.eyes) {
@@ -128,19 +136,20 @@ export function animateFaces(grid) {
   function updateMouth(s, now) {
     const mouth = s.mouth;
     if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
-      const target = mouthTarget(mouth.current.bend, s.profile.name);
+      const target = mouthTarget(mouth.current.bend, s.profile.name, Math.random, mouth.sinceNeutral >= 1);
       mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(1200, 1800) };
     }
     if (!mouth.motion) return;
     const { from, target, start, duration } = mouth.motion;
     const progress = Math.min(1, (now - start) / duration), t = smooth(progress);
-    const bend = from.bend + (target.bend - from.bend) * t;
-    const corner = from.corner + (target.corner - from.corner) * t;
+    const bend = progress === 1 ? target.bend : from.bend + (target.bend - from.bend) * t;
+    const corner = progress === 1 ? target.corner : from.corner + (target.corner - from.corner) * t;
     mouth.current = { bend, corner };
     mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y - corner} Q ${mouth.center} ${mouth.y + bend} ${mouth.right} ${mouth.y + corner}`);
     if (progress === 1) {
       mouth.motion = null;
-      s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
+      mouth.sinceNeutral = target.bend === 0 ? 0 : mouth.sinceNeutral + 1;
+      s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
     }
   }
   function tick(now) {
@@ -205,16 +214,17 @@ export function animateFaces(grid) {
         const coordinates = mouth.element.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
         const displayedBend = coordinates[3] - (coordinates[1] + coordinates[5]) / 2;
         mouth.current = { bend: displayedBend, corner: (coordinates[5] - coordinates[1]) / 2 };
-        const target = mouthTarget(displayedBend, s.profile.name);
+        const target = mouthTarget(displayedBend, s.profile.name, Math.random, mouth.sinceNeutral >= 1);
         mouth.manual = false;
         if (reduced.matches) {
           mouth.current = target;
+          mouth.sinceNeutral = target.bend === 0 ? 0 : mouth.sinceNeutral + 1;
           mouth.motion = null;
           mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y - target.corner} Q ${mouth.center} ${mouth.y + target.bend} ${mouth.right} ${mouth.y + target.corner}`);
         } else {
           mouth.motion = { from: { ...mouth.current }, target, start: now, duration: 1200 };
         }
-        s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
+        s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
       }
       wake();
 
@@ -239,7 +249,7 @@ export function animateFaces(grid) {
       const [left, y, center, controlY, right] = original.match(/-?\d+(?:\.\d+)?/g).map(Number);
       const restBend = controlY - y;
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
-        current: { bend: restBend, corner: 0 }, motion: null };
+        current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
       states.set(tile, s);
       schedule(s, performance.now());
