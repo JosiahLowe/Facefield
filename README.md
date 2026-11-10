@@ -20,16 +20,25 @@ The files work directly on GitHub Pages with no build step. Configure Pages to s
 
 - `faces.js`: deterministic random streams and separate eye, nose, and mouth generators, in a 100 × 100 SVG coordinate system.
 - `app.js`: grid state, tile interactions, URL seed and revision persistence.
+- `behavior.js`: seeded personalities, gaze interpolation, blinking, visibility scheduling, and reduced-motion support.
 - `styles.css`: edge-to-edge responsive layout and controls.
 
-No external assets, fonts, packages, API keys, or services are required. No animations are used.
+No external assets, fonts, packages, API keys, or services are required. Visible faces look around and blink independently. Their personality is seeded; live timing varies per session. Animation pauses offscreen and in hidden tabs, and is disabled when reduced motion is requested.
 
 ## Checks
 
 With Node.js 22 or newer:
 
 ```sh
-node --test tests/faces.test.mjs
+node --test tests/*.test.mjs
 ```
 
 The tests check deterministic generation, independent revisions, eye and pupil bounds, coordinated gaze, nose segments, and palette coverage over 1,920 faces.
+
+Browser validation (with Playwright and Chromium available, and the server running):
+
+```sh
+node tests/browser.cjs
+```
+
+Use `FACEFIELD_URL` for another server address and `CHROMIUM_PATH` for another Chromium executable. This check watches ten seconds of live animation, checking pupil containment and coordination, independent full blinks, offscreen suspension, reduced-motion restoration, and regeneration.

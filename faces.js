@@ -15,54 +15,82 @@ export function randomFrom(seed) {
 const range = (r, a, b) => a + r() * (b - a);
 const choose = (r, items) => items[Math.floor(r() * items.length)];
 const f = n => Number(n.toFixed(3));
-function eyes(r) {
+function eyes(r, lids, color) {
   const radius = range(r, 10, 14), y = range(r, 27, 34);
   const space = range(r, 19, 23), pupil = radius * range(r, .38, .48);
   const angle = range(r, 0, Math.PI * 2);
   const distance = r() < .15 ? 0 : range(r, .35, .86);
   const dx = Math.cos(angle) * (radius - pupil) * distance;
   const dy = Math.sin(angle) * (radius - pupil) * distance;
-  return [50 - space, 50 + space].map(x =>
-    `<circle cx="${f(x)}" cy="${f(y)}" r="${f(radius)}" fill="white"/><circle cx="${f(x + dx)}" cy="${f(y + dy)}" r="${f(pupil)}" fill="black"/>`).join('');
-}
-function nose(r) {
-  const x = range(r, 47, 53), top = range(r, 43, 46), bottom = range(r, 55, 60);
-  const shapes = [
-    `${x},${top} ${x},${bottom} ${x + 8},${bottom}`,
-    `${x - 5},${top} ${x + 6},${top + 2} ${x + 1},${bottom}`,
-    `${x - 6},${bottom} ${x + 2},${top} ${x + 7},${bottom - 1}`,
-  ];
-  return `<polyline points="${choose(r, shapes)}" fill="none" stroke="black" stroke-width="2" stroke-linejoin="miter"/>`;
-}
-function mouth(r) {
-  const type = Math.floor(r() * 5), width = range(r, 38, 82);
-  const x = (100 - width) / 2, y = range(r, 70, 75);
-  if (type === 0) {
-    const height = range(r, 10, 17), count = Math.floor(range(r, 4, 9));
-    let result = `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="white"/>`;
-    for (let i = 1; i < count; i++) result += `<path d="M ${x + width * i / count} ${y} v ${height}" stroke="black" stroke-width="1.1"/>`;
-    return result;
+  const lidStyle = choose(lids, ['none', 'top', 'bottom']);
+  const coverage = range(lids, .1, lidStyle === 'top' ? .35 : .3);
+  // Solve the circular-segment area for the desired fraction of the eyeball.
+  let low = 0, high = 1;
+  for (let i = 0; i < 32; i++) {
+    const inset = (low + high) / 2;
+    const area = (Math.acos(inset) - inset * Math.sqrt(1 - inset * inset)) / Math.PI;
+    if (area > coverage) low = inset; else high = inset;
   }
-  if (type === 1) {
-    const height = range(r, 17, 22), count = Math.floor(range(r, 4, 9));
-    const tooth = width / count, toothHeight = height * .3;
-    let result = `<rect x="${x}" y="${y - 3}" width="${width}" height="${height}" fill="black"/>`;
-    const lower = r() > .25;
-    for (let i = 0; i < count; i++) {
-      if (r() > .15) result += `<rect x="${x + i * tooth + .7}" y="${y - 3}" width="${tooth - 1.4}" height="${toothHeight}" fill="white"/>`;
-      if (lower && r() > .2) result += `<rect x="${x + i * tooth + .7}" y="${y - 3 + height - toothHeight}" width="${tooth - 1.4}" height="${toothHeight}" fill="white"/>`;
+  const lidInset = (low + high) / 2;
+  const lidColor = '#' + color.slice(1).match(/../g).map(channel =>
+    Math.round(parseInt(channel, 16) * .82).toString(16).padStart(2, '0')).join('');
+  return [50 - space, 50 + space].map(x => {
+    let result = `<circle cx="${f(x)}" cy="${f(y)}" r="${f(radius)}" fill="white"/><circle cx="${f(x + dx)}" cy="${f(y + dy)}" r="${f(pupil)}" fill="black"/>`;
+    for (const side of [-1, 1]) {
+      if (lidStyle !== (side === -1 ? 'top' : 'bottom')) continue;
+      // Reduce coverage if needed so at least part of the pupil remains exposed.
+      const inset = Math.max(lidInset, (side * dy - pupil * .5) / radius);
+      const cut = y + side * radius * inset;
+      const halfChord = radius * Math.sqrt(1 - inset * inset);
+      // The arc follows the eyeball circle exactly, clipping the skin to a cap.
+      result += `<path data-feature="eyelid" data-side="${lidStyle}" d="M ${x - halfChord} ${cut} A ${radius} ${radius} 0 0 ${side === -1 ? 1 : 0} ${x + halfChord} ${cut} Z" fill="${lidColor}"/>`;
     }
     return result;
-  }
-  const bend = type === 2 ? 0 : type === 3 ? range(r, 9, 17) : -range(r, 7, 12);
-  return `<path d="M ${x} ${y + 3} Q 50 ${y + 3 + bend} ${x + width} ${y + 3}" fill="none" stroke="black" stroke-width="2.2"/>`;
+  }).join('');
+}
+function nose(r, curves) {
+  const x = range(r, 48, 52), bottom = range(r, 55, 61);
+  // Bias toward long bridges while retaining occasional medium noses.
+  const length = r() < .85 ? range(r, 25, 37) : range(r, 17, 25);
+  const top = bottom - length;
+  const slant = range(r, -3, 3), foot = choose(r, [-1, 1]) * range(r, 5, 10);
+  // Generate the bridge on the tip side of the bend, including vertical noses.
+  const lean = Math.sign(foot) * (Math.abs(slant) < .6 ? 0 : Math.abs(slant));
+  const flatTip = r() < .4;
+  // Upward bridge and outward tip have matching horizontal signs. Their
+  // dot product is nonnegative even when the tip is exactly horizontal.
+  const rise = flatTip ? 0 : range(r, .5, 2);
+  const endY = bottom - rise;
+  const direction = Math.sign(foot);
+  let style = choose(curves, ['straight', 'convex', 'concave']);
+  const intensity = curves() < .85 ? range(curves, .4, 1.5) : range(curves, 2, 4);
+  const midpoint = Math.abs(lean) * .5;
+  // A concave control may approach the bend's x, but never cross it:
+  // that keeps the upward tangent on the tip side of the junction.
+  if (style === 'concave' && midpoint === 0) style = 'straight';
+  const offset = style === 'convex' ? intensity : -Math.min(intensity, midpoint * .9);
+  const controlX = x + direction * (midpoint + offset);
+  const start = `M ${x + lean} ${top}`;
+  const bridge = style === 'straight'
+    ? `L ${x} ${bottom}`
+    : `Q ${controlX} ${top + length * .5} ${x} ${bottom}`;
+  const path = `${start} ${bridge} L ${x + foot} ${endY}`;
+  return `<path data-feature="nose" d="${path}" data-bridge="${style}" fill="none" stroke="black" stroke-width="4" stroke-linejoin="round"/>`;
+}
+
+function mouth(r) {
+  const type = Math.floor(r() * 3), width = range(r, 28, 55);
+  const x = (100 - width) / 2, y = range(r, 70, 75);
+  const bend = type === 0 ? 0 : type === 1 ? range(r, 9, 17) : -range(r, 7, 12);
+  return `<path d="M ${x} ${y + 3} Q 50 ${y + 3 + bend} ${x + width} ${y + 3}" fill="none" stroke="black" stroke-width="4.4"/>`;
 }
 export function renderFace(seed, index, revision = 0) {
   const key = `${seed}:${index}:${revision}`;
   const stream = name => randomFrom(`${key}:${name}`);
   const color = choose(stream('color'), COLORS);
-  const radius = stream('corners')() < .22 ? 4 : 0;
-  // Matching backing color keeps softly rounded SVG corners completely gapless.
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect width="100" height="100" rx="${radius}" fill="${color}"/>${eyes(stream('eyes'))}${nose(stream('nose'))}${mouth(stream('mouth'))}</svg>`;
-  return { color, svg };
+  const radius = stream('corners')() < .3 ? 12 : 0;
+  // A second palette color fills the rounded corners: no gutters or black gaps.
+  const backingColor = radius ? choose(stream('backing'), COLORS.filter(c => c !== color)) : color;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect width="100" height="100" rx="${radius}" fill="${color}"/>${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</svg>`;
+  return { color, backingColor, svg };
 }

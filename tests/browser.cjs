@@ -1,0 +1,42 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:390,height:844}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto((process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/') + '?seed=facefield');
+ await page.waitForSelector('.face svg');
+ const result=await page.evaluate(async()=>{
+  const start=performance.now();let frames=0, bounds=true, coordinated=true, closed=false;
+  const moved=new Set(), blinked=new Set();const initial=[...document.querySelectorAll('.face')].map(t=>t.querySelectorAll('circle')[1].getAttribute('cx'));
+  return await new Promise(resolve=>{
+   function check(){frames++;
+    [...document.querySelectorAll('.face')].forEach((tile,index)=>{
+     const c=[...tile.querySelectorAll('circle')]; const offsets=[];
+     for(let i=0;i<4;i+=2){const num=(e,a)=>+e.getAttribute(a);const eye=c[i],p=c[i+1],r=num(eye,'r'),pr=num(p,'r'); const dx=num(p,'cx')-num(eye,'cx'),dy=num(p,'cy')-num(eye,'cy');bounds&&=Math.hypot(dx,dy)+pr<=r+.003;offsets.push([dx/(r-pr),dy/(r-pr)]);}
+     coordinated&&=Math.abs(offsets[0][0]-offsets[1][0])<.003&&Math.abs(offsets[0][1]-offsets[1][1])<.003;
+     if(c[1].getAttribute('cx')!==initial[index])moved.add(index);
+     const lids=[...tile.querySelectorAll('[data-animation=blink]')];
+     if(lids.length){blinked.add(index);const paths=lids.map(l=>l.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));closed||=paths[0][1]>=paths[1][1];}
+    });
+    if(performance.now()-start>10000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked]});else requestAnimationFrame(check);
+   }check();
+  });
+ });
+ assert.ok(result.frames>100);assert.ok(result.bounds&&result.coordinated&&result.closed);assert.ok(result.moved.length>4&&result.blinked.length>4);
+ assert.ok(result.moved.every(i=>i<40),'offscreen faces stay asleep');
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.waitForTimeout(100);
+ assert.equal(await page.locator('[data-animation=blink]').count(),0);
+ const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(500);assert.equal(await page.locator('#grid').innerHTML(),still);
+ const restored=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
+ // A reload with reduced motion must reproduce exactly the original gaze.
+ await page.reload();
+ const reloaded=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
+ for(let i=0;i<restored.length;i++) assert.ok(JSON.stringify(reloaded[i])===JSON.stringify(restored[i]), 'restored gaze mismatch tile '+i+': '+JSON.stringify({restored:restored[i],reloaded:reloaded[i]}));
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.locator('.face').nth(0).click();await page.locator('#shuffle').click();
+ await page.waitForTimeout(250);assert.equal(await page.locator('.face').count(),192);assert.deepEqual(errors,[]);
+ console.log('PASS animated browser:',JSON.stringify(result));
+ await browser.close();
+})();

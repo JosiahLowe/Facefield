@@ -1,5 +1,7 @@
 import { FACE_COUNT, renderFace } from './faces.js';
+import { animateFaces } from './behavior.js';
 const grid = document.querySelector('#grid');
+const animation = animateFaces(grid);
 const status = document.querySelector('#status');
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
@@ -19,10 +21,12 @@ function syncURL() {
 }
 function paint(tile, index) {
   const face = renderFace(seed, index, revisions[index]);
-  tile.style.backgroundColor = face.color;
+  tile.style.backgroundColor = face.backingColor;
   tile.innerHTML = face.svg;
+  animation.register(tile, seed, index, revisions[index]);
 }
 function populate() {
+  animation.clear();
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < FACE_COUNT; i++) {
     const tile = document.createElement('button');
