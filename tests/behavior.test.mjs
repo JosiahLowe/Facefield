@@ -23,25 +23,25 @@ test('gaze targets remain safely within available pupil travel', () => {
   assert.deepEqual(gazeOffset(0, 0), [0, 0]);
 });
 
-test('mouth targets switch smile and frown and give neutral mouths either expression', async () => {
+test('mouth targets choose a different neutral, smiling, or frowning expression', async () => {
   const { mouthTarget } = await import('../behavior.js');
   const { randomFrom } = await import('../faces.js');
   const random = randomFrom('mouth-check');
   let asymmetry = 0;
-  const neutralDirections = new Set();
+  const transitions = new Set();
   for (const name of ['curious', 'sleepy', 'nervous', 'calm', 'observant']) {
     for (const rest of [-12, -7, 0, 9, 17]) {
       for (let i = 0; i < 500; i++) {
         const target = mouthTarget(rest, name, random);
-        assert.ok(Math.abs(target.bend) >= 8 && Math.abs(target.bend) <= 16);
+        assert.ok(target.bend === 0 || (Math.abs(target.bend) >= 8 && Math.abs(target.bend) <= 16));
         assert.ok(Math.abs(target.corner) <= .77);
-        if (rest) assert.equal(Math.sign(target.bend), -Math.sign(rest));
-        else neutralDirections.add(Math.sign(target.bend));
+        assert.notEqual(Math.sign(target.bend), Math.sign(rest));
+        transitions.add(`${Math.sign(rest)}:${Math.sign(target.bend)}`);
         if (name === 'sleepy') assert.ok(Math.abs(target.bend) <= 10);
         if (target.corner) asymmetry++;
       }
     }
   }
   assert.ok(asymmetry > 0);
-  assert.deepEqual([...neutralDirections].sort(), [-1, 1]);
+  assert.equal(transitions.size, 6);
 });

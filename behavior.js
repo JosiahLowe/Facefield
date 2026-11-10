@@ -17,20 +17,20 @@ export function gazeOffset(angle, distance) {
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
 const MOUTH_PROFILES = {
-  curious: { pause: [6000, 10000], amount: 2.2 },
-  sleepy: { pause: [10000, 12000], amount: .65 },
-  nervous: { pause: [4000, 7000], amount: 1.8 },
-  calm: { pause: [9000, 12000], amount: 1.2 },
-  observant: { pause: [7000, 12000], amount: 1.6 },
+  curious: { pause: [3000, 5000], amount: 2.2 },
+  sleepy: { pause: [6000, 9000], amount: .65 },
+  nervous: { pause: [2500, 4000], amount: 1.8 },
+  calm: { pause: [5000, 8000], amount: 1.2 },
+  observant: { pause: [4000, 6000], amount: 1.6 },
 };
 export function mouthTarget(currentBend, name, random = Math.random) {
   const { amount } = MOUTH_PROFILES[name];
-  const direction = currentBend === 0
-    ? (random() < (name === 'curious' ? .65 : .5) ? 1 : -1)
-    : -Math.sign(currentBend);
+  const current = Math.abs(currentBend) < 3 ? 0 : Math.sign(currentBend);
+  const choices = [-1, 0, 1].filter(expression => expression !== current);
+  const expression = choices[Math.floor(random() * choices.length)];
   const magnitude = name === 'sleepy' ? 8 + random() * 2 : 10 + random() * 6;
-  const bend = direction * magnitude;
-  const corner = random() < .22 ? (random() * 2 - 1) * amount * .35 : 0;
+  const bend = expression * magnitude;
+  const corner = expression && random() < .22 ? (random() * 2 - 1) * amount * .35 : 0;
   return { bend, corner };
 }
 
@@ -129,7 +129,7 @@ export function animateFaces(grid) {
     const mouth = s.mouth;
     if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
       const target = mouthTarget(mouth.current.bend, s.profile.name);
-      mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(800, 2000) };
+      mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(1200, 1800) };
     }
     if (!mouth.motion) return;
     const { from, target, start, duration } = mouth.motion;
@@ -195,7 +195,7 @@ export function animateFaces(grid) {
   setInterval(() => { if (reduced.matches !== motionPaused) resetActivity(); }, 500);
   document.addEventListener('visibilitychange', resetActivity);
   return {
-    flipMouths() {
+    changeMouths() {
       const now = performance.now();
       for (const s of states.values()) {
         const box = s.tile.getBoundingClientRect();
@@ -204,18 +204,17 @@ export function animateFaces(grid) {
         // Read the displayed curve, including any in-progress ambient transition.
         const coordinates = mouth.element.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
         const displayedBend = coordinates[3] - (coordinates[1] + coordinates[5]) / 2;
-        const direction = -Math.sign(displayedBend) || (Number(s.tile.dataset.index) % 2 ? -1 : 1);
         mouth.current = { bend: displayedBend, corner: (coordinates[5] - coordinates[1]) / 2 };
-        const target = { bend: direction * Math.max(12, Math.abs(displayedBend)), corner: 0 };
+        const target = mouthTarget(displayedBend, s.profile.name);
         mouth.manual = false;
         if (reduced.matches) {
           mouth.current = target;
           mouth.motion = null;
-          mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y + target.bend} ${mouth.right} ${mouth.y}`);
+          mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y - target.corner} Q ${mouth.center} ${mouth.y + target.bend} ${mouth.right} ${mouth.y + target.corner}`);
         } else {
-          mouth.motion = { from: { ...mouth.current }, target, start: now, duration: 900 };
+          mouth.motion = { from: { ...mouth.current }, target, start: now, duration: 1200 };
         }
-        s.nextMouth = now + 12000;
+        s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
       }
       wake();
 

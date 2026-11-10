@@ -10,7 +10,7 @@ From this directory:
 python3 -m http.server 8000
 ```
 
-Open the server in a browser. Tap or keyboard-activate any face to regenerate it. **Flip mouths** immediately switches each visible mouth to the opposite of its currently displayed expression. Each tap flips again; automatic expression changes continue afterward. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
+Open the server in a browser. Tap or keyboard-activate any face to regenerate it. **Change mouths** immediately triggers a new neutral, smiling, or frowning expression on visible faces. Automatic changes continue independently. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
 
 ## Publish
 
@@ -23,7 +23,7 @@ The files work directly on GitHub Pages with no build step. Configure Pages to s
 - `behavior.js`: seeded personalities, gaze interpolation, blinking, mouth expression transitions, visibility scheduling, and reduced-motion support.
 - `styles.css`: edge-to-edge responsive layout and controls.
 
-No external assets, fonts, packages, API keys, or services are required. Visible faces look around, blink, and switch between smiles and frowns independently. Mouth transitions take 0.8–2 seconds with personality-dependent pauses of 4–12 seconds. Their personality is seeded; live timing varies per session. Animation pauses offscreen and in hidden tabs, and is disabled when reduced motion is requested.
+No external assets, fonts, packages, API keys, or services are required. Visible faces look around, blink, and choose between neutral, smiling, and frowning expressions independently. Mouth transitions take 1.2–1.8 seconds with gentle ease-in/out and personality-dependent pauses of 2.5–9 seconds. Their personality is seeded; live timing varies per session. Animation pauses offscreen and in hidden tabs, and is disabled when reduced motion is requested.
 
 ## Checks
 

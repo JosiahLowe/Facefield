@@ -1,5 +1,5 @@
 import { FACE_COUNT, renderFace } from './faces.js';
-import { animateFaces } from './behavior.js?v=live-mouth-flip-2';
+import { animateFaces } from './behavior.js?v=three-expressions-1';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
@@ -66,8 +66,8 @@ document.querySelector('#seed').addEventListener('click', async () => {
   }
 });
 testButton.addEventListener('click', () => {
-  animation.flipMouths();
-  status.textContent = 'Visible mouth expressions flipped.';
+  animation.changeMouths();
+  status.textContent = 'Visible faces are changing expression.';
 });
 syncURL();
 populate();
