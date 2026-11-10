@@ -40,7 +40,7 @@ const smooth = t => t * t * (3 - 2 * t);
 export function animateFaces(grid) {
   const states = new Map(), visible = new Set();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let frame = 0, motionPaused = reduced.matches;
+  let frame = 0, motionPaused = reduced.matches, testingMouths = false;
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) {
       const state = states.get(entry.target);
@@ -74,6 +74,7 @@ export function animateFaces(grid) {
     s.mouth.element.setAttribute('d', s.mouth.original);
     s.mouth.current = { bend: s.mouth.restBend, corner: 0 };
     s.mouth.motion = null;
+    s.mouth.manual = false;
   }
   function makeBlinkLids(s) {
     for (const eye of s.eyes) {
@@ -124,7 +125,7 @@ export function animateFaces(grid) {
   }
   function updateMouth(s, now) {
     const mouth = s.mouth;
-    if (!mouth.motion && now >= s.nextMouth) {
+    if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
       const target = mouthTarget(mouth.restBend, s.profile.name);
       mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(800, 2000) };
     }
@@ -192,6 +193,33 @@ export function animateFaces(grid) {
   setInterval(() => { if (reduced.matches !== motionPaused) resetActivity(); }, 500);
   document.addEventListener('visibilitychange', resetActivity);
   return {
+    testMouths() {
+      testingMouths = !testingMouths;
+      const now = performance.now();
+      for (const s of states.values()) {
+        const box = s.tile.getBoundingClientRect();
+        if (box.bottom <= 0 || box.top >= innerHeight) continue;
+        const mouth = s.mouth;
+        // Deliberately larger than ambient changes, held until reset.
+        const direction = Math.sign(mouth.restBend) || (Number(s.tile.dataset.index) % 2 ? -1 : 1);
+        const target = testingMouths
+          ? { bend: mouth.restBend + direction * 8, corner: direction * 1.2 }
+          : { bend: mouth.restBend, corner: 0 };
+        mouth.manual = testingMouths;
+        if (reduced.matches) {
+          mouth.current = target;
+          mouth.motion = null;
+          mouth.element.setAttribute('d', testingMouths
+            ? `M ${mouth.left} ${mouth.y - target.corner} Q ${mouth.center} ${mouth.y + target.bend} ${mouth.right} ${mouth.y + target.corner}`
+            : mouth.original);
+        } else {
+          mouth.motion = { from: { ...mouth.current }, target, start: now, duration: 900 };
+        }
+        s.nextMouth = now + 12000;
+      }
+      wake();
+      return testingMouths;
+    },
     register(tile, seed, index, revision) {
       const previous = states.get(tile);
       if (previous) { visible.delete(previous); observer.unobserve(tile); }
@@ -223,6 +251,7 @@ export function animateFaces(grid) {
       cancelAnimationFrame(frame);
       frame = 0;
       states.clear();
+      testingMouths = false;
       visible.clear();
     },
   };

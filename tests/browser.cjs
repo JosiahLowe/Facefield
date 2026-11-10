@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
  const result=await page.evaluate(async()=>{
   const start=performance.now();let frames=0, bounds=true, coordinated=true, closed=false;
   const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true;
-  const mouthPaths=[...document.querySelectorAll('svg > path:not([data-feature])')];
+  const mouthPaths=[...document.querySelectorAll('svg > path:not([data-feature]):not([data-animation])')];
   const mouthRest=mouthPaths.map(p=>p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));
   const noses=[...document.querySelectorAll('[data-feature=nose]')].map(p=>p.getAttribute('d'));
   const moved=new Set(), blinked=new Set();const initial=[...document.querySelectorAll('.face')].map(t=>t.querySelectorAll('circle')[1].getAttribute('cx'));
@@ -39,11 +39,11 @@ const assert=require('node:assert/strict');
  await page.waitForTimeout(100);
  assert.equal(await page.locator('[data-animation=blink]').count(),0);
  const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(500);assert.equal(await page.locator('#grid').innerHTML(),still);
- const restoredMouths=await page.locator('svg > path:not([data-feature])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d')));
+ const restoredMouths=await page.locator('svg > path:not([data-feature]):not([data-animation])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d')));
  const restored=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  // A reload with reduced motion must reproduce exactly the original gaze.
  await page.reload();
- assert.deepEqual(await page.locator('svg > path:not([data-feature])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d'))),restoredMouths);
+ assert.deepEqual(await page.locator('svg > path:not([data-feature]):not([data-animation])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d'))),restoredMouths);
  const reloaded=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  for(let i=0;i<restored.length;i++) assert.ok(JSON.stringify(reloaded[i])===JSON.stringify(restored[i]), 'restored gaze mismatch tile '+i+': '+JSON.stringify({restored:restored[i],reloaded:reloaded[i]}));
  await page.emulateMedia({reducedMotion:'no-preference'});

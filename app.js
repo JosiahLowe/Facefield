@@ -1,7 +1,8 @@
 import { FACE_COUNT, renderFace } from './faces.js';
-import { animateFaces } from './behavior.js';
+import { animateFaces } from './behavior.js?v=mouth-test-1';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
+const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
@@ -27,6 +28,8 @@ function paint(tile, index) {
 }
 function populate() {
   animation.clear();
+  testButton.textContent = 'Test mouths';
+  testButton.setAttribute('aria-pressed', 'false');
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < FACE_COUNT; i++) {
     const tile = document.createElement('button');
@@ -63,6 +66,12 @@ document.querySelector('#seed').addEventListener('click', async () => {
     status.textContent = 'Copy the URL from your address bar to reproduce this grid.';
     document.querySelector('#seed').textContent = 'Seed is in URL';
   }
+});
+testButton.addEventListener('click', () => {
+  const active = animation.testMouths();
+  testButton.textContent = active ? 'Reset mouths' : 'Test mouths';
+  testButton.setAttribute('aria-pressed', String(active));
+  status.textContent = active ? 'Mouth test active. Tap Reset mouths to return to resting expressions.' : 'Resting mouths restored.';
 });
 syncURL();
 populate();
