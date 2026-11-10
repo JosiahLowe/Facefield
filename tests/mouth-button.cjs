@@ -6,7 +6,7 @@ await page.goto((process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/')+'?seed=f
 const read=()=>page.locator('svg > path:not([data-feature]):not([data-animation])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number)));
 const before=await read(),url=page.url();await page.locator('#test-mouths').click();await page.waitForTimeout(1000);
 const changed=await read();assert.equal(await page.locator('#test-mouths').getAttribute('aria-pressed'),'true');
-for(let i=0;i<36;i++)assert.ok(Math.abs(changed[i][3]-before[i][3])>7.9,'visible face changes immediately');
+for(let i=0;i<36;i++){const rest=before[i][3]-before[i][1],next=changed[i][3]-before[i][1];assert.ok(rest ? Math.sign(next)===-Math.sign(rest) : Math.abs(next)>=12,'visible expression switches');}
 for(let i=40;i<192;i++)assert.deepEqual(changed[i],before[i]);assert.equal(page.url(),url);
 
 await page.locator('#test-mouths').click();await page.waitForTimeout(1000);assert.deepEqual(await read(),before);

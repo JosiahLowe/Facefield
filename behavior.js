@@ -23,15 +23,17 @@ const MOUTH_PROFILES = {
   calm: { pause: [9000, 12000], amount: 1.2 },
   observant: { pause: [7000, 12000], amount: 1.6 },
 };
-export function mouthTarget(restBend, name, random = Math.random) {
+export function mouthTarget(currentBend, name, random = Math.random) {
   const { amount } = MOUTH_PROFILES[name];
-  // Targets stay anchored to the original expression, never to the last target.
-  const delta = (random() * 2 - (name === 'curious' ? .65 : 1)) * amount;
-  const limit = restBend === 0 ? amount : Math.min(amount, Math.abs(restBend) * .3);
-  const bend = restBend + Math.max(-limit, Math.min(limit, delta));
+  const direction = currentBend === 0
+    ? (random() < (name === 'curious' ? .65 : .5) ? 1 : -1)
+    : -Math.sign(currentBend);
+  const magnitude = name === 'sleepy' ? 8 + random() * 2 : 10 + random() * 6;
+  const bend = direction * magnitude;
   const corner = random() < .22 ? (random() * 2 - 1) * amount * .35 : 0;
   return { bend, corner };
 }
+
 const between = (a, b) => a + Math.random() * (b - a);
 const NS = 'http://www.w3.org/2000/svg';
 const smooth = t => t * t * (3 - 2 * t);
@@ -126,7 +128,7 @@ export function animateFaces(grid) {
   function updateMouth(s, now) {
     const mouth = s.mouth;
     if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
-      const target = mouthTarget(mouth.restBend, s.profile.name);
+      const target = mouthTarget(mouth.current.bend, s.profile.name);
       mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(800, 2000) };
     }
     if (!mouth.motion) return;
@@ -200,10 +202,10 @@ export function animateFaces(grid) {
         const box = s.tile.getBoundingClientRect();
         if (box.bottom <= 0 || box.top >= innerHeight) continue;
         const mouth = s.mouth;
-        // Deliberately larger than ambient changes, held until reset.
-        const direction = Math.sign(mouth.restBend) || (Number(s.tile.dataset.index) % 2 ? -1 : 1);
+        // Preview the opposite expression, held until reset.
+        const direction = -Math.sign(mouth.restBend) || (Number(s.tile.dataset.index) % 2 ? -1 : 1);
         const target = testingMouths
-          ? { bend: mouth.restBend + direction * 8, corner: direction * 1.2 }
+          ? { bend: direction * Math.max(12, Math.abs(mouth.restBend)), corner: direction * 1.2 }
           : { bend: mouth.restBend, corner: 0 };
         mouth.manual = testingMouths;
         if (reduced.matches) {

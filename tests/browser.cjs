@@ -19,7 +19,7 @@ const assert=require('node:assert/strict');
      const c=[...tile.querySelectorAll('circle')]; const offsets=[];
      const mouth=mouthPaths[index].getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number), rest=mouthRest[index];
      if(mouth.some((n,i)=>Math.abs(n-rest[i])>.0001))mouthMoved.add(index);
-     mouthBounds&&=mouth[0]===rest[0]&&mouth[2]===rest[2]&&mouth[4]===rest[4]&&Math.abs(mouth[3]-rest[3])<=2.2001&&Math.abs(mouth[1]-rest[1])<=.7701&&Math.abs(mouth[5]-rest[5])<=.7701;
+     mouthBounds&&=mouth[0]===rest[0]&&mouth[2]===rest[2]&&mouth[4]===rest[4]&&Math.abs(mouth[3]-rest[1])<=Math.max(16,Math.abs(rest[3]-rest[1]))+.001&&Math.abs(mouth[1]-rest[1])<=.7701&&Math.abs(mouth[5]-rest[5])<=.7701;
      nosesUnchanged&&=tile.querySelector('[data-feature=nose]').getAttribute('d')===noses[index];
      for(let i=0;i<4;i+=2){const num=(e,a)=>+e.getAttribute(a);const eye=c[i],p=c[i+1],r=num(eye,'r'),pr=num(p,'r'); const dx=num(p,'cx')-num(eye,'cx'),dy=num(p,'cy')-num(eye,'cy');bounds&&=Math.hypot(dx,dy)+pr<=r+.003;offsets.push([dx/(r-pr),dy/(r-pr)]);}
      coordinated&&=Math.abs(offsets[0][0]-offsets[1][0])<.003&&Math.abs(offsets[0][1]-offsets[1][1])<.003;

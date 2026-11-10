@@ -1,5 +1,5 @@
 import { FACE_COUNT, renderFace } from './faces.js';
-import { animateFaces } from './behavior.js?v=mouth-test-1';
+import { animateFaces } from './behavior.js?v=expression-switch-1';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
