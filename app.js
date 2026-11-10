@@ -1,5 +1,5 @@
 import { FACE_COUNT, renderFace } from './faces.js';
-import { animateFaces } from './behavior.js?v=expression-switch-1';
+import { animateFaces } from './behavior.js?v=live-mouth-flip-2';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
@@ -28,8 +28,6 @@ function paint(tile, index) {
 }
 function populate() {
   animation.clear();
-  testButton.textContent = 'Test mouths';
-  testButton.setAttribute('aria-pressed', 'false');
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < FACE_COUNT; i++) {
     const tile = document.createElement('button');
@@ -68,10 +66,8 @@ document.querySelector('#seed').addEventListener('click', async () => {
   }
 });
 testButton.addEventListener('click', () => {
-  const active = animation.testMouths();
-  testButton.textContent = active ? 'Reset mouths' : 'Test mouths';
-  testButton.setAttribute('aria-pressed', String(active));
-  status.textContent = active ? 'Mouth test active. Tap Reset mouths to return to resting expressions.' : 'Resting mouths restored.';
+  animation.flipMouths();
+  status.textContent = 'Visible mouth expressions flipped.';
 });
 syncURL();
 populate();
