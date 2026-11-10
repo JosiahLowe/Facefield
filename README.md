@@ -20,10 +20,10 @@ The files work directly on GitHub Pages with no build step. Configure Pages to s
 
 - `faces.js`: deterministic random streams and separate eye, nose, and mouth generators, in a 100 × 100 SVG coordinate system.
 - `app.js`: grid state, tile interactions, URL seed and revision persistence.
-- `behavior.js`: seeded personalities, gaze interpolation, blinking, visibility scheduling, and reduced-motion support.
+- `behavior.js`: seeded personalities, gaze interpolation, blinking, subtle mouth adjustments, visibility scheduling, and reduced-motion support.
 - `styles.css`: edge-to-edge responsive layout and controls.
 
-No external assets, fonts, packages, API keys, or services are required. Visible faces look around and blink independently. Their personality is seeded; live timing varies per session. Animation pauses offscreen and in hidden tabs, and is disabled when reduced motion is requested.
+No external assets, fonts, packages, API keys, or services are required. Visible faces look around, blink, and subtly adjust their resting mouth expression independently. Mouth transitions take 0.8–2 seconds with personality-dependent pauses of 4–12 seconds. Their personality is seeded; live timing varies per session. Animation pauses offscreen and in hidden tabs, and is disabled when reduced motion is requested.
 
 ## Checks
 

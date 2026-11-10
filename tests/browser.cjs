@@ -8,30 +8,42 @@ const assert=require('node:assert/strict');
  await page.waitForSelector('.face svg');
  const result=await page.evaluate(async()=>{
   const start=performance.now();let frames=0, bounds=true, coordinated=true, closed=false;
+  const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true;
+  const mouthPaths=[...document.querySelectorAll('svg > path:not([data-feature])')];
+  const mouthRest=mouthPaths.map(p=>p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));
+  const noses=[...document.querySelectorAll('[data-feature=nose]')].map(p=>p.getAttribute('d'));
   const moved=new Set(), blinked=new Set();const initial=[...document.querySelectorAll('.face')].map(t=>t.querySelectorAll('circle')[1].getAttribute('cx'));
   return await new Promise(resolve=>{
    function check(){frames++;
     [...document.querySelectorAll('.face')].forEach((tile,index)=>{
      const c=[...tile.querySelectorAll('circle')]; const offsets=[];
+     const mouth=mouthPaths[index].getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number), rest=mouthRest[index];
+     if(mouth.some((n,i)=>Math.abs(n-rest[i])>.0001))mouthMoved.add(index);
+     mouthBounds&&=mouth[0]===rest[0]&&mouth[2]===rest[2]&&mouth[4]===rest[4]&&Math.abs(mouth[3]-rest[3])<=2.2001&&Math.abs(mouth[1]-rest[1])<=.7701&&Math.abs(mouth[5]-rest[5])<=.7701;
+     nosesUnchanged&&=tile.querySelector('[data-feature=nose]').getAttribute('d')===noses[index];
      for(let i=0;i<4;i+=2){const num=(e,a)=>+e.getAttribute(a);const eye=c[i],p=c[i+1],r=num(eye,'r'),pr=num(p,'r'); const dx=num(p,'cx')-num(eye,'cx'),dy=num(p,'cy')-num(eye,'cy');bounds&&=Math.hypot(dx,dy)+pr<=r+.003;offsets.push([dx/(r-pr),dy/(r-pr)]);}
      coordinated&&=Math.abs(offsets[0][0]-offsets[1][0])<.003&&Math.abs(offsets[0][1]-offsets[1][1])<.003;
      if(c[1].getAttribute('cx')!==initial[index])moved.add(index);
      const lids=[...tile.querySelectorAll('[data-animation=blink]')];
      if(lids.length){blinked.add(index);const paths=lids.map(l=>l.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));closed||=paths[0][1]>=paths[1][1];}
     });
-    if(performance.now()-start>10000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked]});else requestAnimationFrame(check);
+    if(performance.now()-start>10000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked],mouthMoved:[...mouthMoved],mouthBounds,nosesUnchanged});else requestAnimationFrame(check);
    }check();
   });
  });
+ assert.ok(result.mouthMoved.length>4&&result.mouthBounds&&result.nosesUnchanged);
+ assert.ok(result.mouthMoved.every(i=>i<40));
  assert.ok(result.frames>100);assert.ok(result.bounds&&result.coordinated&&result.closed);assert.ok(result.moved.length>4&&result.blinked.length>4);
  assert.ok(result.moved.every(i=>i<40),'offscreen faces stay asleep');
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.waitForTimeout(100);
  assert.equal(await page.locator('[data-animation=blink]').count(),0);
  const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(500);assert.equal(await page.locator('#grid').innerHTML(),still);
+ const restoredMouths=await page.locator('svg > path:not([data-feature])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d')));
  const restored=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  // A reload with reduced motion must reproduce exactly the original gaze.
  await page.reload();
+ assert.deepEqual(await page.locator('svg > path:not([data-feature])').evaluateAll(ps=>ps.map(p=>p.getAttribute('d'))),restoredMouths);
  const reloaded=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  for(let i=0;i<restored.length;i++) assert.ok(JSON.stringify(reloaded[i])===JSON.stringify(restored[i]), 'restored gaze mismatch tile '+i+': '+JSON.stringify({restored:restored[i],reloaded:reloaded[i]}));
  await page.emulateMedia({reducedMotion:'no-preference'});

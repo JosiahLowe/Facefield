@@ -16,6 +16,22 @@ export function gazeOffset(angle, distance) {
   const magnitude = Math.max(0, Math.min(.88, distance));
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
+const MOUTH_PROFILES = {
+  curious: { pause: [6000, 10000], amount: 2.2 },
+  sleepy: { pause: [10000, 12000], amount: .65 },
+  nervous: { pause: [4000, 7000], amount: 1.8 },
+  calm: { pause: [9000, 12000], amount: 1.2 },
+  observant: { pause: [7000, 12000], amount: 1.6 },
+};
+export function mouthTarget(restBend, name, random = Math.random) {
+  const { amount } = MOUTH_PROFILES[name];
+  // Targets stay anchored to the original expression, never to the last target.
+  const delta = (random() * 2 - (name === 'curious' ? .65 : 1)) * amount;
+  const limit = restBend === 0 ? amount : Math.min(amount, Math.abs(restBend) * .3);
+  const bend = restBend + Math.max(-limit, Math.min(limit, delta));
+  const corner = random() < .22 ? (random() * 2 - 1) * amount * .35 : 0;
+  return { bend, corner };
+}
 const between = (a, b) => a + Math.random() * (b - a);
 const NS = 'http://www.w3.org/2000/svg';
 const smooth = t => t * t * (3 - 2 * t);
@@ -43,6 +59,7 @@ export function animateFaces(grid) {
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
     s.nextBlink = now + between(2000, 8000);
     s.double = false;
+    s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
   }
   function restore(s) {
     for (const eye of s.eyes) {
@@ -54,6 +71,9 @@ export function animateFaces(grid) {
     }
     s.gaze = null;
     s.blink = null;
+    s.mouth.element.setAttribute('d', s.mouth.original);
+    s.mouth.current = { bend: s.mouth.restBend, corner: 0 };
+    s.mouth.motion = null;
   }
   function makeBlinkLids(s) {
     for (const eye of s.eyes) {
@@ -102,10 +122,29 @@ export function animateFaces(grid) {
     s.gaze = { from, target, start: now, duration: s.profile.move * s.profile.pace };
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
   }
+  function updateMouth(s, now) {
+    const mouth = s.mouth;
+    if (!mouth.motion && now >= s.nextMouth) {
+      const target = mouthTarget(mouth.restBend, s.profile.name);
+      mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(800, 2000) };
+    }
+    if (!mouth.motion) return;
+    const { from, target, start, duration } = mouth.motion;
+    const progress = Math.min(1, (now - start) / duration), t = smooth(progress);
+    const bend = from.bend + (target.bend - from.bend) * t;
+    const corner = from.corner + (target.corner - from.corner) * t;
+    mouth.current = { bend, corner };
+    mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y - corner} Q ${mouth.center} ${mouth.y + bend} ${mouth.right} ${mouth.y + corner}`);
+    if (progress === 1) {
+      mouth.motion = null;
+      s.nextMouth = now + between(...MOUTH_PROFILES[s.profile.name].pause);
+    }
+  }
   function tick(now) {
     frame = 0;
     if (reduced.matches || document.hidden) { resetActivity(); return; }
     for (const s of visible) {
+      updateMouth(s, now);
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
         const progress = Math.min(1, (now - s.gaze.start) / s.gaze.duration);
@@ -168,7 +207,13 @@ export function animateFaces(grid) {
           travel: number('r') - +pupil.getAttribute('r'), originalX: pupil.getAttribute('cx'), originalY: pupil.getAttribute('cy'),
           lid, lidSide: lid?.dataset.side, cut: lid ? +lid.getAttribute('d').split(' ')[2] : 0, blinkLids: [] };
       });
-      const s = { tile, svg, eyes, lidColor, profile: personality(seed, index, revision), gaze: null, blink: null };
+      const mouthElement = svg.lastElementChild;
+      const original = mouthElement.getAttribute('d');
+      const [left, y, center, controlY, right] = original.match(/-?\d+(?:\.\d+)?/g).map(Number);
+      const restBend = controlY - y;
+      const mouth = { element: mouthElement, original, left, y, center, right, restBend,
+        current: { bend: restBend, corner: 0 }, motion: null };
+      const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
       states.set(tile, s);
       schedule(s, performance.now());
       observer.observe(tile);
