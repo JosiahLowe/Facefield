@@ -10,7 +10,7 @@ From this directory:
 python3 -m http.server 8000
 ```
 
-Open the server in a browser. The square 1,152-face world starts near its center and supports native horizontal and vertical touch scrolling, preserving the original face scale. Zooming out is restricted to the normal 1× view; zooming in remains available. Tap or keyboard-activate any face to regenerate it. **Change mouths** immediately triggers a new neutral, smiling, or frowning expression on visible faces. Automatic changes continue independently. Neutral returns after at most two expressive states and is held for at least four seconds. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
+Open the server in a browser. The square 1,152-face world starts near its center and supports native horizontal and vertical touch scrolling, preserving the original face scale. Zooming out is restricted to the normal 1× view; zooming in remains available. Tap or keyboard-activate any face to regenerate it. **Change mouths** immediately triggers a new neutral, smiling, or frowning expression on visible faces. Automatic changes continue independently. Neutral returns after at most two expressive states and is held for at least four seconds. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Enable Sound** unlocks a single singing face near the starting view. Its short Web Audio melody repeats until muted or the page is hidden; **Mute Sound** stops playback. Reduced motion keeps the singing mouth still. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
 
 ## Publish
 
@@ -22,6 +22,7 @@ The files work directly on GitHub Pages with no build step. Configure Pages to s
 - `mosaic.js`: seeded, gapless 4 × 4 patches with eight faces in four tile sizes; squares and rectangles, some with subtly rounded corners, preserve circular eyes and feature proportions.
 - `faces.js`: deterministic random streams and separate eye, nose, and mouth generators, in a 100 × 100 SVG coordinate system.
 - `app.js`: grid state, tile interactions, URL seed and revision persistence.
+- `singing.js`: one user-activated Web Audio melody and mouth synchronization using the audio clock.
 - `behavior.js`: seeded personalities, gaze interpolation, blinking, mouth expression transitions, visibility scheduling, and reduced-motion support.
 - `styles.css`: edge-to-edge responsive layout and controls.
 
@@ -43,6 +44,7 @@ Browser validation (with Playwright and Chromium available, and the server runni
 node tests/browser.cjs
 node tests/mosaic-browser.cjs
 node tests/world-browser.cjs
+node tests/singing-browser.cjs
 node tests/mouth-button.cjs
 ```
 

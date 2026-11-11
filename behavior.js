@@ -82,6 +82,7 @@ export function animateFaces(grid) {
     s.gaze = null;
     s.blink = null;
     s.mouth.element.setAttribute('d', s.mouth.original);
+    s.mouth.element.setAttribute('fill', 'none');
     s.mouth.current = { bend: s.mouth.restBend, corner: 0 };
     s.mouth.motion = null;
     s.mouth.manual = false;
@@ -137,6 +138,7 @@ export function animateFaces(grid) {
   }
   function updateMouth(s, now) {
     const mouth = s.mouth;
+    if (mouth.singing) return;
     if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
       const target = mouthTarget(mouth.current.bend, s.profile.name, Math.random, mouth.sinceNeutral >= 1);
       mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(1200, 1800) };
@@ -206,12 +208,30 @@ export function animateFaces(grid) {
   setInterval(() => { if (reduced.matches !== motionPaused) resetActivity(); }, 500);
   document.addEventListener('visibilitychange', resetActivity);
   return {
+    setSingingMouth(tile, opening) {
+      const s = states.get(tile);
+      if (!s) return;
+      const mouth = s.mouth;
+      mouth.singing = opening !== null;
+      mouth.motion = null;
+      if (opening === null || reduced.matches || opening <= 0) {
+        mouth.element.setAttribute('d', mouth.original);
+        mouth.element.setAttribute('fill', 'none');
+        mouth.current = { bend: mouth.restBend, corner: 0 };
+        if (opening === null) s.nextMouth = performance.now() + mouthPause(s.profile.name, mouth.restBend === 0);
+        return;
+      }
+      const amount = Math.max(0, Math.min(1, opening));
+      mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y - amount * 8} ${mouth.right} ${mouth.y} Q ${mouth.center} ${mouth.y + amount * 12} ${mouth.left} ${mouth.y} Z`);
+      mouth.element.setAttribute('fill', mouth.element.getAttribute('stroke'));
+    },
     changeMouths() {
       const now = performance.now();
       for (const s of states.values()) {
         const box = s.tile.getBoundingClientRect();
         if (box.bottom <= 0 || box.top >= innerHeight || box.right <= 0 || box.left >= innerWidth) continue;
         const mouth = s.mouth;
+        if (mouth.singing) continue;
         // Read the displayed curve, including any in-progress ambient transition.
         const coordinates = mouth.element.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
         const displayedBend = coordinates[3] - (coordinates[1] + coordinates[5]) / 2;

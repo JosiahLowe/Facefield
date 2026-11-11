@@ -1,8 +1,9 @@
+import { createSinger } from './singing.js';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
 import { renderFace } from './faces.js?v=botanical-mosaic-1';
-import { animateFaces } from './behavior.js?v=scrollable-world-1';
+import { animateFaces } from './behavior.js?v=first-singer-1';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
@@ -16,6 +17,7 @@ function sizeWorld() {
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
+const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 let seed = url.searchParams.get('seed') || freshSeed();
@@ -40,6 +42,7 @@ function paint(tile, index) {
   animation.register(tile, seed, index, revisions[index]);
 }
 function populate() {
+  singer.setFace(null);
   animation.clear();
   layout = mosaicLayout(seed, WORLD_COLUMNS, WORLD_FACE_COUNT);
   grid.style.gridTemplateColumns = `repeat(${WORLD_COLUMNS}, minmax(0, 1fr))`;
@@ -56,6 +59,11 @@ function populate() {
     fragment.append(tile);
   }
   grid.replaceChildren(fragment);
+  // Choose one existing face nearest the world's center; no new face or seed state.
+  const distance = cell => (cell.column - 1 + cell.width / 2 - WORLD_COLUMNS / 2) ** 2
+    + (cell.row - 1 + cell.height / 2 - WORLD_COLUMNS / 2) ** 2;
+  const singerIndex = layout.reduce((best, cell, i) => distance(cell) < distance(layout[best]) ? i : best, 0);
+  singer.setFace(grid.children[singerIndex]);
 }
 grid.addEventListener('click', event => {
   const tile = event.target.closest('.face');
