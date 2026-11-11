@@ -44,13 +44,13 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#enable-sound').getAttribute('aria-pressed')==='true');
  assert.equal(await page.evaluate(()=>__contexts.length),1);
  assert.equal(await page.evaluate(()=>__contexts[0].state),'running');
- for(let i=0;i<3;i++) {
+ for(let i=0;i<8;i++) {
   const previous=await page.locator('[data-singer]').getAttribute('data-index');
   await page.locator('#change-singer').tap();
   assert.equal(await page.locator('[data-singer]').count(),1);
   assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),previous);
   const bounds=await page.locator('[data-singer]').boundingBox();
-  assert.ok(bounds.x>=390||bounds.x+bounds.width<=0||bounds.y>=844||bounds.y+bounds.height<=0,'handoff prefers a fully offscreen face');
+  assert.ok(bounds.x>=780||bounds.x+bounds.width<=-390||bounds.y>=1688||bounds.y+bounds.height<=-844,'handoff requires a full screen of separation');
   assert.equal(await page.locator(`.face[data-index="${previous}"] [data-feature=mouth]`).getAttribute('fill'),'none','previous singer releases its mouth');
   assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]),world);
  }

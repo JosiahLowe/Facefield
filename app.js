@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=offscreen-singer-1';
+import { createSinger } from './singing.js?v=strict-offscreen-2';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -105,14 +105,24 @@ requestAnimationFrame(() => {
 new ResizeObserver(sizeWorld).observe(world);
 
 document.querySelector('#change-singer').addEventListener('click', () => {
-  const faces = [...grid.children];
-  const viewport = world.getBoundingClientRect();
-  const offscreen = faces.filter(tile => {
+  // Use world coordinates so Safari zoom and viewport offsets cannot make a
+  // visible tile look offscreen. Require an additional screen of separation.
+  const view = window.visualViewport;
+  const width = view?.width || world.clientWidth;
+  const height = view?.height || world.clientHeight;
+  const left = world.scrollLeft + (view?.offsetLeft || 0);
+  const top = world.scrollTop + (view?.offsetTop || 0);
+  const unit = grid.clientWidth / WORLD_COLUMNS;
+  const offscreen = [...grid.children].filter((tile, index) => {
     if (tile.dataset.singer === 'true') return false;
-    const r = tile.getBoundingClientRect();
-    return r.right <= viewport.left || r.left >= viewport.right
-      || r.bottom <= viewport.top || r.top >= viewport.bottom;
+    const cell = layout[index];
+    const x = (cell.column - 1) * unit, y = (cell.row - 1) * unit;
+    return x + cell.width * unit <= left - width || x >= left + width * 2
+      || y + cell.height * unit <= top - height || y >= top + height * 2;
   });
-  // Prefer an unseen face; retain a fallback if the whole world fits on screen.
-  singer.changeFace(offscreen.length ? offscreen : faces);
+  if (!offscreen.length) {
+    status.textContent = 'No offscreen singer is available from this view.';
+    return;
+  }
+  singer.changeFace(offscreen);
 });
