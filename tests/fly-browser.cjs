@@ -13,6 +13,15 @@ const assert=require('node:assert/strict');
  const box=await fly.boundingBox();
  assert.equal(box.width,28);assert.equal(box.height,28);
  await page.screenshot({path:'/tmp/facefield-fly.png'});
+ for(let i=0;i<6;i++){
+  const hinges=await fly.evaluate(e=>{
+   const svg=e.querySelector('svg'),point=new DOMPoint(14,13),center=point.matrixTransform(svg.getScreenCTM());
+   return [...e.querySelectorAll('.fly-wing')].map(wing=>{const hinge=point.matrixTransform(wing.getScreenCTM());return Math.hypot(hinge.x-center.x,hinge.y-center.y)});
+  });
+  assert.ok(hinges.every(distance=>distance<.1),'wing roots remain attached throughout flutter');
+  await page.waitForTimeout(19);
+ }
+ assert.ok(Number(await fly.locator('.fly-shadow').evaluate(e=>getComputedStyle(e).opacity))>=.20,'shadow is slightly darker');
  const initial=await fly.getAttribute('style');await page.waitForTimeout(600);
  assert.notEqual(await fly.getAttribute('style'),initial,'fly is animated');
  const url=page.url();

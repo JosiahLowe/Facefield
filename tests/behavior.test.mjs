@@ -65,3 +65,22 @@ test('neutral is guaranteed within two expressive targets and has a distinct res
     assert.ok(neutralCount >= 9);
   }
 });
+
+test('fly attention fades smoothly at the configurable world-space radius', async () => {
+  const {flyAttention}=await import('../behavior.js');
+  assert.equal(flyAttention(0,0,200),1);
+  assert.equal(flyAttention(200,0,200),0);
+  assert.equal(flyAttention(201,0,200),0);
+  assert.equal(flyAttention(100,0,200),.5);
+  assert.equal(flyAttention(60,80,200),flyAttention(100,0,200));
+  assert.ok(flyAttention(199,0,200)<.0001);
+  assert.ok(flyAttention(60,0,200)>flyAttention(160,0,200));
+});
+test('tracking offsets stay in the eye circle and keep pupils exposed under either lid', async () => {
+  const {constrainGaze}=await import('../behavior.js');
+  for(let i=0;i<1000;i++){
+    const offset=constrainGaze([Math.sin(i)*2,Math.cos(i)*2],-.42,.53);
+    assert.ok(Math.hypot(...offset)<=.880000001);
+    assert.ok(offset[1]>=-.42&&offset[1]<=.53);
+  }
+});

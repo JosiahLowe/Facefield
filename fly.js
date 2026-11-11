@@ -58,8 +58,8 @@ export function createFly(world, grid) {
   element.setAttribute('aria-hidden', 'true');
   element.innerHTML = `<span class="fly-shadow"></span><svg class="fly-body" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
     <g fill="${PALETTE.eye}" fill-opacity=".8" stroke="${PALETTE.skin[3]}" stroke-width=".8">
-      <ellipse class="fly-wing fly-wing-left" cx="9" cy="11" rx="4" ry="6" transform="rotate(-38 9 11)"/>
-      <ellipse class="fly-wing fly-wing-right" cx="19" cy="11" rx="4" ry="6" transform="rotate(38 19 11)"/>
+      <path class="fly-wing fly-wing-left" d="M14 13 C11 12 4 11 5 6 C6 2 13 4 14 13Z"/>
+      <path class="fly-wing fly-wing-right" d="M14 13 C17 12 24 11 23 6 C22 2 15 4 14 13Z"/>
     </g>
     <path d="M11 18l-3 2m9-2 3 2M12 10l-2-3m6 3 2-3" fill="none" stroke="${PALETTE.ink}" stroke-width="1" stroke-linecap="round"/>
     <ellipse cx="14" cy="16" rx="4.5" ry="6" fill="${PALETTE.complements.hair}"/>
@@ -69,7 +69,7 @@ export function createFly(world, grid) {
   </svg>`;
   world.append(element);
   const body = element.querySelector('.fly-body'), shadow = element.querySelector('.fly-shadow');
-  let flight, last = 0, heading = 0;
+  let flight, last = 0, heading = 0, position = null;
   function viewport() {
     const view = window.visualViewport;
     return { x: world.scrollLeft + (view?.offsetLeft || 0), y: world.scrollTop + (view?.offsetTop || 0),
@@ -87,16 +87,18 @@ export function createFly(world, grid) {
     const flutter = flight.mode === 'hover' ? .35 : 1;
     const x = flight.x + Math.sin(t * 23 + phase) * 1.3 * flutter;
     const y = flight.y + Math.cos(t * 29) * .9 * flutter;
+    position = { x, y: y - altitude * 3 };
     const moving = Math.hypot(flight.vx, flight.vy) > 8;
     const direction = moving ? Math.atan2(flight.vy, flight.vx) + Math.PI / 2 : heading;
     heading += Math.atan2(Math.sin(direction - heading), Math.cos(direction - heading)) * (1 - Math.exp(-dt * 5));
     element.style.transform = `translate3d(${(x - 14).toFixed(2)}px,${(y - 14).toFixed(2)}px,0)`;
     body.style.transform = `translateY(${-altitude * 3}px) rotate(${heading.toFixed(3)}rad) scale(${(.88 + altitude * .14).toFixed(3)})`;
     shadow.style.transform = `translate(${(3 + altitude * 4).toFixed(2)}px,${(5 + altitude * 4).toFixed(2)}px) scale(${(1 - altitude * .25).toFixed(3)})`;
-    shadow.style.opacity = (.21 - altitude * .08).toFixed(3);
+    shadow.style.opacity = (.29 - altitude * .08).toFixed(3);
   }
   return {
     place,
+    position: () => position,
     update(now) {
       if (!flight) return;
       const dt = last ? Math.min(.05, (now - last) / 1000) : 0;

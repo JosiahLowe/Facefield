@@ -17,6 +17,17 @@ export function gazeOffset(angle, distance) {
   const magnitude = Math.max(0, Math.min(.88, distance));
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
+// World-pixel radius and response times in seconds; tune without touching flight.
+export const FLY_TRACKING = { detectionRadius: 190, reactionTime: .18, releaseTime: .55 };
+export function flyAttention(dx, dy, radius = FLY_TRACKING.detectionRadius) {
+  const near = Math.max(0, Math.min(1, 1 - Math.hypot(dx, dy) / Math.max(1, radius)));
+  return near * near * (3 - 2 * near);
+}
+export function constrainGaze(offset, minY = -.88, maxY = .88) {
+  const y = Math.max(minY, Math.min(maxY, offset[1]));
+  const limitX = Math.sqrt(Math.max(0, .88 ** 2 - y ** 2));
+  return [Math.max(-limitX, Math.min(limitX, offset[0])), y];
+}
 const MOUTH_PROFILES = {
   curious: { pause: [3000, 5000], amount: 2.2 },
   sleepy: { pause: [6000, 9000], amount: .65 },
@@ -47,8 +58,10 @@ const NS = 'http://www.w3.org/2000/svg';
 const smooth = t => t * t * (3 - 2 * t);
 
 // A single frame loop serves visible faces. Sleeping and hidden faces do no work.
-export function animateFaces(grid, onFrame = null) {
+export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) {
   const states = new Map(), visible = new Set();
+  let geometryVersion = 0;
+  new ResizeObserver(() => { geometryVersion++; }).observe(grid);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0, motionPaused = reduced.matches;
   const observer = new IntersectionObserver(entries => {
@@ -80,6 +93,7 @@ export function animateFaces(grid, onFrame = null) {
       eye.blinkLids = [];
     }
     s.gaze = null;
+    s.idle = [...s.restLook]; s.look = [...s.restLook]; s.flyLook = [...s.restLook]; s.attention = 0; s.lastLook = 0;
     s.blink = null;
     s.mouth.element.setAttribute('d', s.mouth.original);
     s.mouth.element.setAttribute('fill', 'none');
@@ -130,9 +144,7 @@ export function animateFaces(grid, onFrame = null) {
     } else {
       target = Math.random() < .18 ? [0, 0] : gazeOffset(between(0, Math.PI * 2), between(.25, .82));
     }
-    const eye = s.eyes[0];
-    const from = [(+eye.pupil.getAttribute('cx') - eye.x) / eye.travel,
-      (+eye.pupil.getAttribute('cy') - eye.y) / eye.travel];
+    const from = [...s.idle];
     s.gaze = { from, target, start: now, duration: s.profile.move * s.profile.pace };
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
   }
@@ -156,22 +168,61 @@ export function animateFaces(grid, onFrame = null) {
       s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
     }
   }
+  function updateLook(s, now, fly) {
+    const dt = s.lastLook ? Math.min(.05, (now - s.lastLook) / 1000) : 0;
+    s.lastLook = now;
+    let attention = 0, target = s.idle;
+    if (fly) {
+      if (s.geometryVersion !== geometryVersion) {
+        const box = s.svg.viewBox.baseVal;
+        const tile = s.tile.getBoundingClientRect();
+        const world = grid.closest('#world') || grid.parentElement;
+        const origin = world.getBoundingClientRect();
+        const scale = tile.width / box.width;
+        s.center = { x: tile.left - origin.left + world.scrollLeft + tile.width / 2,
+          y: tile.top - origin.top + world.scrollTop + ((box.height - 100) / 2 + s.eyes[0].y) * scale };
+        s.geometryVersion = geometryVersion;
+      }
+      const dx = fly.x - s.center.x, dy = fly.y - s.center.y;
+      attention = flyAttention(dx, dy);
+      target = gazeOffset(Math.atan2(dy, dx), .88);
+    }
+    const response = attention > s.attention ? FLY_TRACKING.reactionTime : FLY_TRACKING.releaseTime;
+    const ease = 1 - Math.exp(-dt / response);
+    s.attention += (attention - s.attention) * ease;
+    if (s.attention > .0001) {
+      const desired = constrainGaze(target, s.minLookY, s.maxLookY);
+      s.flyLook = constrainGaze(s.flyLook.map((value, i) => value + (desired[i] - value) * ease), s.minLookY, s.maxLookY);
+      // Blend into the independently running idle gaze, so release never snaps
+      // even when an idle glance starts while the fly is leaving.
+      s.look = constrainGaze(s.idle.map((value, i) => value + (s.flyLook[i] - value) * s.attention));
+    } else {
+      s.attention = 0;
+      s.look = [...s.idle];
+      s.flyLook = [...s.idle];
+    }
+    // The same normalized offset drives both pupils; eyelids and blink caps stay above them.
+    for (const eye of s.eyes) {
+      const x = String(eye.x + s.look[0] * eye.travel), y = String(eye.y + s.look[1] * eye.travel);
+      if (eye.pupil.getAttribute('cx') !== x) eye.pupil.setAttribute('cx', x);
+      if (eye.pupil.getAttribute('cy') !== y) eye.pupil.setAttribute('cy', y);
+    }
+  }
   function tick(now) {
     frame = 0;
     if (reduced.matches || document.hidden) { resetActivity(); return; }
     if (onFrame) onFrame(now);
+    const fly = getFlyPosition();
     for (const s of visible) {
       updateMouth(s, now);
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
         const progress = Math.min(1, (now - s.gaze.start) / s.gaze.duration);
         const t = smooth(progress), { from, target } = s.gaze;
-        for (const eye of s.eyes) {
-          eye.pupil.setAttribute('cx', eye.x + (from[0] + (target[0] - from[0]) * t) * eye.travel);
-          eye.pupil.setAttribute('cy', eye.y + (from[1] + (target[1] - from[1]) * t) * eye.travel);
-        }
+        s.idle = from.map((value, i) => value + (target[i] - value) * t);
         if (progress === 1) s.gaze = null;
       }
+      updateLook(s, now, fly);
       if (!s.blink && now >= s.nextBlink) s.blink = now;
       if (s.blink !== null) {
         const progress = (now - s.blink) / s.profile.blink;
@@ -263,7 +314,7 @@ export function animateFaces(grid, onFrame = null) {
       const eyes = [0, 2].map((i, eyeIndex) => {
         const white = circles[i], pupil = circles[i + 1], lid = lids[eyeIndex];
         const number = attr => +white.getAttribute(attr);
-        return { pupil, x: number('cx'), y: number('cy'), r: number('r'),
+        return { pupil, pupilRadius: +pupil.getAttribute('r'), x: number('cx'), y: number('cy'), r: number('r'),
           travel: number('r') - +pupil.getAttribute('r'), originalX: pupil.getAttribute('cx'), originalY: pupil.getAttribute('cy'),
           lid, lidSide: lid?.dataset.side, cut: lid ? +lid.getAttribute('d').split(' ')[2] : 0, blinkLids: [] };
       });
@@ -274,6 +325,12 @@ export function animateFaces(grid, onFrame = null) {
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
+      const eye = eyes[0];
+      s.restLook = [(+eye.originalX - eye.x) / eye.travel, (+eye.originalY - eye.y) / eye.travel];
+      s.idle = [...s.restLook]; s.look = [...s.restLook]; s.flyLook = [...s.restLook]; s.attention = 0; s.lastLook = 0;
+      s.geometryVersion = -1;
+      s.minLookY = Math.max(-.88, ...eyes.filter(e => e.lidSide === 'top').map(e => (e.cut - e.y - e.pupilRadius * .5) / e.travel));
+      s.maxLookY = Math.min(.88, ...eyes.filter(e => e.lidSide === 'bottom').map(e => (e.cut - e.y + e.pupilRadius * .5) / e.travel));
       states.set(tile, s);
       schedule(s, performance.now());
       observer.observe(tile);

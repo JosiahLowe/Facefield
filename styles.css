@@ -22,7 +22,7 @@ body { margin: 0; }
 .fly { position: absolute; left: 0; top: 0; width: 28px; height: 28px; z-index: 1; pointer-events: none; will-change: transform; }
 .fly-body { position: absolute; inset: 0; width: 28px; height: 28px; overflow: visible; transform-origin: center; }
 .fly-shadow { position: absolute; left: 8px; top: 13px; width: 12px; height: 7px; border-radius: 50%; background: var(--ink); filter: blur(2px); }
-.fly-wing { transform-box: fill-box; transform-origin: center; animation: fly-wings 75ms ease-in-out infinite alternate; }
+.fly-wing { transform-box: view-box; transform-origin: 14px 13px; animation: fly-wings 75ms ease-in-out infinite alternate; }
 .fly-wing-right { animation-delay: -35ms; }
 @keyframes fly-wings { from { opacity: .55; scale: 1 .7; } to { opacity: .85; scale: 1 1.05; } }
 @media (prefers-reduced-motion: reduce) { .fly-wing { animation: none; } }
