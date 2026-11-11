@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MELODY, frequencyFor, VIBRATO, chooseSinger } from '../singing.js';
+import { MELODY, frequencyFor, VIBRATO, chooseSinger, chooseSong } from '../singing.js';
 
-test('one short melody stays in C major and includes a breath', () => {
-  assert.ok(MELODY.length < 12);
+test('long melody stays in C major and includes sustained notes and breaths', () => {
+  assert.ok(MELODY.length >= 15);
   assert.ok(MELODY.some(n=>n.midi===null));
-  assert.ok(MELODY.reduce((sum,n)=>sum+n.duration,0) >= 8);
+  assert.ok(MELODY.reduce((sum,n)=>sum+n.duration,0) >= 30);
   for(const n of MELODY) {
     assert.ok(n.duration>=.7);
     if(n.midi!==null)assert.ok([60,62,64,65,67,69,71,72].includes(n.midi));
@@ -16,7 +16,7 @@ test('one short melody stays in C major and includes a breath', () => {
 
 test('vibrato stays restrained and singer changes exclude the current face', () => {
   assert.ok(VIBRATO.rate >= 4 && VIBRATO.rate <= 6);
-  assert.ok(VIBRATO.depth > 0 && VIBRATO.depth <= 20);
+  assert.ok(VIBRATO.depth > 0 && VIBRATO.depth <= 40);
   const faces = [0, 1, 2, 3];
   const choices = new Set();
   for(let i=0;i<100;i++) {
@@ -54,5 +54,18 @@ test('horizontal panning is centered, symmetric, gradual and never hard-separate
       previous=pan;
     }
     assert.ok(horizontalPan(width,width)>.5);
+  }
+});
+
+test('every singer handoff changes key and melodic pattern', () => {
+  let song=chooseSong(null,()=>0);
+  for(let i=0;i<100;i++){
+    const next=chooseSong(song,()=>i/100);
+    assert.notEqual(next.root,song.root);assert.notEqual(next.pattern,song.pattern);
+    assert.ok(next.melody.reduce((sum,n)=>sum+n.duration,0)>30);
+    const sung=next.melody.filter(n=>n.midi!==null);
+    assert.ok(sung.every(n=>n.duration>=1.8));
+    assert.ok(sung.filter(n=>n.duration>=2.5).length>=6);
+    song=next;
   }
 });

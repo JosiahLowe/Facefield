@@ -1,11 +1,19 @@
-// A single, quiet C-major phrase. Durations include a small breath between notes.
-export const MELODY = [
-  { midi: 60, duration: .9 }, { midi: 64, duration: .9 },
-  { midi: 67, duration: 1.3 }, { midi: 64, duration: .7 },
-  { midi: 62, duration: .9 }, { midi: 64, duration: .9 },
-  { midi: 60, duration: 1.7 }, { midi: null, duration: 1.2 },
+// Longer, lyrical major-key phrases with plenty of sustained notes and breaths.
+export const SONG_PATTERNS = [
+  [[0,2.4],[4,2],[7,3.2],[9,2.2],[7,2.8],[4,2],[2,2.6],[0,3.6],[null,.8],[2,2],[4,2.6],[7,3.4],[4,2.4],[2,2.2],[0,4],[null,1.6]],
+  [[0,2.8],[2,1.8],[4,3],[2,2.4],[7,3.6],[9,2.6],[7,3],[null,.8],[4,2.2],[7,2.8],[12,3.8],[9,2.4],[7,2.6],[4,2],[0,4],[null,1.6]],
+  [[0,3],[7,2.4],[4,2.8],[9,3.2],[7,2],[4,2.6],[0,3.4],[null,.8],[4,2.2],[2,2.8],[7,3.4],[4,2.4],[2,2.6],[0,4],[null,1.8]],
 ];
-export const VIBRATO = { rate: 5.2, depth: 16 }; // Hz and cents: a gentle pitch shimmer.
+const KEYS = [57, 60, 62, 64, 65, 67];
+export function chooseSong(previous = null, random = Math.random) {
+  const roots = KEYS.filter(root => root !== previous?.root);
+  const patterns = SONG_PATTERNS.map((_,i)=>i).filter(i=>i !== previous?.pattern);
+  const root = roots[Math.floor(random()*roots.length)];
+  const pattern = patterns[Math.floor(random()*patterns.length)];
+  return { root, pattern, melody: SONG_PATTERNS[pattern].map(([interval,duration])=>({midi:interval===null?null:root+interval,duration})) };
+}
+export const MELODY = SONG_PATTERNS[0].map(([interval,duration])=>({midi:interval===null?null:60+interval,duration}));
+export const VIBRATO = { rate: 5.5, depth: 32 }; // Hz and cents: fuller sustained vibrato.
 export function chooseSinger(candidates, current, random = Math.random) {
   const alternatives = candidates.filter(face => face !== current);
   return alternatives.length ? alternatives[Math.floor(random() * alternatives.length)] : current;
@@ -45,6 +53,7 @@ export function createSinger({ button, status, animation, world }) {
   let context, output, panner, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
+  let song = { root: 60, pattern: 0, melody: MELODY }, hasSinger = false;
   let lastVolume = null, lastPan = null;
   function updateVolume() {
     if (!enabled || !target || !output || context.state !== 'running') return;
@@ -74,27 +83,49 @@ export function createSinger({ button, status, animation, world }) {
     if (target) {
       animation.setSingingMouth(target, null);
       delete target.dataset.singer;
+      delete target.dataset.songKey;
+      delete target.dataset.melody;
       target.removeAttribute('aria-description');
     }
     target = tile;
     if (target) {
+      if (hasSinger) {
+        song = chooseSong(song);
+        if (enabled) {
+          const now = context.currentTime;
+          for (const voice of voices) {
+            const envelope = voice.gain.gain;
+            if (envelope.cancelAndHoldAtTime) envelope.cancelAndHoldAtTime(now);
+            else {
+              const level = envelope.value;
+              envelope.cancelScheduledValues(now); envelope.setValueAtTime(level, now);
+            }
+            envelope.linearRampToValueAtTime(0, now + .08);
+            voice.oscillator.stop(now + .09); voice.vibrato.stop(now + .09);
+          }
+          notes.length = 0; cursor = 0; nextTime = now + .12;
+        }
+      }
+      hasSinger = true;
       target.dataset.singer = 'true';
+      target.dataset.songKey = String(song.root);
+      target.dataset.melody = String(song.pattern);
       target.setAttribute('aria-description', 'This face sings when sound is enabled.');
     }
   }
   function schedule() {
     if (!enabled || context.state !== 'running') return;
     while (nextTime < context.currentTime + .12) {
-      const note = MELODY[cursor];
+      const note = song.melody[cursor];
       if (note.midi !== null) {
-        const voice = playNote(context, output, note.midi, nextTime, note.duration * .82);
+        const voice = playNote(context, output, note.midi, nextTime, note.duration * .94);
         voices.add(voice); notes.push(voice);
         voice.oscillator.onended = () => {
           voice.oscillator.disconnect(); voice.gain.disconnect(); voice.vibrato.disconnect(); voice.vibratoGain.disconnect(); voices.delete(voice);
         };
       }
       nextTime += note.duration;
-      cursor = (cursor + 1) % MELODY.length;
+      cursor = (cursor + 1) % song.melody.length;
     }
   }
   function mouthFrame() {
