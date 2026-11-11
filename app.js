@@ -1,5 +1,5 @@
 import { createFly } from './fly.js?v=fly-crossings-1';
-import { createSinger } from './singing.js?v=phrase-handoff-1';
+import { createSinger } from './singing.js?v=chord-progression-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();

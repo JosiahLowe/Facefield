@@ -1,10 +1,14 @@
-// 92 BPM: quarter-note arpeggios, breathing spaces and sustained phrase endings.
+// 92 BPM: quarter/eighth-note arpeggios, breaths and sustained phrase endings.
 export const QUARTER = .65;
 export const SONG_PATTERNS = [
   [[0,2],[2,2],[4,2],[7,6],[null,1],[0,1],[4,1],[7,1],[12,1],[9,6],[null,1],[9,2],[7,2],[4,2],[2,6],[null,1],[4,1],[2,1],[0,8],[null,2]],
   [[12,2],[9,2],[7,2],[4,6],[null,1],[12,1],[7,1],[4,1],[0,1],[2,6],[null,1],[7,2],[4,2],[2,2],[0,6],[null,1],[4,1],[7,1],[4,8],[null,2]],
   [[4,2],[7,2],[9,2],[12,6],[null,1],[9,1],[7,1],[4,1],[0,1],[4,6],[null,1],[2,2],[4,2],[7,2],[9,6],[null,1],[7,1],[4,1],[0,8],[null,2]],
   [[9,2],[7,2],[4,2],[2,6],[null,1],[0,1],[4,1],[7,1],[4,1],[9,6],[null,1],[12,2],[9,2],[7,2],[4,6],[null,1],[2,1],[4,1],[0,8],[null,2]],
+  [[0,.5],[4,.5],[7,.5],[12,.5],[7,.5],[4,.5],[0,1],[4,2],[7,6],[null,1],
+   [4,.5],[7,.5],[12,.5],[7,.5],[4,.5],[0,.5],[4,1],[12,6],[null,1],
+   [12,.5],[7,.5],[4,.5],[0,.5],[4,2],[0,6],[null,1],
+   [7,.5],[4,.5],[0,1],[4,2],[0,8],[null,2]],
 ].map(phrase=>phrase.map(([interval,beats])=>[interval,beats*QUARTER]));
 export function voiceHarmonics(voice) {
   const real=new Float32Array(33),imag=new Float32Array(33);
@@ -16,18 +20,39 @@ export function voiceHarmonics(voice) {
   for(let i=1;i<imag.length;i++)imag[i]/=peakBound;
   return {real,imag};
 }
-const KEYS = [57, 60, 62, 64, 65, 67];
+const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
+export const CHORD_PROGRESSION = [
+  { name: 'I', degree: 0 }, { name: 'V', degree: 4 },
+  { name: 'vi', degree: 5 }, { name: 'IV', degree: 3 },
+];
+const scalePitch = degree => MAJOR_SCALE[degree % 7] + 12 * Math.floor(degree / 7);
+function chordMelody(pattern, root, progressionIndex, octave) {
+  const {degree: chordDegree} = CHORD_PROGRESSION[progressionIndex];
+  return SONG_PATTERNS[pattern].map(([interval,duration]) => {
+    if (interval === null) return {midi: null, duration};
+    let degree = Math.floor(interval / 12) * 7 + MAJOR_SCALE.indexOf(interval % 12);
+    // Preserve passing tones and each contour; long phrase endings resolve to the triad.
+    if (duration >= QUARTER * 4) {
+      degree = [0,2,4,7].reduce((best,tone) => Math.abs(tone-degree) < Math.abs(best-degree) ? tone : best, 0);
+    }
+    return {midi: root + octave + scalePitch(chordDegree + degree), duration};
+  });
+}
 export function chooseSong(previous = null, random = Math.random) {
-  const roots = KEYS.filter(root => root !== previous?.root);
+  const root = previous?.root ?? 60; // One shared C-major key across all singer handoffs.
+  const progressionIndex = previous ? (previous.progressionIndex + 1) % CHORD_PROGRESSION.length : 0;
   const patterns = SONG_PATTERNS.map((_,i)=>i).filter(i=>i !== previous?.pattern);
-  const root = roots[Math.floor(random()*roots.length)];
   const pattern = patterns[Math.floor(random()*patterns.length)];
   const octave = [-12, 0, 12][Math.floor(random()*3)];
   const triangle = .035 + random()*.045, square = .015 + random()*.025;
   const voice = { sine: 1-triangle-square, triangle, square };
-  return { root, pattern, octave, voice, melody: SONG_PATTERNS[pattern].map(([interval,duration])=>({midi:interval===null?null:root+octave+interval,duration})) };
+  const chordDegree = CHORD_PROGRESSION[progressionIndex].degree;
+  return { root, progressionIndex, chordName: CHORD_PROGRESSION[progressionIndex].name,
+    chordRoot: root + scalePitch(chordDegree),
+    chordTones: [0,2,4].map(degree=>root+scalePitch(chordDegree+degree)),
+    pattern, octave, voice, melody: chordMelody(pattern, root, progressionIndex, octave) };
 }
-export const MELODY = SONG_PATTERNS[0].map(([interval,duration])=>({midi:interval===null?null:60+interval,duration}));
+export const MELODY = chordMelody(0, 60, 0, 0);
 export const VIBRATO = { rate: 5.5, depth: 32 }; // Hz and cents: fuller sustained vibrato.
 export function chooseSinger(candidates, current, random = Math.random) {
   const alternatives = candidates.filter(face => face !== current);
@@ -70,7 +95,7 @@ export function createSinger({ button, status, animation, world }) {
   const notes = [], voices = new Set();
   let handoff = null, previousSinger = null;
   const phraseEnds = [];
-  let song = { root: 60, pattern: 0, octave: 0, voice: {sine:.92,triangle:.055,square:.025}, melody: MELODY }, hasSinger = false;
+  let song = { root: 60, progressionIndex: 0, chordName: 'I', chordRoot: 60, pattern: 0, octave: 0, voice: {sine:.92,triangle:.055,square:.025}, melody: MELODY }, hasSinger = false;
   let lastVolume = null, lastPan = null;
   function updateVolume() {
     if (!enabled || !target || !output || context.state !== 'running') return;
@@ -111,6 +136,8 @@ export function createSinger({ button, status, animation, world }) {
       target.tabIndex = -1;
       target.setAttribute('aria-label', `Face ${Number(target.dataset.index) + 1}`);
       delete target.dataset.songKey;
+      delete target.dataset.chord;
+      delete target.dataset.chordRoot;
       delete target.dataset.octave;
       delete target.dataset.melody;
       target.removeAttribute('aria-description');
@@ -140,6 +167,8 @@ export function createSinger({ button, status, animation, world }) {
       target.tabIndex = 0;
       target.setAttribute('aria-label', 'Current singer: advance to the next singer');
       target.dataset.songKey = String(song.root);
+      target.dataset.chord = song.chordName;
+      target.dataset.chordRoot = String(song.chordRoot);
       target.dataset.octave = String(song.octave);
       target.dataset.melody = String(song.pattern);
       target.setAttribute('aria-description', 'This face sings when sound is enabled. Tap or press Enter or Space to finish this phrase, then pass singing to another offscreen face.');

@@ -10,7 +10,9 @@ const assert=require('node:assert/strict');
   window.AudioContext=class extends Native{
    constructor(...args){super(...args);window.__contexts.push(this);}
    createOscillator(){
-    const o=super.createOscillator(),record={start:null,end:null};
+    const o=super.createOscillator(),record={start:null,end:null,frequency:null};
+    const setFrequency=o.frequency.setValueAtTime.bind(o.frequency);
+    o.frequency.setValueAtTime=(value,time)=>{record.frequency=value;return setFrequency(value,time);};
     const start=o.start.bind(o),stop=o.stop.bind(o);
     o.start=t=>{record.start=t;if(o.frequency.value<10)window.__vibratos++;else window.__voices.push(record);return start(t)};
     o.stop=t=>{record.end=t??this.currentTime;return stop(t)};
@@ -22,6 +24,8 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#world').scrollTop>0);
  assert.equal(await page.locator('[data-singer]').count(),1);
  assert.equal(await page.evaluate(()=>__contexts.length),0,'no audio context before a tap');
+ assert.equal(await page.locator('[data-singer]').getAttribute('data-chord'),'I');
+ await page.evaluate(()=>{Math.random=()=>0;});
  const initialSinger=await page.locator('[data-singer]').getAttribute('data-index');
  await page.locator('[data-singer]').tap();
  assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),initialSinger);
@@ -49,8 +53,10 @@ const assert=require('node:assert/strict');
  await page.evaluate(()=>{Math.random=()=>0;});
  let retired = initialSinger;
  for(let i=0;i<3;i++) {
+  await page.evaluate(i=>{Math.random=()=>i===0?.999:0;},i);
   const previous=await page.locator('[data-singer]').getAttribute('data-index');
   const previousKey=await singer.getAttribute('data-song-key'),previousMelody=await singer.getAttribute('data-melody');
+  const previousChord=await singer.getAttribute('data-chord');
   const scheduled=await page.evaluate(()=>__voices.map(n=>({...n})));
   await page.locator('#change-singer').tap();
   await page.locator('#change-singer').tap();
@@ -65,8 +71,18 @@ const assert=require('node:assert/strict');
   const completed=await page.evaluate(()=>__voices);
   for(let n=0;n<scheduled.length;n++)assert.ok(completed[n].end>=scheduled[n].end,'scheduled notes are not cut short');
   assert.equal(await page.locator('[data-singer]').count(),1);
-  assert.notEqual(await singer.getAttribute('data-song-key'),previousKey);
+  assert.equal(await singer.getAttribute('data-song-key'),previousKey,'handoffs preserve the shared key');
+  const progression=['I','V','vi','IV'];
+  assert.equal(await singer.getAttribute('data-chord'),progression[(progression.indexOf(previousChord)+1)%4]);
   assert.notEqual(await singer.getAttribute('data-melody'),previousMelody);
+  if(i===0){
+   assert.equal(await singer.getAttribute('data-melody'),'4','new eighth-note variation is available to real singers');
+   const since=await page.evaluate(()=>__contexts[0].currentTime);
+   await page.waitForFunction(since=>__voices.filter(n=>n.start>=since).length>=3,since,{timeout:3000});
+   const arpeggio=await page.evaluate(since=>__voices.filter(n=>n.start>=since).slice(0,3),since);
+   for(let n=1;n<arpeggio.length;n++)assert.ok(Math.abs(arpeggio[n].start-arpeggio[n-1].start-.325)<.001,'scheduler plays two sequential notes per beat');
+   assert.ok(arpeggio.every(n=>[9,0,4].includes(Math.round(69+12*Math.log2(n.frequency/440))%12)),'actual eighth notes outline A minor at the vi step');
+  }
   assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),previous);
   const bounds=await page.locator('[data-singer]').boundingBox();
   assert.ok(bounds.x>=780||bounds.x+bounds.width<=-390||bounds.y>=1688||bounds.y+bounds.height<=-844,'handoff requires a full screen of separation');

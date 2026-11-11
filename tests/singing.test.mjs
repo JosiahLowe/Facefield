@@ -57,11 +57,17 @@ test('horizontal panning is centered, symmetric, gradual and never hard-separate
   }
 });
 
-test('every singer handoff changes key and melodic pattern', () => {
+test('singer handoffs share a key, advance I–V–vi–IV, and vary the melodic pattern', () => {
   let song=chooseSong(null,()=>0);
   for(let i=0;i<100;i++){
     const next=chooseSong(song,()=>i/100);
-    assert.notEqual(next.root,song.root);assert.notEqual(next.pattern,song.pattern);
+    assert.equal(next.root,song.root);assert.notEqual(next.pattern,song.pattern);
+    assert.equal(next.progressionIndex,(song.progressionIndex+1)%4);
+    assert.deepEqual(next.chordTones.map(n=>n%12),[[0,4,7],[7,11,2],[9,0,4],[5,9,0]][next.progressionIndex]);
+    for(const note of next.melody.filter(n=>n.midi!==null)) {
+      assert.ok([0,2,4,5,7,9,11].includes(note.midi%12),'every note remains in C major');
+      if(note.duration>=4*.65)assert.ok(next.chordTones.some(tone=>tone%12===note.midi%12),'phrase endings resolve to current chord');
+    }
     assert.ok(next.melody.reduce((sum,n)=>sum+n.duration,0)>30);
     const sung=next.melody.filter(n=>n.midi!==null);
     assert.ok(sung.some(n=>n.duration===.65));
@@ -83,4 +89,24 @@ test('songs span three octave choices and use restrained, distinct mixed voices'
   assert.equal(imag[2],0);
  }
  assert.deepEqual([...octaves].sort((a,b)=>a-b),[-12,0,12]);assert.ok(voices.size>50);
+});
+
+test('new fifth melody plays sequential eighth-note triad arpeggios on every progression chord', async()=>{
+ const {QUARTER,SONG_PATTERNS}=await import('../singing.js');
+ assert.equal(SONG_PATTERNS.length,5);
+ let song=null;
+ for(let i=0;i<8;i++){
+  // Select the new variation on alternate turns; adjacent singers still differ.
+  song=chooseSong(song,()=>i%2===0?.999:0);
+  if(song.pattern!==4)continue;
+  const arpeggio=song.melody.slice(0,6);
+  assert.ok(arpeggio.every(n=>n.duration===QUARTER/2),'two notes per beat at the existing tempo');
+  assert.deepEqual(arpeggio.map(n=>(n.midi-song.octave)%12),[song.chordTones[0],song.chordTones[1],song.chordTones[2],song.chordTones[0],song.chordTones[2],song.chordTones[1]].map(n=>n%12));
+ }
+ for(let index=0;index<4;index++){
+  const previous={...chooseSong(null,()=>0),progressionIndex:(index+3)%4,pattern:0};
+  const variation=chooseSong(previous,()=>.999);
+  assert.equal(variation.pattern,4);
+  assert.ok(variation.melody.filter(n=>n.duration===QUARTER/2).every(n=>variation.chordTones.some(t=>t%12===n.midi%12)));
+ }
 });
