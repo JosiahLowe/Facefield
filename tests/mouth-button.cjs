@@ -41,7 +41,7 @@ const assert=require('node:assert/strict');
  await page.waitForTimeout(250);assert.deepEqual(await read(),still);
  await page.setViewportSize({width:320,height:568});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),320);
- const control=await page.locator('.controls').boundingBox();assert.ok(control.x>=0&&control.x+control.width<=320);
+ const control=await page.getByRole('navigation', {name:'Grid controls'}).boundingBox();assert.ok(control.x>=0&&control.x+control.width<=320);
  await page.locator('#shuffle').click();assert.equal(await page.locator('.face').count(),1152);
  assert.deepEqual(errors,[]);
  console.log('PASS: repeated actions select a different expression, including previously changed expressions and reduced motion; width, seed, offscreen faces, and mobile layout preserved.');

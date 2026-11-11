@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=phrased-voices-1';
+import { createSinger } from './singing.js?v=tap-singer-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -52,7 +52,8 @@ function populate() {
     const tile = document.createElement('button');
     tile.className = 'face';
     tile.dataset.index = i;
-    tile.setAttribute('aria-label', `Regenerate face ${i + 1}`);
+    tile.setAttribute('aria-label', `Face ${i + 1}`);
+    tile.tabIndex = -1;
     const cell = layout[i];
     tile.style.gridArea = `${cell.row} / ${cell.column} / span ${cell.height} / span ${cell.width}`;
     paint(tile, i);
@@ -67,11 +68,7 @@ function populate() {
 }
 grid.addEventListener('click', event => {
   const tile = event.target.closest('.face');
-  if (!tile) return;
-  const index = Number(tile.dataset.index);
-  revisions[index]++;
-  paint(tile, index);
-  syncURL();
+  if (tile?.dataset.singer === 'true') advanceSinger();
 });
 document.querySelector('#shuffle').addEventListener('click', () => {
   seed = freshSeed();
@@ -104,7 +101,8 @@ requestAnimationFrame(() => {
 
 new ResizeObserver(sizeWorld).observe(world);
 
-document.querySelector('#change-singer').addEventListener('click', () => {
+document.querySelector('#change-singer').addEventListener('click', advanceSinger);
+function advanceSinger() {
   // Use world coordinates so Safari zoom and viewport offsets cannot make a
   // visible tile look offscreen. Require an additional screen of separation.
   const view = window.visualViewport;
@@ -125,4 +123,4 @@ document.querySelector('#change-singer').addEventListener('click', () => {
     return;
   }
   singer.changeFace(offscreen);
-});
+}

@@ -31,11 +31,11 @@ const assert=require('node:assert/strict');
  const after=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.innerHTML,area:t.style.gridArea})));
  for(let i=0;i<1152;i++){
   assert.equal(before[i].area,after[i].area);
-  if(i!==2)assert.equal(before[i].html,after[i].html);else assert.notEqual(before[i].html,after[i].html);
+  assert.equal(before[i].html,after[i].html);
  }
  const state=await page.locator('#grid').innerHTML();await page.reload();await page.waitForSelector('.face');
  assert.equal(await page.locator('#grid').innerHTML(),state);
  await page.locator('#shuffle').click();assert.notEqual(await page.locator('#grid').innerHTML(),state);
- assert.deepEqual(errors,[]);console.log('PASS mosaic browser: 320/390/768/1440px, four sizes with rectangular silhouettes, no overlap/overflow, uniform facial scale, unique gradient IDs, isolated regeneration, exact seed reload and shuffle.');
+ assert.deepEqual(errors,[]);console.log('PASS mosaic browser: 320/390/768/1440px, four sizes with rectangular silhouettes, no overlap/overflow, uniform facial scale, unique gradient IDs, inert face taps, exact seed reload and shuffle.');
  await browser.close();
 })();

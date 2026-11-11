@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="">
   <title>Facefield — A living wall of faces</title>
-  <link rel="stylesheet" href="styles.css?v=first-singer-1">
-  <script type="module" src="app.js?v=phrased-voices-1"></script>
+  <link rel="stylesheet" href="styles.css?v=tap-singer-1">
+  <script type="module" src="app.js?v=tap-singer-1"></script>
 </head>
 <body>
   <div id="world">
-    <main id="grid" aria-label="Facefield: tap a face to remake it"></main>
+    <main id="grid" aria-label="Facefield: tap the current singer to advance to the next singer"></main>
   </div>
   <nav class="controls" aria-label="Grid controls">
     <button id="seed" title="Copy a link to this exact grid">Copy seed link</button>
@@ -21,6 +21,7 @@
     <button id="enable-sound" aria-pressed="false">Enable Sound</button>
     <button id="change-singer" title="Choose a different face beyond the current view">Offscreen singer</button>
   </nav>
+  <p class="instructions">Tap the current singer to advance to the next singer.</p>
   <span id="status" class="sr-only" role="status"></span>
 </body>
 </html>

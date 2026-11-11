@@ -103,6 +103,8 @@ export function createSinger({ button, status, animation, world }) {
     if (target) {
       animation.setSingingMouth(target, null);
       delete target.dataset.singer;
+      target.tabIndex = -1;
+      target.setAttribute('aria-label', `Face ${Number(target.dataset.index) + 1}`);
       delete target.dataset.songKey;
       delete target.dataset.octave;
       delete target.dataset.melody;
@@ -130,10 +132,12 @@ export function createSinger({ button, status, animation, world }) {
       }
       hasSinger = true;
       target.dataset.singer = 'true';
+      target.tabIndex = 0;
+      target.setAttribute('aria-label', 'Current singer: advance to the next singer');
       target.dataset.songKey = String(song.root);
       target.dataset.octave = String(song.octave);
       target.dataset.melody = String(song.pattern);
-      target.setAttribute('aria-description', 'This face sings when sound is enabled.');
+      target.setAttribute('aria-description', 'This face sings when sound is enabled. Tap or press Enter or Space to advance to the next offscreen singer.');
     }
   }
   function schedule() {
