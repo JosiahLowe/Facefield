@@ -131,9 +131,9 @@ export function createSinger({ button, status, animation }) {
     setFace,
     changeFace(candidates) {
       const next = chooseSinger(candidates, target);
-      if (!next || next === target) { status.textContent = 'Scroll to see another face to choose.'; return; }
+      if (!next || next === target) { status.textContent = 'No other face is available.'; return; }
       setFace(next);
-      status.textContent = enabled ? 'A different face nearby is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
+      status.textContent = enabled ? 'A different face elsewhere in the world is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
     },
   };
 }
