@@ -26,3 +26,18 @@ test('vibrato stays restrained and singer changes exclude the current face', () 
   assert.deepEqual([...choices].sort(),[0,2,3]);
   assert.equal(chooseSinger([1],1),1);
 });
+
+test('distance attenuation is bounded, monotonic and retains distant audibility', async () => {
+  const { distanceVolume } = await import('../singing.js');
+  for(const diagonal of [500,930,1800]) {
+    assert.equal(distanceVolume(0,diagonal),.25);
+    assert.equal(distanceVolume(diagonal*.1,diagonal),.25);
+    let previous=.25;
+    for(let i=1;i<=100;i++) {
+      const gain=distanceVolume(i*diagonal/10,diagonal);
+      assert.ok(gain<=previous && gain>.02 && gain<=.25);
+      previous=gain;
+    }
+    assert.ok(distanceVolume(10*diagonal,diagonal)<.022);
+  }
+});

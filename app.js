@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=strict-offscreen-2';
+import { createSinger } from './singing.js?v=distance-volume-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -17,7 +17,7 @@ function sizeWorld() {
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
-const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation });
+const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 let seed = url.searchParams.get('seed') || freshSeed();

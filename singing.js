@@ -10,6 +10,11 @@ export function chooseSinger(candidates, current, random = Math.random) {
   const alternatives = candidates.filter(face => face !== current);
   return alternatives.length ? alternatives[Math.floor(random() * alternatives.length)] : current;
 }
+// Existing master gain is .25 nearby, with an audible 8% floor in the distance.
+export function distanceVolume(distance, diagonal) {
+  const normalized = Math.max(0, distance - diagonal * .12) / Math.max(1, diagonal * .6);
+  return .25 * (.08 + .92 / (1 + normalized * normalized));
+}
 export const frequencyFor = midi => 440 * 2 ** ((midi - 69) / 12);
 export function playNote(context, output, midi, start, duration) {
   const oscillator = context.createOscillator(), gain = context.createGain();
@@ -32,10 +37,30 @@ export function playNote(context, output, midi, start, duration) {
   return { oscillator, gain, vibrato, vibratoGain, start, end };
 }
 
-export function createSinger({ button, status, animation }) {
+export function createSinger({ button, status, animation, world }) {
   let context, output, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
+  let lastVolume = null;
+  function updateVolume() {
+    if (!enabled || !target || !output || context.state !== 'running') return;
+    // Both rectangles use viewport coordinates, so scrolling is already applied.
+    const face = target.getBoundingClientRect();
+    const bounds = world.getBoundingClientRect(), view = window.visualViewport;
+    const left = Math.max(bounds.left, view?.offsetLeft || 0);
+    const top = Math.max(bounds.top, view?.offsetTop || 0);
+    const right = Math.min(bounds.right, (view?.offsetLeft || 0) + (view?.width || innerWidth));
+    const bottom = Math.min(bounds.bottom, (view?.offsetTop || 0) + (view?.height || innerHeight));
+    const width = Math.max(1, right - left), height = Math.max(1, bottom - top);
+    const distance = Math.hypot(face.left + face.width / 2 - left - width / 2,
+      face.top + face.height / 2 - top - height / 2);
+    const volume = distanceVolume(distance, Math.hypot(width, height));
+    if (lastVolume === null || Math.abs(volume - lastVolume) > .00001) {
+      // AudioParam smoothing is continuous, including rapid scroll reversals.
+      output.gain.setTargetAtTime(volume, context.currentTime, .18);
+      lastVolume = volume;
+    }
+  }
   function setFace(tile) {
     if (target) {
       animation.setSingingMouth(target, null);
@@ -66,6 +91,7 @@ export function createSinger({ button, status, animation }) {
   function mouthFrame() {
     if (!enabled) return;
     // Read the audio clock, rather than running a separate mouth timer.
+    updateVolume();
     const now = context.currentTime;
     while (notes.length && notes[0].end < now - .2) notes.shift();
     const note = notes.find(note => note.start <= now && note.end > now);
@@ -103,7 +129,7 @@ export function createSinger({ button, status, animation }) {
       if (!Audio) throw new Error('Web Audio is unavailable');
       if (!context || context.state === 'closed') {
         context = new Audio();
-        output = context.createGain(); output.gain.value = .25;
+        output = context.createGain(); output.gain.value = 0;
         output.connect(context.destination);
         context.addEventListener('statechange', () => {
           if (enabled && context.state !== 'running') stop();
@@ -115,7 +141,7 @@ export function createSinger({ button, status, animation }) {
         return;
       }
       if (context.state !== 'running') throw new Error('Audio is not running');
-      enabled = true; cursor = 0; nextTime = context.currentTime + .06;
+      enabled = true; lastVolume = null; updateVolume(); cursor = 0; nextTime = context.currentTime + .06;
       button.textContent = 'Mute Sound'; button.setAttribute('aria-pressed', 'true');
       status.textContent = 'Sound enabled. One face is singing.';
       schedule(); timer = setInterval(schedule, 25); mouthFrame();
