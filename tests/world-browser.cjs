@@ -13,9 +13,9 @@ const assert = require('node:assert/strict');
     return { width: innerWidth, height: innerHeight, worldWidth: w.scrollWidth, worldHeight: w.scrollHeight,
       x: w.scrollLeft, y: w.scrollTop, tile: document.querySelector('.face').getBoundingClientRect().width };
   });
-  assert.ok(await page.locator('link[rel=stylesheet]').getAttribute('href').then(href=>href.includes('?v=world-pan-2')), 'world stylesheet must bypass the old cached layout');
+  assert.ok(await page.locator('link[rel=stylesheet]').getAttribute('href').then(href=>href.includes('?v=square-world-1')), 'world stylesheet must bypass the old cached layout');
   assert.equal(size.width,390); assert.equal(size.height,844);
-  assert.equal(size.worldWidth,2340); assert.equal(size.worldHeight,9360);
+  assert.equal(size.worldWidth,4680); assert.equal(size.worldHeight,4680);
   assert.ok(size.x>390 && size.worldWidth-size.x-390>390);
   assert.ok(size.y>844 && size.worldHeight-size.y-844>844);
   assert.ok(size.tile===97.5 || size.tile===195, 'existing tile scale preserved');
@@ -37,6 +37,21 @@ const assert = require('node:assert/strict');
     assert.ok(dx ? (next[0]-original[0])*dx<0 : (next[1]-original[1])*dy<0, 'swipe scrolls naturally');
   }
   await swipe(-120,0); await swipe(120,0); await swipe(0,-180); await swipe(0,180);
+  async function pinch(startHalf, endHalf) {
+    const points=half=>[{x:195-half,y:400,id:0},{x:195+half,y:400,id:1}];
+    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:points(startHalf)});
+    for(let i=1;i<=12;i++) {
+      await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:points(startHalf+(endHalf-startHalf)*i/12)});
+      await page.waitForTimeout(30);
+    }
+    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await page.waitForTimeout(300);
+  }
+  await pinch(70,160);
+  assert.ok(await page.evaluate(()=>visualViewport.scale)>1.1, 'zooming in remains available');
+  await pinch(160,20);
+  const scale=await page.evaluate(()=>visualViewport.scale);
+  assert.ok(scale>=.999 && scale<=1.001, 'zooming out stops at normal scale');
   assert.equal(page.url(),url, 'swiping must not regenerate a face');
   assert.deepEqual(await page.locator('.face').evaluateAll(ts=>ts.map(t=>t.innerHTML)),before);
   const index=await page.locator('.face').evaluateAll(ts=>ts.findIndex(t=>{
@@ -47,6 +62,6 @@ const assert = require('node:assert/strict');
   const state=await page.locator('#grid').innerHTML();await page.reload();await page.waitForSelector('.face');
   assert.equal(await page.locator('#grid').innerHTML(),state, 'seed and tile revisions reproduce the larger world');
   assert.deepEqual(errors,[]);
-  console.log('PASS world browser: iPhone viewport stays 390x844; 2340x9360 world starts centered; four-direction touch scrolling; no tap regeneration on swipes; unchanged face scale; isolated taps; seeded reload.');
+  console.log('PASS world browser: iPhone viewport stays 390x844; 4680x4680 square world starts centered; pinch-out restricted at 1x; four-direction touch scrolling; no tap regeneration on swipes; unchanged face scale; isolated taps; seeded reload.');
   await browser.close();
 })();
