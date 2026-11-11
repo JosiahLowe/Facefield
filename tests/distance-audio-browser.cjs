@@ -10,7 +10,7 @@ const assert=require('node:assert/strict');
    constructor(...a){super(...a);window.__contextCount++;}
    createGain(){
     const gain=super.createGain(),connect=gain.connect.bind(gain),ramp=gain.gain.setTargetAtTime.bind(gain.gain);
-    gain.connect=(target,...args)=>{if(target===this.destination)window.__masters.push(gain);return connect(target,...args)};
+    gain.connect=(target,...args)=>{if(target===this.destination || target instanceof StereoPannerNode)window.__masters.push(gain);return connect(target,...args)};
     gain.gain.setTargetAtTime=(value,time,constant)=>{window.__ramps.push({value,time,constant});return ramp(value,time,constant)};
     return gain;
    }

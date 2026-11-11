@@ -41,3 +41,18 @@ test('distance attenuation is bounded, monotonic and retains distant audibility'
     assert.ok(distanceVolume(10*diagonal,diagonal)<.022);
   }
 });
+
+test('horizontal panning is centered, symmetric, gradual and never hard-separated', async () => {
+  const { horizontalPan } = await import('../singing.js');
+  for(const width of [320,390,1440]) {
+    assert.equal(horizontalPan(0,width),0);
+    let previous=0;
+    for(let i=1;i<=100;i++) {
+      const pan=horizontalPan(i*width/20,width);
+      assert.ok(pan>previous&&pan<=.65);
+      assert.ok(Math.abs(pan+horizontalPan(-i*width/20,width))<1e-12);
+      previous=pan;
+    }
+    assert.ok(horizontalPan(width,width)>.5);
+  }
+});

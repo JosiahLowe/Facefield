@@ -15,6 +15,10 @@ export function distanceVolume(distance, diagonal) {
   const normalized = Math.max(0, distance - diagonal * .12) / Math.max(1, diagonal * .6);
   return .25 * (.08 + .92 / (1 + normalized * normalized));
 }
+// Soft saturation leaves sound in the opposite ear, even very far offscreen.
+export function horizontalPan(offset, viewportWidth) {
+  return .65 * Math.tanh(offset / Math.max(1, viewportWidth * .65));
+}
 export const frequencyFor = midi => 440 * 2 ** ((midi - 69) / 12);
 export function playNote(context, output, midi, start, duration) {
   const oscillator = context.createOscillator(), gain = context.createGain();
@@ -38,10 +42,10 @@ export function playNote(context, output, midi, start, duration) {
 }
 
 export function createSinger({ button, status, animation, world }) {
-  let context, output, target = null, enabled = false, pending = false;
+  let context, output, panner, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
-  let lastVolume = null;
+  let lastVolume = null, lastPan = null;
   function updateVolume() {
     if (!enabled || !target || !output || context.state !== 'running') return;
     // Both rectangles use viewport coordinates, so scrolling is already applied.
@@ -55,6 +59,11 @@ export function createSinger({ button, status, animation, world }) {
     const distance = Math.hypot(face.left + face.width / 2 - left - width / 2,
       face.top + face.height / 2 - top - height / 2);
     const volume = distanceVolume(distance, Math.hypot(width, height));
+    const pan = horizontalPan(face.left + face.width / 2 - left - width / 2, width);
+    if (lastPan === null || Math.abs(pan - lastPan) > .00001) {
+      panner.pan.setTargetAtTime(pan, context.currentTime, .18);
+      lastPan = pan;
+    }
     if (lastVolume === null || Math.abs(volume - lastVolume) > .00001) {
       // AudioParam smoothing is continuous, including rapid scroll reversals.
       output.gain.setTargetAtTime(volume, context.currentTime, .18);
@@ -130,7 +139,8 @@ export function createSinger({ button, status, animation, world }) {
       if (!context || context.state === 'closed') {
         context = new Audio();
         output = context.createGain(); output.gain.value = 0;
-        output.connect(context.destination);
+        panner = context.createStereoPanner();
+        output.connect(panner); panner.connect(context.destination);
         context.addEventListener('statechange', () => {
           if (enabled && context.state !== 'running') stop();
         });
@@ -141,7 +151,7 @@ export function createSinger({ button, status, animation, world }) {
         return;
       }
       if (context.state !== 'running') throw new Error('Audio is not running');
-      enabled = true; lastVolume = null; updateVolume(); cursor = 0; nextTime = context.currentTime + .06;
+      enabled = true; lastVolume = null; lastPan = null; updateVolume(); cursor = 0; nextTime = context.currentTime + .06;
       button.textContent = 'Mute Sound'; button.setAttribute('aria-pressed', 'true');
       status.textContent = 'Sound enabled. One face is singing.';
       schedule(); timer = setInterval(schedule, 25); mouthFrame();

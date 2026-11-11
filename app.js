@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=distance-volume-1';
+import { createSinger } from './singing.js?v=stereo-singer-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
