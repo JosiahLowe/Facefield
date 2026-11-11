@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
     return { width: innerWidth, height: innerHeight, worldWidth: w.scrollWidth, worldHeight: w.scrollHeight,
       x: w.scrollLeft, y: w.scrollTop, tile: document.querySelector('.face').getBoundingClientRect().width };
   });
+  assert.ok(await page.locator('link[rel=stylesheet]').getAttribute('href').then(href=>href.includes('?v=world-pan-2')), 'world stylesheet must bypass the old cached layout');
   assert.equal(size.width,390); assert.equal(size.height,844);
   assert.equal(size.worldWidth,2340); assert.equal(size.worldHeight,9360);
   assert.ok(size.x>390 && size.worldWidth-size.x-390>390);
