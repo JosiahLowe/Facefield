@@ -4,7 +4,7 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const between = (random, low, high) => low + random() * (high - low);
 
 export function createFlight(x, y, random = Math.random) {
-  return { x, y, vx: 0, vy: 0, gx: x, gy: y, time: 0, turnAt: 0,
+  return { x, y, vx: 0, vy: 0, gx: x, gy: y, time: 0, turnAt: between(random, .9, 1.8),
     mode: 'hover', lostFor: 0, following: false, phase: random() * Math.PI * 2 };
 }
 
@@ -28,17 +28,34 @@ export function stepFlight(fly, dt, view, world, random = Math.random) {
     fly.gy = view.y + view.height * .48;
   } else if (fly.time >= fly.turnAt) {
     const choice = random();
-    fly.mode = choice < .28 ? 'hover' : choice < .43 ? 'dart' : choice < .7 ? 'loop' : 'drift';
-    const reach = fly.mode === 'hover' ? 5 : fly.mode === 'dart' ? 110 : 160;
-    fly.gx = clamp(fly.x + between(random, -reach, reach), view.x + inset, view.x + view.width - inset);
-    fly.gy = clamp(fly.y + between(random, -reach, reach), view.y + inset, view.y + view.height - inset);
-    fly.turnAt = fly.time + (fly.mode === 'hover' ? between(random, 1.1, 2.6)
-      : fly.mode === 'dart' ? between(random, .35, .65) : between(random, 1.8, 4.2));
+    // A focused pause always ends in a trip across the viewport, never another pause.
+    const previous = fly.mode;
+    fly.mode = previous === 'hover' ? 'cross'
+      : previous === 'cross' ? (choice < .65 ? 'hover' : choice < .85 ? 'loop' : 'dart')
+      : choice < .25 ? 'hover' : choice < .45 ? 'dart' : choice < .65 ? 'loop' : choice < .8 ? 'drift' : 'cross';
+    if (fly.mode === 'cross') {
+      // Cross to the opposite horizontal side. Vary the vertical band so trips
+      // intersect across the screen rather than retracing one diagonal.
+      const fractionX = fly.x < view.x + view.width / 2 ? between(random, .72, .92) : between(random, .08, .28);
+      const goDown = (fly.y < view.y + view.height / 2) !== (random() < .3);
+      const fractionY = goDown ? between(random, .72, .92) : between(random, .08, .28);
+      fly.gx = clamp(view.x + view.width * fractionX, view.x + inset, view.x + view.width - inset);
+      fly.gy = clamp(view.y + view.height * fractionY, view.y + inset, view.y + view.height - inset);
+      fly.turnAt = fly.time + Math.hypot(fly.gx - fly.x, fly.gy - fly.y) / 180 + 1.2;
+    } else {
+      const reach = fly.mode === 'hover' ? 12 : fly.mode === 'dart' ? 150 : 180;
+      fly.gx = clamp(fly.x + between(random, -reach, reach), view.x + inset, view.x + view.width - inset);
+      fly.gy = clamp(fly.y + between(random, -reach, reach), view.y + inset, view.y + view.height - inset);
+      fly.turnAt = fly.time + (fly.mode === 'hover' ? between(random, 1.1, 2.2)
+        : fly.mode === 'dart' ? between(random, .45, .8) : between(random, .9, 1.8));
+    }
   }
   const dx = fly.gx - fly.x, dy = fly.gy - fly.y;
   const distance = Math.hypot(dx, dy);
   const speed = fly.following ? Math.min(780, distance * 1.5)
-    : Math.min(fly.mode === 'dart' ? 210 : fly.mode === 'hover' ? 9 : 64, distance * 1.3);
+    : Math.min(fly.mode === 'cross' ? 260 : fly.mode === 'dart' ? 240 : fly.mode === 'hover' ? 12 : 95, distance * 1.8)
+      * (.88 + .12 * Math.sin(fly.time * 1.6 + fly.phase));
+  if (!fly.following && fly.mode === 'cross' && distance < 24) fly.turnAt = fly.time;
   const curl = !fly.following && fly.mode === 'loop' ? .85 : 0;
   const length = Math.max(1, distance);
   const sway = fly.mode === 'hover' && !fly.following ? 0 : 7;
@@ -58,8 +75,8 @@ export function createFly(world, grid) {
   element.setAttribute('aria-hidden', 'true');
   element.innerHTML = `<span class="fly-shadow"></span><svg class="fly-body" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
     <g fill="${PALETTE.eye}" fill-opacity=".8" stroke="${PALETTE.skin[3]}" stroke-width=".8">
-      <path class="fly-wing fly-wing-left" d="M11 15 C8 14 4 10 5 6 C7 2 14 7 15 14Z"/>
-      <path class="fly-wing fly-wing-right" d="M17 15 C20 14 24 10 23 6 C21 2 14 7 13 14Z"/>
+      <path class="fly-wing fly-wing-left" d="M11 13 C8 14 4 18 5 22 C7 26 14 21 15 14Z"/>
+      <path class="fly-wing fly-wing-right" d="M17 13 C20 14 24 18 23 22 C21 26 14 21 13 14Z"/>
     </g>
     <path d="M11 18l-3 2m9-2 3 2M12 10l-2-3m6 3 2-3" fill="none" stroke="${PALETTE.ink}" stroke-width="1" stroke-linecap="round"/>
     <ellipse cx="14" cy="16" rx="4.5" ry="6" fill="${PALETTE.complements.hair}"/>

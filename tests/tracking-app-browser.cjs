@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- // Hold the existing flight in its supported hover mode so actual gaze can settle.
+ // Replay the complete flight deterministically, including hover-to-cross transitions.
  await page.addInitScript(()=>{Math.random=()=>.1;});
  await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
  await page.waitForFunction(()=>document.querySelector('.fly')?.style.transform);
@@ -19,19 +19,26 @@ const assert=require('node:assert/strict');
    return {index:tile.dataset.index,d,alignment:(x*dx+y*dy)/Math.max(1,d)};
   }).filter(Boolean).sort((a,b)=>a.d-b.d);
  });
+ async function expectTracking(message){
+  let near;
+  for(let i=0;i<25;i++){
+   near=(await sample())[0];
+   if(near.d<150&&near.alignment>.3)return near;
+   await page.waitForTimeout(200);
+  }
+  assert.fail(message+': '+JSON.stringify(near));
+ }
  const checks=[];
  for(const viewport of [{width:390,height:844},{width:1440,height:900}]){
   await page.setViewportSize(viewport);
   await page.locator('#world').evaluate(w=>w.scrollTo((w.scrollWidth-w.clientWidth)/2,(w.scrollHeight-w.clientHeight)/2));
   await page.waitForTimeout(viewport.width===390?1600:5500);
-  const near=(await sample())[0];
-  assert.ok(near.d<110&&near.alignment>.3,'actual app connects fly position to nearby pupils: '+JSON.stringify(near));
+  const near=await expectTracking('actual app connects fly position to nearby pupils');
   checks.push({width:viewport.width,...near});
  }
  await page.setViewportSize({width:390,height:844});
  await page.locator('#world').evaluate(w=>w.scrollBy(800,500));await page.waitForTimeout(6500);
- const followed=(await sample())[0];
- assert.ok(followed.d<110&&followed.alignment>.3,'gaze tracks the real fly after scroll and delayed catch-up: '+JSON.stringify(followed));
+ const followed=await expectTracking('gaze tracks the real fly after scroll and delayed catch-up');
  assert.equal(await page.locator('.fly').count(),1);
  assert.equal(await page.locator('.fly-wing').evaluateAll(wings=>wings.every(wing=>wing.tagName==='path')),true,'loads the attached-wing asset');
  assert.deepEqual(errors,[]);

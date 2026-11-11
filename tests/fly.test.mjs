@@ -18,7 +18,8 @@ test('one flight wanders with hover, dart and looping phases, bounded speed and 
   assert.ok(Math.hypot(fly.x-x,fly.y-y)<14);
   assert.ok(fly.x>=18&&fly.x<=world.width-18&&fly.y>=18&&fly.y<=world.height-18);
  }
- assert.equal(modes.size,4);
+ assert.equal(modes.size,5);
+ assert.ok(modes.has('cross'));
  assert.ok(minSpeed<5&&maxSpeed>70);
 });
 test('fast scrolling leaves the fly behind before it catches up from the departure direction',()=>{
@@ -33,4 +34,20 @@ test('fast scrolling leaves the fly behind before it catches up from the departu
   assert.ok(fly.x>view.x&&fly.x<view.x+view.width&&fly.y>view.y&&fly.y<view.y+view.height,'returns to viewport');
   assert.equal(fly.following,false,'resumes wandering');
  }
+});
+
+test('focused pauses lead into repeated criss-crossing trips across the visible screen',()=>{
+ const random=randomFrom('crossings'),fly=createFlight(2295,2322,random);
+ let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,crossings=0,previous=fly.mode;
+ const directions=new Set();
+ for(let i=0;i<3600;i++){
+  stepFlight(fly,1/60,initialView,world,random);
+  if(previous==='hover'&&fly.mode!==previous){assert.equal(fly.mode,'cross');crossings++;}
+  previous=fly.mode;
+  minX=Math.min(minX,fly.x);maxX=Math.max(maxX,fly.x);minY=Math.min(minY,fly.y);maxY=Math.max(maxY,fly.y);
+  if(Math.abs(fly.vx)>80&&Math.abs(fly.vy)>80)directions.add(`${Math.sign(fly.vx)},${Math.sign(fly.vy)}`);
+ }
+ assert.ok(crossings>=5,'regular departures from focused hovering');
+ assert.ok(maxX-minX>initialView.width*.6&&maxY-minY>initialView.height*.6,'covers most of both viewport axes');
+ assert.ok(directions.size>=3,'trips cross different diagonals rather than retracing one route');
 });

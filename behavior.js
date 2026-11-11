@@ -18,7 +18,7 @@ export function gazeOffset(angle, distance) {
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
-export const FLY_TRACKING = { detectionRadius: 190, fullAttentionRadius: 80, reactionTime: .18, releaseTime: .55 };
+export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
 export function flyAttention(dx, dy, radius = FLY_TRACKING.detectionRadius, innerRadius = FLY_TRACKING.fullAttentionRadius) {
   const inner = Math.max(0, Math.min(radius - 1, innerRadius));
   const near = Math.max(0, Math.min(1, (radius - Math.hypot(dx, dy)) / Math.max(1, radius - inner)));

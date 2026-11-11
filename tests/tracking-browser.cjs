@@ -6,11 +6,11 @@ const assert=require('node:assert/strict');
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const base=process.env.FACEFIELD_URL||'http://127.0.0.1:8000/';
  await page.route('**/tracking-fixture',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>
- body {margin:0} #world {position:fixed;inset:0;overflow:scroll} .grid {position:absolute;top:150px;left:0;width:480px;height:1700px;display:grid;grid-template-columns:repeat(4,120px);grid-auto-rows:120px;align-content:start} .face {width:120px;height:120px} svg {display:block;width:100%;height:100%} #control{opacity:0;pointer-events:none}
+ body {margin:0} #world {position:fixed;inset:0;overflow:scroll} .grid {position:absolute;top:150px;left:0;width:600px;height:1700px;display:grid;grid-template-columns:repeat(5,120px);grid-auto-rows:120px;align-content:start} .face {width:120px;height:120px} svg {display:block;width:100%;height:100%} #control{opacity:0;pointer-events:none}
  </style><div id="world"><div id="tracked" class="grid"></div><div id="control" class="grid"></div></div><script type="module">
  import {renderFace} from './faces.js';import {animateFaces} from './behavior.js';
  Math.random=()=>.99;window.flyPoint={x:120,y:186};
- for(const id of ['tracked','control']){const grid=document.getElementById(id);const animation=animateFaces(grid,null,()=>id==='tracked'?window.flyPoint:null);for(let i=0;i<5;i++){const tile=document.createElement('div');tile.className='face';if(i===4)tile.style.gridArea='13 / 1';tile.innerHTML=renderFace('tracking-fixture',i).svg;grid.append(tile);animation.register(tile,'tracking-fixture',i,0);}}
+ for(const id of ['tracked','control']){const grid=document.getElementById(id);const animation=animateFaces(grid,null,()=>id==='tracked'?window.flyPoint:null);for(let i=0;i<5;i++){const tile=document.createElement('div');tile.className='face';if(i===3)tile.style.gridColumn='5';if(i===4)tile.style.gridArea='13 / 1';tile.innerHTML=renderFace('tracking-fixture',i).svg;grid.append(tile);animation.register(tile,'tracking-fixture',i,0);}}
  window.ready=true;
  </script>`}));
  await page.goto(base+'tracking-fixture');await page.waitForFunction(()=>window.ready);
