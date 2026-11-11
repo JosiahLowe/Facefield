@@ -55,7 +55,7 @@ export function animateFaces(grid) {
     for (const entry of entries) {
       const state = states.get(entry.target);
       if (!state) continue;
-      if (entry.isIntersecting) {
+      if (entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0) {
         visible.add(state);
         schedule(state, performance.now());
       } else {
@@ -64,7 +64,7 @@ export function animateFaces(grid) {
       }
     }
     wake();
-  });
+  }, { threshold: .001 });
   function schedule(s, now) {
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
     s.nextBlink = now + between(2000, 8000);
@@ -210,7 +210,7 @@ export function animateFaces(grid) {
       const now = performance.now();
       for (const s of states.values()) {
         const box = s.tile.getBoundingClientRect();
-        if (box.bottom <= 0 || box.top >= innerHeight) continue;
+        if (box.bottom <= 0 || box.top >= innerHeight || box.right <= 0 || box.left >= innerWidth) continue;
         const mouth = s.mouth;
         // Read the displayed curve, including any in-progress ambient transition.
         const coordinates = mouth.element.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);

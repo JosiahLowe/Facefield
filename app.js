@@ -2,19 +2,23 @@ import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
 import { FACE_COUNT, renderFace } from './faces.js?v=botanical-mosaic-1';
-import { animateFaces } from './behavior.js?v=botanical-mosaic-1';
+import { animateFaces } from './behavior.js?v=scrollable-world-1';
+const WORLD_SCALE = 6;
+const WORLD_FACE_COUNT = FACE_COUNT * WORLD_SCALE;
+const world = document.querySelector('#world');
 const grid = document.querySelector('#grid');
+grid.style.width = `${WORLD_SCALE * 100}vw`;
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 let seed = url.searchParams.get('seed') || freshSeed();
-let revisions = Array(FACE_COUNT).fill(0);
+let revisions = Array(WORLD_FACE_COUNT).fill(0);
 let layout;
-const columnCount = () => innerWidth >= 1000 ? 12 : innerWidth >= 600 ? 8 : 4;
+const columnCount = () => WORLD_SCALE * (innerWidth >= 1000 ? 12 : innerWidth >= 600 ? 8 : 4);
 const saved = url.searchParams.get('v');
-if (saved) saved.split('.').slice(0, FACE_COUNT).forEach((value, i) => {
+if (saved) saved.split('.').slice(0, WORLD_FACE_COUNT).forEach((value, i) => {
   const revision = parseInt(value, 36);
   if (Number.isSafeInteger(revision) && revision >= 0) revisions[i] = revision;
 });
@@ -33,11 +37,11 @@ function paint(tile, index) {
 }
 function populate() {
   animation.clear();
-  layout = mosaicLayout(seed, columnCount());
+  layout = mosaicLayout(seed, columnCount(), WORLD_FACE_COUNT);
   grid.style.gridTemplateColumns = `repeat(${columnCount()}, minmax(0, 1fr))`;
   grid.style.gridAutoRows = `${grid.clientWidth / columnCount()}px`;
   const fragment = document.createDocumentFragment();
-  for (let i = 0; i < FACE_COUNT; i++) {
+  for (let i = 0; i < WORLD_FACE_COUNT; i++) {
     const tile = document.createElement('button');
     tile.className = 'face';
     tile.dataset.index = i;
@@ -81,10 +85,14 @@ testButton.addEventListener('click', () => {
 });
 syncURL();
 populate();
+// Begin inside the world, with room to explore left, right, up, and down.
+requestAnimationFrame(() => {
+  world.scrollTo((world.scrollWidth - world.clientWidth) / 2, (world.scrollHeight - world.clientHeight) / 2);
+});
 
 new ResizeObserver(() => {
   const columns = columnCount();
-  layout = mosaicLayout(seed, columns);
+  layout = mosaicLayout(seed, columns, WORLD_FACE_COUNT);
   grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
   grid.style.gridAutoRows = `${grid.clientWidth / columns}px`;
   [...grid.children].forEach((tile, i) => {

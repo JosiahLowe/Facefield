@@ -10,7 +10,7 @@ From this directory:
 python3 -m http.server 8000
 ```
 
-Open the server in a browser. Tap or keyboard-activate any face to regenerate it. **Change mouths** immediately triggers a new neutral, smiling, or frowning expression on visible faces. Automatic changes continue independently. Neutral returns after at most two expressive states and is held for at least four seconds. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
+Open the server in a browser. The 1,152-face world starts near its center and supports native horizontal and vertical touch scrolling, preserving the original face scale. Tap or keyboard-activate any face to regenerate it. **Change mouths** immediately triggers a new neutral, smiling, or frowning expression on visible faces. Automatic changes continue independently. Neutral returns after at most two expressive states and is held for at least four seconds. With reduced motion enabled, the test changes expression instantly. **Shuffle** creates a new grid. **Copy seed link** copies a URL that reproduces the grid, including individually regenerated faces. A URL such as `?seed=facefield` always starts with the same 192 faces. Resizing changes the column count without regenerating faces.
 
 ## Publish
 
@@ -42,6 +42,7 @@ Browser validation (with Playwright and Chromium available, and the server runni
 ```sh
 node tests/browser.cjs
 node tests/mosaic-browser.cjs
+node tests/world-browser.cjs
 node tests/mouth-button.cjs
 ```
 

@@ -6,10 +6,12 @@
   <meta name="theme-color" content="">
   <title>Facefield — A living wall of faces</title>
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js?v=botanical-mosaic-1"></script>
+  <script type="module" src="app.js?v=scrollable-world-1"></script>
 </head>
 <body>
-  <main id="grid" aria-label="Facefield: tap a face to remake it"></main>
+  <div id="world">
+    <main id="grid" aria-label="Facefield: tap a face to remake it"></main>
+  </div>
   <nav class="controls" aria-label="Grid controls">
     <button id="seed" title="Copy a link to this exact grid">Copy seed link</button>
     <button id="test-mouths" title="Choose a new neutral, smiling, or frowning expression">Change mouths</button>
