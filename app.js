@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js';
+import { createSinger } from './singing.js?v=vibrato-singer-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -103,3 +103,13 @@ requestAnimationFrame(() => {
 });
 
 new ResizeObserver(sizeWorld).observe(world);
+
+document.querySelector('#change-singer').addEventListener('click', () => {
+  // Keep the handoff visible without moving the world or regenerating any face.
+  const candidates = [...grid.children].filter(tile => {
+    const r = tile.getBoundingClientRect();
+    return r.left + r.width / 2 > 0 && r.left + r.width / 2 < innerWidth
+      && r.top > 0 && r.bottom < innerHeight - 65;
+  });
+  singer.changeFace(candidates);
+});

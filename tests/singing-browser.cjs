@@ -6,13 +6,13 @@ const assert=require('node:assert/strict');
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{
   const Native=window.AudioContext;
-  window.__contexts=[];window.__voices=[];
+  window.__contexts=[];window.__voices=[];window.__vibratos=0;
   window.AudioContext=class extends Native{
    constructor(...args){super(...args);window.__contexts.push(this);}
    createOscillator(){
-    const o=super.createOscillator(),record={start:null,end:null};window.__voices.push(record);
+    const o=super.createOscillator(),record={start:null,end:null};
     const start=o.start.bind(o),stop=o.stop.bind(o);
-    o.start=t=>{record.start=t;return start(t)};
+    o.start=t=>{record.start=t;if(o.frequency.value<10)window.__vibratos++;else window.__voices.push(record);return start(t)};
     o.stop=t=>{record.end=t??this.currentTime;return stop(t)};
     return o;
    }
@@ -22,6 +22,10 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#world').scrollTop>0);
  assert.equal(await page.locator('[data-singer]').count(),1);
  assert.equal(await page.evaluate(()=>__contexts.length),0,'no audio context before a tap');
+ const initialSinger=await page.locator('[data-singer]').getAttribute('data-index');
+ await page.locator('#change-singer').tap();
+ assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),initialSinger);
+ assert.equal(await page.evaluate(()=>__contexts.length),0,'changing singer does not enable audio');
  const singer=page.locator('[data-singer]'),index=await singer.getAttribute('data-index');
  const url=page.url(),world=await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]);
  const rect=await singer.boundingBox();assert.ok(rect.x<390&&rect.x+rect.width>0&&rect.y<844&&rect.y+rect.height>0);
@@ -40,6 +44,15 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#enable-sound').getAttribute('aria-pressed')==='true');
  assert.equal(await page.evaluate(()=>__contexts.length),1);
  assert.equal(await page.evaluate(()=>__contexts[0].state),'running');
+ for(let i=0;i<3;i++) {
+  const previous=await page.locator('[data-singer]').getAttribute('data-index');
+  await page.locator('#change-singer').tap();
+  assert.equal(await page.locator('[data-singer]').count(),1);
+  assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),previous);
+  assert.equal(await page.locator(`.face[data-index="${previous}"] [data-feature=mouth]`).getAttribute('fill'),'none','previous singer releases its mouth');
+  assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]),world);
+ }
+ assert.equal(await page.evaluate(()=>__contexts.length),1);
  const result=await page.evaluate(async()=>{
   let open=0,closed=0,desync=0,othersOpen=false;const othersMoved=new Set();
   const observer=new MutationObserver(records=>records.forEach(({target,attributeName})=>{
@@ -54,14 +67,15 @@ const assert=require('node:assert/strict');
      open++;if(!__voices.some(n=>n.start<=t+.05&&n.end>=t-.05))desync++;
     }else closed++;
     othersOpen||=[...document.querySelectorAll('[data-feature=mouth]')].some(m=>!m.closest('[data-singer]')&&m.getAttribute('fill')!=='none');
-    if(performance.now()-start>6500){observer.disconnect();resolve({open,closed,desync,othersOpen,othersMoved:othersMoved.size,notes:__voices.length});}else requestAnimationFrame(check);
+    if(performance.now()-start>10500){observer.disconnect();resolve({open,closed,desync,othersOpen,othersMoved:othersMoved.size,notes:__voices.length});}else requestAnimationFrame(check);
    }check();
   });
  });
+ assert.ok(await page.evaluate(()=>__vibratos)>0,'pitch modulation is scheduled');
  assert.ok(result.open>20&&result.closed>20&&result.notes>7);
  assert.equal(result.desync,0);assert.equal(result.othersOpen,false);assert.ok(result.othersMoved>0);
  assert.equal(page.url(),url);assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]),world);
- await singer.tap();assert.equal(await page.locator('[data-singer]').getAttribute('data-index'),index);
+ const chosen=await singer.getAttribute('data-index');await singer.tap();assert.equal(await page.locator('[data-singer]').getAttribute('data-index'),chosen);
  await page.waitForFunction(()=>document.querySelector('[data-singer] [data-feature=mouth]').getAttribute('fill')!=='none');
  await page.locator('#shuffle').tap();assert.equal(await page.locator('[data-singer]').count(),1);assert.equal(await page.evaluate(()=>__contexts.length),1);
  await page.waitForFunction(()=>document.querySelector('[data-singer] [data-feature=mouth]').getAttribute('fill')!=='none');

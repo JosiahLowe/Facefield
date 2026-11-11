@@ -1,23 +1,35 @@
 // A single, quiet C-major phrase. Durations include a small breath between notes.
 export const MELODY = [
-  { midi: 60, duration: .45 }, { midi: 64, duration: .45 },
-  { midi: 67, duration: .65 }, { midi: 64, duration: .35 },
-  { midi: 62, duration: .45 }, { midi: 64, duration: .45 },
-  { midi: 60, duration: .85 }, { midi: null, duration: 1.2 },
+  { midi: 60, duration: .9 }, { midi: 64, duration: .9 },
+  { midi: 67, duration: 1.3 }, { midi: 64, duration: .7 },
+  { midi: 62, duration: .9 }, { midi: 64, duration: .9 },
+  { midi: 60, duration: 1.7 }, { midi: null, duration: 1.2 },
 ];
+export const VIBRATO = { rate: 5.2, depth: 16 }; // Hz and cents: a gentle pitch shimmer.
+export function chooseSinger(candidates, current, random = Math.random) {
+  const alternatives = candidates.filter(face => face !== current);
+  return alternatives.length ? alternatives[Math.floor(random() * alternatives.length)] : current;
+}
 export const frequencyFor = midi => 440 * 2 ** ((midi - 69) / 12);
 export function playNote(context, output, midi, start, duration) {
   const oscillator = context.createOscillator(), gain = context.createGain();
   const end = start + duration;
   oscillator.type = 'sine';
   oscillator.frequency.setValueAtTime(frequencyFor(midi), start);
+  const vibrato = context.createOscillator(), vibratoGain = context.createGain();
+  vibrato.frequency.value = VIBRATO.rate;
+  vibratoGain.gain.setValueAtTime(0, start);
+  vibratoGain.gain.linearRampToValueAtTime(VIBRATO.depth, start + Math.min(.18, duration * .4));
+  vibrato.connect(vibratoGain); vibratoGain.connect(oscillator.detune);
   gain.gain.setValueAtTime(0, start);
   gain.gain.linearRampToValueAtTime(.25, start + Math.min(.025, duration / 4));
+  gain.gain.linearRampToValueAtTime(.18, end - Math.min(.12, duration / 3));
   gain.gain.exponentialRampToValueAtTime(.001, end - .015);
   gain.gain.linearRampToValueAtTime(0, end);
   oscillator.connect(gain); gain.connect(output);
   oscillator.start(start); oscillator.stop(end);
-  return { oscillator, gain, start, end };
+  vibrato.start(start); vibrato.stop(end);
+  return { oscillator, gain, vibrato, vibratoGain, start, end };
 }
 
 export function createSinger({ button, status, animation }) {
@@ -44,7 +56,7 @@ export function createSinger({ button, status, animation }) {
         const voice = playNote(context, output, note.midi, nextTime, note.duration * .82);
         voices.add(voice); notes.push(voice);
         voice.oscillator.onended = () => {
-          voice.oscillator.disconnect(); voice.gain.disconnect(); voices.delete(voice);
+          voice.oscillator.disconnect(); voice.gain.disconnect(); voice.vibrato.disconnect(); voice.vibratoGain.disconnect(); voices.delete(voice);
         };
       }
       nextTime += note.duration;
@@ -72,7 +84,7 @@ export function createSinger({ button, status, animation }) {
     clearInterval(timer); cancelAnimationFrame(frame);
     timer = 0; frame = 0;
     for (const voice of voices) {
-      try { voice.oscillator.stop(); } catch { /* already ended */ }
+      try { voice.oscillator.stop(); voice.vibrato.stop(); } catch { /* already ended */ }
     }
     notes.length = 0;
     if (target) animation.setSingingMouth(target, null);
@@ -115,5 +127,13 @@ export function createSinger({ button, status, animation }) {
   });
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   window.addEventListener('pagehide', stop);
-  return { setFace };
+  return {
+    setFace,
+    changeFace(candidates) {
+      const next = chooseSinger(candidates, target);
+      if (!next || next === target) { status.textContent = 'Scroll to see another face to choose.'; return; }
+      setFace(next);
+      status.textContent = enabled ? 'A different face nearby is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
+    },
+  };
 }
