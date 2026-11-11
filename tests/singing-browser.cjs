@@ -30,9 +30,11 @@ const assert=require('node:assert/strict');
  const url=page.url(),world=await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]);
  const rect=await singer.boundingBox();assert.ok(rect.x>=390||rect.x+rect.width<=0||rect.y>=844||rect.y+rect.height<=0,'new singer is outside the viewport');
  const waveform=await page.evaluate(async()=>{
-  const {playNote}=await import('./singing.js');
+  const {playNote,voiceHarmonics}=await import('./singing.js');
   const c=new OfflineAudioContext(1,48000,48000),out=c.createGain();out.gain.value=.25;out.connect(c.destination);
-  playNote(c,out,69,.1,.3);
+  const {real,imag}=voiceHarmonics({sine:.92,triangle:.055,square:.025});
+  const wave=c.createPeriodicWave(real,imag,{disableNormalization:true});
+  playNote(c,out,69,.1,.3,wave);
   const data=(await c.startRendering()).getChannelData(0);
   let energy=0,peak=0,crossings=0;
   for(let i=7200;i<12000;i++){energy+=data[i]*data[i];peak=Math.max(peak,Math.abs(data[i]));if(data[i]>=0&&data[i-1]<0)crossings++;}

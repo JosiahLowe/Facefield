@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=long-melodies-1';
+import { createSinger } from './singing.js?v=phrased-voices-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
