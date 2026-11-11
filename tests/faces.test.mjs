@@ -12,8 +12,8 @@ test('seed and tile revisions reproduce independently', () => {
 test('generated eyes stay inside tiles, contain pupils, and share gaze', () => {
   const colors = new Set();
   for (let i = 0; i < FACE_COUNT * 10; i++) {
-    const { color, svg } = renderFace('geometry-check', i);
-    colors.add(color);
+    const { baseColor, svg } = renderFace('geometry-check', i);
+    colors.add(baseColor);
     const circles = [...svg.matchAll(/<circle cx="([\d.-]+)" cy="([\d.-]+)" r="([\d.-]+)"/g)].map(m => m.slice(1).map(Number));
     assert.equal(circles.length, 4);
     const offsets = [];

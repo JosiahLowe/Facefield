@@ -1,5 +1,8 @@
-import { FACE_COUNT, renderFace } from './faces.js?v=border-removed-1';
-import { animateFaces } from './behavior.js?v=border-removed-1';
+import { applyPalette } from './palette.js';
+import { mosaicLayout } from './mosaic.js';
+applyPalette();
+import { FACE_COUNT, renderFace } from './faces.js?v=botanical-mosaic-1';
+import { animateFaces } from './behavior.js?v=botanical-mosaic-1';
 const grid = document.querySelector('#grid');
 const animation = animateFaces(grid);
 const testButton = document.querySelector('#test-mouths');
@@ -8,6 +11,8 @@ const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n
 const url = new URL(location.href);
 let seed = url.searchParams.get('seed') || freshSeed();
 let revisions = Array(FACE_COUNT).fill(0);
+let layout;
+const columnCount = () => innerWidth >= 1000 ? 12 : innerWidth >= 600 ? 8 : 4;
 const saved = url.searchParams.get('v');
 if (saved) saved.split('.').slice(0, FACE_COUNT).forEach((value, i) => {
   const revision = parseInt(value, 36);
@@ -21,19 +26,24 @@ function syncURL() {
   history.replaceState(null, '', next);
 }
 function paint(tile, index) {
-  const face = renderFace(seed, index, revisions[index]);
+  const face = renderFace(seed, index, revisions[index], layout[index]);
   tile.style.backgroundColor = face.backingColor;
   tile.innerHTML = face.svg;
   animation.register(tile, seed, index, revisions[index]);
 }
 function populate() {
   animation.clear();
+  layout = mosaicLayout(seed, columnCount());
+  grid.style.gridTemplateColumns = `repeat(${columnCount()}, minmax(0, 1fr))`;
+  grid.style.gridAutoRows = `${grid.clientWidth / columnCount()}px`;
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < FACE_COUNT; i++) {
     const tile = document.createElement('button');
     tile.className = 'face';
     tile.dataset.index = i;
     tile.setAttribute('aria-label', `Regenerate face ${i + 1}`);
+    const cell = layout[i];
+    tile.style.gridArea = `${cell.row} / ${cell.column} / span ${cell.height} / span ${cell.width}`;
     paint(tile, i);
     fragment.append(tile);
   }
@@ -71,3 +81,14 @@ testButton.addEventListener('click', () => {
 });
 syncURL();
 populate();
+
+new ResizeObserver(() => {
+  const columns = columnCount();
+  layout = mosaicLayout(seed, columns);
+  grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+  grid.style.gridAutoRows = `${grid.clientWidth / columns}px`;
+  [...grid.children].forEach((tile, i) => {
+    const cell = layout[i];
+    tile.style.gridArea = `${cell.row} / ${cell.column} / span ${cell.height} / span ${cell.width}`;
+  });
+}).observe(grid);

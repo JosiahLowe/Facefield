@@ -1,6 +1,8 @@
+import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js';
+
 // All geometry uses a 100 × 100 coordinate system. Feature builders can be
 // extended independently without coupling their random streams.
-export const COLORS = ['#F5FF00', '#FF35A8', '#168CFF'];
+export const COLORS = PALETTE.skin;
 export const FACE_COUNT = 192;
 export function randomFrom(seed) {
   let h = 2166136261;
@@ -32,10 +34,9 @@ function eyes(r, lids, color) {
     if (area > coverage) low = inset; else high = inset;
   }
   const lidInset = (low + high) / 2;
-  const lidColor = '#' + color.slice(1).match(/../g).map(channel =>
-    Math.round(parseInt(channel, 16) * .82).toString(16).padStart(2, '0')).join('');
+  const lidColor = eyelidColor(color);
   return [50 - space, 50 + space].map(x => {
-    let result = `<circle cx="${f(x)}" cy="${f(y)}" r="${f(radius)}" fill="white"/><circle cx="${f(x + dx)}" cy="${f(y + dy)}" r="${f(pupil)}" fill="black"/>`;
+    let result = `<circle cx="${f(x)}" cy="${f(y)}" r="${f(radius)}" fill="${PALETTE.eye}"/><circle cx="${f(x + dx)}" cy="${f(y + dy)}" r="${f(pupil)}" fill="${PALETTE.ink}"/>`;
     for (const side of [-1, 1]) {
       if (lidStyle !== (side === -1 ? 'top' : 'bottom')) continue;
       // Reduce coverage if needed so at least part of the pupil remains exposed.
@@ -75,22 +76,30 @@ function nose(r, curves) {
     ? `L ${x} ${bottom}`
     : `Q ${controlX} ${top + length * .5} ${x} ${bottom}`;
   const path = `${start} ${bridge} L ${x + foot} ${endY}`;
-  return `<path data-feature="nose" d="${path}" data-bridge="${style}" fill="none" stroke="black" stroke-width="4" stroke-linejoin="round"/>`;
+  return `<path data-feature="nose" d="${path}" data-bridge="${style}" fill="none" stroke="${PALETTE.ink}" stroke-width="4" stroke-linejoin="round"/>`;
 }
 
 function mouth(r) {
   const type = Math.floor(r() * 3), width = range(r, 28, 55);
   const x = (100 - width) / 2, y = range(r, 70, 75);
   const bend = type === 0 ? 0 : type === 1 ? range(r, 9, 17) : -range(r, 7, 12);
-  return `<path d="M ${x} ${y + 3} Q 50 ${y + 3 + bend} ${x + width} ${y + 3}" fill="none" stroke="black" stroke-width="4.4"/>`;
+  return `<path data-feature="mouth" d="M ${x} ${y + 3} Q 50 ${y + 3 + bend} ${x + width} ${y + 3}" fill="none" stroke="${PALETTE.ink}" stroke-width="4.4"/>`;
 }
-export function renderFace(seed, index, revision = 0) {
+export function renderFace(seed, index, revision = 0, geometry = { width: 1, height: 1 }) {
   const key = `${seed}:${index}:${revision}`;
   const stream = name => randomFrom(`${key}:${name}`);
-  const color = choose(stream('color'), COLORS);
+  const baseColor = choose(stream('color'), COLORS);
+  const tone = stream('skin-tone')() * 2 - 1;
+  const color = skinTone(baseColor, tone);
   const radius = stream('corners')() < .3 ? 12 : 0;
-  // A second palette color fills the rounded corners: no gutters or black gaps.
-  const backingColor = radius ? choose(stream('backing'), COLORS.filter(c => c !== color)) : color;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect width="100" height="100" rx="${radius}" fill="${color}"/>${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</svg>`;
-  return { color, backingColor, svg };
+  const shape = radius ? 'rounded' : 'rect';
+  const unit = Math.min(geometry.width, geometry.height);
+  const width = 100 * geometry.width / unit, height = 100 * geometry.height / unit;
+  const gradientId = `skin-${index}-${revision}`;
+  // All heads remain rectangular; some retain subtly rounded corners.
+  const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="${radius}" fill="url(#${gradientId})"/>`;
+  const top = mixColor(color, PALETTE.ink, PALETTE.gradient.top);
+  const bottom = mixColor(color, PALETTE.paper, PALETTE.gradient.bottom);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
+  return { color, baseColor, backingColor: PALETTE.background, shape, svg };
 }

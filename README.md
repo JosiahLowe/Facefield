@@ -1,6 +1,6 @@
 # Facefield
 
-A living wall of generative faces. A mobile-first, dependency-free HTML/CSS/JavaScript prototype, drawn with SVG.
+A living wall of generative faces. A mobile-first, dependency-free HTML/CSS/JavaScript prototype, drawn with SVG. The Earth & Botanical theme uses terracotta, moss, ochre, sage blue, and sand with subtle gradients, warm off-white eyes, and charcoal features.
 
 ## Run
 
@@ -18,6 +18,8 @@ The files work directly on GitHub Pages with no build step. Configure Pages to s
 
 ## Structure
 
+- `palette.js`: centralized base colors, variations, contrast guard, gradients, eyelids, and UI colors.
+- `mosaic.js`: seeded, gapless 4 × 4 patches with eight faces in four tile sizes; squares and rectangles, some with subtly rounded corners, preserve circular eyes and feature proportions.
 - `faces.js`: deterministic random streams and separate eye, nose, and mouth generators, in a 100 × 100 SVG coordinate system.
 - `app.js`: grid state, tile interactions, URL seed and revision persistence.
 - `behavior.js`: seeded personalities, gaze interpolation, blinking, mouth expression transitions, visibility scheduling, and reduced-motion support.
@@ -39,6 +41,8 @@ Browser validation (with Playwright and Chromium available, and the server runni
 
 ```sh
 node tests/browser.cjs
+node tests/mosaic-browser.cjs
+node tests/mouth-button.cjs
 ```
 
-Use `FACEFIELD_URL` for another server address and `CHROMIUM_PATH` for another Chromium executable. This check watches ten seconds of live animation, checking pupil containment and coordination, independent full blinks, offscreen suspension, reduced-motion restoration, and regeneration.
+Use `FACEFIELD_URL` for another server address and `CHROMIUM_PATH` for another Chromium executable. This check watches eighteen seconds of live animation, checking pupil containment and coordination, independent full blinks, offscreen suspension, reduced-motion restoration, and regeneration.

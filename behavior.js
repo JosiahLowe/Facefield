@@ -1,3 +1,4 @@
+import { eyelidColor } from './palette.js';
 import { randomFrom } from './faces.js';
 
 const PROFILES = {
@@ -94,7 +95,7 @@ export function animateFaces(grid) {
         path.setAttribute('fill', s.lidColor);
         path.dataset.animation = 'blink';
         eye.blinkLids.push(path);
-        s.svg.append(path);
+        s.svg.querySelector('[data-features]').append(path);
       }
     }
   }
@@ -115,15 +116,16 @@ export function animateFaces(grid) {
   function startGaze(s, now) {
     let target;
     if (Math.random() < s.profile.neighbor) {
-      const columns = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
-      const index = Number(s.tile.dataset.index);
-      const neighbors = [index - columns, index + columns];
-      if (index % columns) neighbors.push(index - 1);
-      if (index % columns < columns - 1) neighbors.push(index + 1);
-      const candidates = neighbors.map(i => grid.children[i]).filter(Boolean);
-      const neighbor = candidates[Math.floor(Math.random() * candidates.length)];
-      const a = s.tile.getBoundingClientRect(), b = neighbor.getBoundingClientRect();
-      target = gazeOffset(Math.atan2(b.top - a.top, b.left - a.left), .65);
+      const a = s.tile.getBoundingClientRect();
+      const candidates = [...visible].filter(other => other !== s).map(other => {
+        const box = other.tile.getBoundingClientRect();
+        const dx = box.left + box.width/2 - a.left - a.width/2;
+        const dy = box.top + box.height/2 - a.top - a.height/2;
+        return { dx, dy, distance: Math.hypot(dx,dy) };
+      }).sort((a,b) => a.distance-b.distance).slice(0,4);
+      const neighbor = candidates[Math.floor(Math.random()*candidates.length)];
+      if (!neighbor) target = [0,0];
+      else target = gazeOffset(Math.atan2(neighbor.dy, neighbor.dx), .65);
     } else {
       target = Math.random() < .18 ? [0, 0] : gazeOffset(between(0, Math.PI * 2), between(.25, .82));
     }
@@ -235,8 +237,8 @@ export function animateFaces(grid) {
       const svg = tile.querySelector('svg');
       const circles = [...svg.querySelectorAll('circle')];
       const lids = [...svg.querySelectorAll('[data-feature="eyelid"]')];
-      const color = svg.querySelector('rect').getAttribute('fill');
-      const lidColor = '#' + color.slice(1).match(/../g).map(c => Math.round(parseInt(c, 16) * .82).toString(16).padStart(2, '0')).join('');
+      const color = svg.dataset.skin;
+      const lidColor = eyelidColor(color);
       const eyes = [0, 2].map((i, eyeIndex) => {
         const white = circles[i], pupil = circles[i + 1], lid = lids[eyeIndex];
         const number = attr => +white.getAttribute(attr);
@@ -244,7 +246,7 @@ export function animateFaces(grid) {
           travel: number('r') - +pupil.getAttribute('r'), originalX: pupil.getAttribute('cx'), originalY: pupil.getAttribute('cy'),
           lid, lidSide: lid?.dataset.side, cut: lid ? +lid.getAttribute('d').split(' ')[2] : 0, blinkLids: [] };
       });
-      const mouthElement = svg.lastElementChild;
+      const mouthElement = svg.querySelector('[data-feature=mouth]');
       const original = mouthElement.getAttribute('d');
       const [left, y, center, controlY, right] = original.match(/-?\d+(?:\.\d+)?/g).map(Number);
       const restBend = controlY - y;
