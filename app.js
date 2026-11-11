@@ -1,10 +1,10 @@
-import { createFly } from './fly.js?v=fly-tracking-1';
+import { createFly } from './fly.js?v=fly-tracking-2';
 import { createSinger } from './singing.js?v=phrase-handoff-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
 import { renderFace } from './faces.js?v=botanical-mosaic-1';
-import { animateFaces } from './behavior.js?v=fly-tracking-1';
+import { animateFaces } from './behavior.js?v=fly-tracking-2';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');

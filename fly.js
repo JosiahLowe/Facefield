@@ -58,8 +58,8 @@ export function createFly(world, grid) {
   element.setAttribute('aria-hidden', 'true');
   element.innerHTML = `<span class="fly-shadow"></span><svg class="fly-body" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
     <g fill="${PALETTE.eye}" fill-opacity=".8" stroke="${PALETTE.skin[3]}" stroke-width=".8">
-      <path class="fly-wing fly-wing-left" d="M14 13 C11 12 4 11 5 6 C6 2 13 4 14 13Z"/>
-      <path class="fly-wing fly-wing-right" d="M14 13 C17 12 24 11 23 6 C22 2 15 4 14 13Z"/>
+      <path class="fly-wing fly-wing-left" d="M11 15 C8 14 4 10 5 6 C7 2 14 7 15 14Z"/>
+      <path class="fly-wing fly-wing-right" d="M17 15 C20 14 24 10 23 6 C21 2 14 7 13 14Z"/>
     </g>
     <path d="M11 18l-3 2m9-2 3 2M12 10l-2-3m6 3 2-3" fill="none" stroke="${PALETTE.ink}" stroke-width="1" stroke-linecap="round"/>
     <ellipse cx="14" cy="16" rx="4.5" ry="6" fill="${PALETTE.complements.hair}"/>
@@ -69,6 +69,7 @@ export function createFly(world, grid) {
   </svg>`;
   world.append(element);
   const body = element.querySelector('.fly-body'), shadow = element.querySelector('.fly-shadow');
+  const wings = [...element.querySelectorAll('.fly-wing')];
   let flight, last = 0, heading = 0, position = null;
   function viewport() {
     const view = window.visualViewport;
@@ -88,6 +89,10 @@ export function createFly(world, grid) {
     const x = flight.x + Math.sin(t * 23 + phase) * 1.3 * flutter;
     const y = flight.y + Math.cos(t * 29) * .9 * flutter;
     position = { x, y: y - altitude * 3 };
+    // Native SVG pivots avoid CSS transform-box/individual-scale differences in Safari.
+    const flutterAngle = Math.sin(t * 83) * 10;
+    wings[0].setAttribute('transform', `rotate(${flutterAngle.toFixed(2)} 14 13)`);
+    wings[1].setAttribute('transform', `rotate(${(-flutterAngle).toFixed(2)} 14 13)`);
     const moving = Math.hypot(flight.vx, flight.vy) > 8;
     const direction = moving ? Math.atan2(flight.vy, flight.vx) + Math.PI / 2 : heading;
     heading += Math.atan2(Math.sin(direction - heading), Math.cos(direction - heading)) * (1 - Math.exp(-dt * 5));

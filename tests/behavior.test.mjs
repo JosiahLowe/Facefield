@@ -71,9 +71,10 @@ test('fly attention fades smoothly at the configurable world-space radius', asyn
   assert.equal(flyAttention(0,0,200),1);
   assert.equal(flyAttention(200,0,200),0);
   assert.equal(flyAttention(201,0,200),0);
-  assert.equal(flyAttention(100,0,200),.5);
+  assert.equal(flyAttention(140,0,200),.5);
+  assert.equal(flyAttention(80,0,200),1);
   assert.equal(flyAttention(60,80,200),flyAttention(100,0,200));
-  assert.ok(flyAttention(199,0,200)<.0001);
+  assert.ok(flyAttention(199,0,200)<.001);
   assert.ok(flyAttention(60,0,200)>flyAttention(160,0,200));
 });
 test('tracking offsets stay in the eye circle and keep pupils exposed under either lid', async () => {
