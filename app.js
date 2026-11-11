@@ -1,4 +1,4 @@
-import { createSinger } from './singing.js?v=tap-singer-1';
+import { createSinger } from './singing.js?v=phrase-handoff-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -103,6 +103,9 @@ new ResizeObserver(sizeWorld).observe(world);
 
 document.querySelector('#change-singer').addEventListener('click', advanceSinger);
 function advanceSinger() {
+  singer.advanceAfterPhrase(offscreenCandidates);
+}
+function offscreenCandidates() {
   // Use world coordinates so Safari zoom and viewport offsets cannot make a
   // visible tile look offscreen. Require an additional screen of separation.
   const view = window.visualViewport;
@@ -119,8 +122,7 @@ function advanceSinger() {
       || y + cell.height * unit <= top - height || y >= top + height * 2;
   });
   if (!offscreen.length) {
-    status.textContent = 'No offscreen singer is available from this view.';
-    return;
+    return [];
   }
-  singer.changeFace(offscreen);
+  return offscreen;
 }

@@ -68,6 +68,8 @@ export function createSinger({ button, status, animation, world }) {
   let context, output, panner, wave, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
+  let handoff = null, previousSinger = null;
+  const phraseEnds = [];
   let song = { root: 60, pattern: 0, octave: 0, voice: {sine:.92,triangle:.055,square:.025}, melody: MELODY }, hasSinger = false;
   let lastVolume = null, lastPan = null;
   function updateVolume() {
@@ -100,6 +102,9 @@ export function createSinger({ button, status, animation, world }) {
     wave = context.createPeriodicWave(real,imag,{disableNormalization:true});
   }
   function setFace(tile) {
+    handoff = null;
+    phraseEnds.length = 0;
+    if (target && tile) previousSinger = target;
     if (target) {
       animation.setSingingMouth(target, null);
       delete target.dataset.singer;
@@ -137,13 +142,32 @@ export function createSinger({ button, status, animation, world }) {
       target.dataset.songKey = String(song.root);
       target.dataset.octave = String(song.octave);
       target.dataset.melody = String(song.pattern);
-      target.setAttribute('aria-description', 'This face sings when sound is enabled. Tap or press Enter or Space to advance to the next offscreen singer.');
+      target.setAttribute('aria-description', 'This face sings when sound is enabled. Tap or press Enter or Space to finish this phrase, then pass singing to another offscreen face.');
     }
+  }
+  function changeFace(candidates) {
+    const available = candidates.filter(face => face !== previousSinger);
+    const next = chooseSinger(available, target);
+    if (!next || next === target) { status.textContent = 'No other offscreen face is available.'; return; }
+    setFace(next);
+    status.textContent = enabled ? 'A different face elsewhere in the world is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
   }
   function schedule() {
     if (!enabled || context.state !== 'running') return;
+    const now = context.currentTime;
+    if (handoff && handoff.end !== null && now >= handoff.end) {
+      const candidates = handoff.candidates;
+      handoff = null;
+      changeFace(candidates());
+    }
+    while (phraseEnds.length && phraseEnds[0] < now) phraseEnds.shift();
     while (nextTime < context.currentTime + .12) {
+      if (handoff && handoff.end !== null && nextTime >= handoff.end) break;
       const note = song.melody[cursor];
+      if (note.midi === null) {
+        phraseEnds.push(nextTime);
+        if (handoff && handoff.end === null) { handoff.end = nextTime; break; }
+      }
       if (note.midi !== null) {
         const voice = playNote(context, output, note.midi, nextTime, note.duration * .94, wave);
         voices.add(voice); notes.push(voice);
@@ -173,6 +197,8 @@ export function createSinger({ button, status, animation, world }) {
   }
   function stop() {
     generation++;
+    handoff = null;
+    phraseEnds.length = 0;
     enabled = false;
     clearInterval(timer); cancelAnimationFrame(frame);
     timer = 0; frame = 0;
@@ -224,11 +250,11 @@ export function createSinger({ button, status, animation, world }) {
   window.addEventListener('pagehide', stop);
   return {
     setFace,
-    changeFace(candidates) {
-      const next = chooseSinger(candidates, target);
-      if (!next || next === target) { status.textContent = 'No other face is available.'; return; }
-      setFace(next);
-      status.textContent = enabled ? 'A different face elsewhere in the world is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
+    advanceAfterPhrase(candidates) {
+      if (handoff) return;
+      if (!enabled) { changeFace(candidates()); return; }
+      handoff = { candidates, end: phraseEnds.find(end => end >= context.currentTime) ?? null };
+      status.textContent = 'The singer will finish this phrase, then another face will sing offscreen.';
     },
   };
 }
