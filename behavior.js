@@ -47,7 +47,7 @@ const NS = 'http://www.w3.org/2000/svg';
 const smooth = t => t * t * (3 - 2 * t);
 
 // A single frame loop serves visible faces. Sleeping and hidden faces do no work.
-export function animateFaces(grid) {
+export function animateFaces(grid, onFrame = null) {
   const states = new Map(), visible = new Set();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0, motionPaused = reduced.matches;
@@ -159,6 +159,7 @@ export function animateFaces(grid) {
   function tick(now) {
     frame = 0;
     if (reduced.matches || document.hidden) { resetActivity(); return; }
+    if (onFrame) onFrame(now);
     for (const s of visible) {
       updateMouth(s, now);
       if (now >= s.nextGaze) startGaze(s, now);
@@ -193,7 +194,7 @@ export function animateFaces(grid) {
     wake();
   }
   function wake() {
-    if (!frame && visible.size && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
+    if (!frame && (visible.size || onFrame) && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
   }
   function resetActivity() {
     motionPaused = reduced.matches;

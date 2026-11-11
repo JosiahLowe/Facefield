@@ -1,9 +1,10 @@
+import { createFly } from './fly.js?v=botanical-fly-1';
 import { createSinger } from './singing.js?v=phrase-handoff-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
 import { renderFace } from './faces.js?v=botanical-mosaic-1';
-import { animateFaces } from './behavior.js?v=first-singer-1';
+import { animateFaces } from './behavior.js?v=botanical-fly-1';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
@@ -14,7 +15,8 @@ function sizeWorld() {
   grid.style.width = `${WORLD_COLUMNS * cellSize}px`;
   grid.style.gridAutoRows = `${cellSize}px`;
 }
-const animation = animateFaces(grid);
+const fly = createFly(world, grid);
+const animation = animateFaces(grid, fly.update);
 const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
 const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world });
@@ -97,6 +99,7 @@ populate();
 // Begin inside the world, with room to explore left, right, up, and down.
 requestAnimationFrame(() => {
   world.scrollTo((world.scrollWidth - world.clientWidth) / 2, (world.scrollHeight - world.clientHeight) / 2);
+  fly.place();
 });
 
 new ResizeObserver(sizeWorld).observe(world);
