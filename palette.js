@@ -14,6 +14,7 @@ export const PALETTE = {
     center: '#D0A35B',
     dried: '#95836B',
   },
+  moth: { wing: '#EBD3AB', eyespot: '#BC8F3C', body: '#8D7958', antenna: '#A28C70' },
   variation: { lighter: .08, darker: .06 },
   gradient: { top: .055, bottom: .025 },
   eyelidShade: .18,

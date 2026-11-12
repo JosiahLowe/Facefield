@@ -1,4 +1,4 @@
-import { PALETTE } from './palette.js';
+import { PALETTE } from './palette.js?v=moth-6a-11';
 
 const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
 const between = (r,a,b) => a+r()*(b-a);
@@ -132,14 +132,17 @@ export function stepButterfly(state,dt,bounds,flowerHead=()=>null,random=Math.ra
 export function createButterfly(world,grid,flowers) {
   const element=document.createElement('div');
   element.className='butterfly';element.setAttribute('aria-hidden','true');
+  // Moth 6A: two mirrored, downward teardrops. Each wing begins on the
+  // existing x=20 hinge, so fluttering stays attached to the body at all scales.
   const wing=(side)=>`<g class="butterfly-wing butterfly-wing-${side}">
-    <ellipse cx="11" cy="17" rx="9" ry="11" fill="${PALETTE.skin[0]}"/>
-    <ellipse cx="12" cy="28" rx="7" ry="8" fill="${PALETTE.skin[2]}"/>
+    <path class="moth-wing-shape" d="M20 14.5 L3.8 27 C1.2 29 1 30.8 3.6 31.4 C5.9 32 9 32.4 11.6 32.3 C15.8 32 18.1 23.3 20 17Z" fill="${PALETTE.moth.wing}"/>
+    <circle class="moth-eyespot" cx="10.2" cy="27" r="2.1" fill="${PALETTE.moth.eyespot}"/>
   </g>`;
   element.innerHTML=`<span class="butterfly-shadow"></span><svg class="butterfly-body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
     ${wing('left')}<g transform="translate(40 0) scale(-1 1)">${wing('right')}</g>
-    <ellipse cx="20" cy="21" rx="1.8" ry="10" fill="${PALETTE.complements.hair}"/>
-    <g fill="${PALETTE.complements.hair}"><polygon points="19,12 16,6 18,7"/><polygon points="21,12 24,6 22,7"/></g>
+    <path class="moth-antenna" d="M18.8 12.2 C17.8 8.8 14.8 6.1 11.9 7.8 M21.2 12.2 C22.2 8.8 25.2 6.1 28.1 7.8" fill="none" stroke="${PALETTE.moth.antenna}" stroke-width=".75" stroke-linecap="round"/>
+    <path class="moth-abdomen" d="M20 15.5 C17.5 15.5 17 20.6 17.3 25 C17.6 29.3 19.1 33.2 20 33.2 C20.9 33.2 22.4 29.3 22.7 25 C23 20.6 22.5 15.5 20 15.5Z" fill="${PALETTE.moth.body}"/>
+    <circle class="moth-head" cx="20" cy="14.1" r="2.6" fill="${PALETTE.moth.body}"/>
   </svg>`;
   world.append(element);
   const body=element.querySelector('.butterfly-body'),shadow=element.querySelector('.butterfly-shadow');
