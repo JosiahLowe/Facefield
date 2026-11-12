@@ -14,8 +14,8 @@ body { margin: 0; }
 .face[data-singer] { cursor: pointer; }
 
 /* World-space decoration never intercepts a face tap or native touch scroll. */
-.fly { position: absolute; left: 0; top: 0; width: 28px; height: 28px; z-index: 1; pointer-events: none; will-change: transform; }
-.fly-body { position: absolute; inset: 0; width: 28px; height: 28px; overflow: visible; transform-origin: center; }
-.fly-shadow { position: absolute; left: 8px; top: 13px; width: 12px; height: 7px; border-radius: 50%; background: var(--ink); filter: blur(2px); }
+.butterfly { position: absolute; left: 0; top: 0; width: 36px; height: 36px; z-index: 1; pointer-events: none; will-change: transform; }
+.butterfly-body { position: absolute; inset: 0; width: 36px; height: 36px; transform-origin: center; }
+.butterfly-shadow { position: absolute; left: 7px; top: 13px; width: 23px; height: 12px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 3px 1px #29282333; }
 
 .flowers { position: absolute; left: 0; top: 0; pointer-events: none; overflow: hidden; }

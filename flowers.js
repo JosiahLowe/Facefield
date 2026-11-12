@@ -51,6 +51,21 @@ export function flowerMotion(f, seconds, life, energy = 0, duration = 0, reduced
   return { sway, expansion: Math.min(.105,bloom+pulse), bloom, pulse };
 }
 
+export function flowerWeight(load,seconds) {
+  if (!load) return 0;
+  return load.target+(load.value-load.target)*Math.exp(-Math.max(0,seconds-load.at)/(load.target ? .45 : 1.1));
+}
+export function flowerPose(f,life,seconds,energy=0,duration=0,weight=0,reduced=false) {
+  const motion=flowerMotion(f,seconds,life,energy,duration,reduced);
+  weight=reduced?0:clamp(weight,0,1);
+  const side=f.rotation<0?-1:1;
+  const base=Math.max(-8.4,Math.min(8.4,f.rotation+motion.sway*(1-weight*.7)+weight*5*side));
+  const angle=base+life.droop*.35,headTilt=life.droop*.5+weight*3*side;
+  const headOffset=-.70+weight*.045,radians=angle*Math.PI/180,scale=f.size*life.growth;
+  return {motion,angle,headTilt,headOffset,weight,
+    x:f.x-Math.sin(radians)*headOffset*scale,y:f.y+Math.cos(radians)*headOffset*scale};
+}
+
 // Mosaic-cell coordinates survive scrolling and scale with the faces on resize.
 // These bounds include full petal expansion, stem sway and the retiring droop.
 export function flowerBounds(f) {
@@ -261,8 +276,29 @@ export function createFlowers(world, grid) {
   world.append(layer);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const nodes = new Map();
+  const loads = new Map();
+  let occupant=null;
   let field, unit = 1, last = 0, reconciled = -Infinity, dirty = true, music = 0, duration = 0;
   let visible = [];
+  function loadFor(id,seconds) {
+    const load=loads.get(id),value=flowerWeight(load,seconds);
+    if (load&&!load.target&&value<.001) loads.delete(id);
+    return value;
+  }
+  function setOccupant(id) {
+    id=reduced.matches?null:id;
+    if (id===occupant) return;
+    const seconds=performance.now()/1000;
+    if (occupant) loads.set(occupant,{value:loadFor(occupant,seconds),target:0,at:seconds});
+    occupant=field?.active?.flowers.has(id)?id:null;
+    if (occupant) loads.set(occupant,{value:loadFor(occupant,seconds),target:1,at:seconds});
+    for (const key of loads.keys()) loadFor(key,seconds);
+  }
+  function headFor(f,patch,now) {
+    const life=flowerLife(f,patch,now/1000),node=nodes.get(`${patch.id}:${f.id}`);
+    const energy=node?.energy??(life.responsive?music/(1+(f.distance/4)**2):0);
+    return flowerPose(f,life,now/1000,energy,duration,loadFor(f.id,now/1000),reduced.matches);
+  }
   function resize() {
     unit = grid.clientWidth/48 || 1;
     layer.setAttribute('width',grid.clientWidth); layer.setAttribute('height',grid.clientHeight);
@@ -304,18 +340,20 @@ export function createFlowers(world, grid) {
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
       const response = life.responsive && patch === field.active ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
-      const motion = flowerMotion(f,now/1000,life,node.energy,duration,reduced.matches);
+      const pose = flowerPose(f,life,now/1000,node.energy,duration,loadFor(f.id,now/1000),reduced.matches);
+      const motion = pose.motion;
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
+      node.root.dataset.load=number(pose.weight);
       node.root.setAttribute('opacity',number(life.opacity));
-      node.growth.setAttribute('transform',`rotate(${number(f.rotation+motion.sway+life.droop*.35)}) scale(${number(life.growth)})`);
-      node.head.setAttribute('transform',`translate(0 -.70) rotate(${number(life.droop*.5)})`);
+      node.growth.setAttribute('transform',`rotate(${number(pose.angle)}) scale(${number(life.growth)})`);
+      node.head.setAttribute('transform',`translate(0 ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
       const turn = reduced.matches ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
       node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
       // Cancel the parent stem/head tilt so the shadow stays at 4:30 in world
       // coordinates, even as petals spin, stems sway and retired heads droop.
-      const tilt = (f.rotation+motion.sway+life.droop*.85)*Math.PI/180;
+      const tilt = (pose.angle+pose.headTilt)*Math.PI/180;
       const shadowX = .16*(Math.cos(tilt)+Math.sin(tilt));
       const shadowY = .16*(Math.cos(tilt)-Math.sin(tilt));
       node.headShadow.setAttribute('transform',`translate(${number(shadowX)} ${number(shadowY)}) scale(${petalScale})`);
@@ -335,20 +373,32 @@ export function createFlowers(world, grid) {
   setInterval(() => { if (reduced.matches && !document.hidden) update(performance.now(),true); },250);
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
-    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); layer.replaceChildren(); visible = []; music = 0; resize(); },
-    changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
+    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
+    changeSinger(tile) { setOccupant(null); music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,
-    nearby(point,reach = 110) {
-      if (!point) return null;
-      let best = null, distance = reach;
-      for (const item of visible) {
-        if (item.life.dry || item.life.bloom<.6) continue;
-        const f = item.f, x = f.x*unit, y = (f.y-f.size*.70)*unit;
-        const d = Math.hypot(x-point.x,y-point.y);
-        if (d<distance) { distance = d; best = {x,y}; }
+    setOccupant,
+    patch(now=performance.now()) {
+      const patch=field?.active;
+      if (!patch) return null;
+      const destinations=[];
+      for (const f of patch.flowers.values()) {
+        if (flowerLife(f,patch,now/1000).bloom>.65) {
+          const head=headFor(f,patch,now);
+          // Leave room for the butterfly at outer world edges; unreachable
+          // edge blossoms must not trap a landing against the flight bounds.
+          if (head.x>.45&&head.x<48-.45&&head.y>.45&&head.y<grid.clientHeight/unit-.45) {
+            destinations.push({id:f.id,x:head.x,y:head.y});
+          }
+        }
       }
-      return best;
+      return {id:patch.id,singer:patch.singer,center:patch.center,flowers:destinations};
+    },
+    flowerHead(id,now=performance.now()) {
+      const patch=field?.active,f=patch?.flowers.get(id);
+      if (!f||flowerLife(f,patch,now/1000).bloom<=.65) return null;
+      const pose=headFor(f,patch,now);
+      return {id,x:pose.x,y:pose.y};
     },
   };
 }

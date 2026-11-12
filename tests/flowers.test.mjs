@@ -2,8 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance } from '../flowers.js';
-import { createFlight, stepFlight } from '../fly.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance, flowerWeight, flowerPose } from '../flowers.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
 const view = { left: 0, top: 0, right: 48, bottom: 48 };
@@ -93,24 +92,6 @@ test('scroll culling preserves positions; repeated handoffs bound histories and 
   assert.ok(field.remnants.length<=FLOWER_LIMITS.remnants);
 });
 
-test('fly occasionally investigates a flower, departs, and prioritizes viewport pursuit', () => {
-  const fly = createFlight(200,200,()=>.5);
-  const viewport = {x:0,y:0,width:600,height:800}, world = {width:4680,height:4680};
-  fly.time=10; fly.turnAt=0; fly.mode='drift';
-  const flower={x:230,y:210};
-  stepFlight(fly,1/60,viewport,world,()=>.1,flower);
-  assert.ok(fly.flowerUntil>fly.time);
-  for (let i=0;i<200;i++) stepFlight(fly,1/60,viewport,world,()=>.1,flower);
-  assert.equal(fly.mode,'cross','investigation ends with normal departure');
-  const farView={...viewport,x:1800,y:1800};
-  fly.flowerUntil=fly.time+10;
-  for (let i=0;i<50;i++) stepFlight(fly,1/60,farView,world,()=>.1,flower);
-  assert.equal(fly.following,true);
-  assert.equal(fly.flowerUntil,0);
-  assert.ok(fly.gx>=farView.x && fly.gy>=farView.y);
-});
-
-
 test('seeded flower motion varies independently, blooms occasionally, and stays restrained', () => {
   const sites=generateFlowerSites(seed,layout).slice(0,120);
   const life={responsive:true,dry:false};
@@ -175,4 +156,25 @@ test('flower appearance has stable varied greens, leaves, and circular/oval peta
   assert.ok(leaves.some(l=>l.x<0)&&leaves.some(l=>l.x>0));
   assert.ok(new Set(petals.map(p=>p.radius)).size>100);
   assert.ok(petals.every(p=>p.offset+Math.max(p.radius,p.ry)<=.31));
+});
+
+
+test('butterfly weight bends a flower, then eases upright without moving its root', () => {
+  const f=generateFlowerSites(seed,layout)[0],life=flowerLife(f,null,0);
+  life.responsive=true;
+  const load={value:0,target:1,at:0};
+  assert.equal(flowerWeight(load,0),0);
+  assert.ok(flowerWeight(load,.5)>.6 && flowerWeight(load,.5)<1);
+  const loaded=flowerWeight(load,2),release={value:loaded,target:0,at:2};
+  assert.ok(loaded>.98);
+  assert.equal(flowerWeight(release,2),loaded,'takeoff starts from the current bend');
+  assert.ok(flowerWeight(release,3)<loaded && flowerWeight(release,3)>.1);
+  assert.ok(flowerWeight(release,9)<.002);
+  const original=[f.x,f.y];
+  const free=flowerPose(f,life,2,0,0,0),resting=flowerPose(f,life,2,0,0,loaded);
+  assert.ok(Math.abs(resting.angle-free.angle)>1);
+  assert.ok(resting.headOffset>free.headOffset,'head sinks under the butterfly');
+  assert.notDeepEqual([resting.x,resting.y],[free.x,free.y]);
+  assert.deepEqual([f.x,f.y],original,'root remains in stable world coordinates');
+  assert.deepEqual(flowerPose(f,life,2,0,0,1,true),flowerPose(f,life,2,0,0,0,true),'reduced motion disables the decorative bend');
 });

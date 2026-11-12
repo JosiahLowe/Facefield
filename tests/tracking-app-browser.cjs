@@ -4,12 +4,12 @@ const assert=require('node:assert/strict');
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- // Replay the complete flight deterministically, including hover-to-cross transitions.
+ // Replay deterministic flower selections while checking the actual insect-to-eye wiring.
  await page.addInitScript(()=>{Math.random=()=>.1;});
  await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
- await page.waitForFunction(()=>document.querySelector('.fly')?.style.transform);
+ await page.waitForFunction(()=>document.querySelector('.butterfly')?.style.transform);
  const sample=()=>page.evaluate(()=>{
-  const body=document.querySelector('.fly-body').getBoundingClientRect(),fly={x:body.x+body.width/2,y:body.y+body.height/2};
+  const body=document.querySelector('.butterfly-body').getBoundingClientRect(),fly={x:body.x+body.width/2,y:body.y+body.height/2};
   return [...document.querySelectorAll('.face')].map(tile=>{
    const rect=tile.getBoundingClientRect();if(rect.bottom<0||rect.y>innerHeight||rect.right<0||rect.x>innerWidth)return null;
    const c=tile.querySelectorAll('circle'),n=(e,a)=>+e.getAttribute(a);
@@ -31,17 +31,22 @@ const assert=require('node:assert/strict');
  const checks=[];
  for(const viewport of [{width:390,height:844},{width:1440,height:900}]){
   await page.setViewportSize(viewport);
-  await page.locator('#world').evaluate(w=>w.scrollTo((w.scrollWidth-w.clientWidth)/2,(w.scrollHeight-w.clientHeight)/2));
+  await page.locator('.butterfly').evaluate(b=>{const w=document.querySelector('#world');w.scrollTo(+b.dataset.worldX-w.clientWidth/2,+b.dataset.worldY-w.clientHeight/2);});
   await page.waitForTimeout(viewport.width===390?1600:5500);
-  const near=await expectTracking('actual app connects fly position to nearby pupils');
+  const near=await expectTracking('actual app connects butterfly position to nearby pupils');
   checks.push({width:viewport.width,...near});
  }
  await page.setViewportSize({width:390,height:844});
- await page.locator('#world').evaluate(w=>w.scrollBy(800,500));await page.waitForTimeout(6500);
- const followed=await expectTracking('gaze tracks the real fly after scroll and delayed catch-up');
- assert.equal(await page.locator('.fly').count(),1);
- assert.equal(await page.locator('.fly-wing').evaluateAll(wings=>wings.every(wing=>wing.tagName==='path')),true,'loads the attached-wing asset');
+ const before=await page.locator('.butterfly').evaluate(b=>[+b.dataset.worldX,+b.dataset.worldY]);
+ await page.locator('#world').evaluate(w=>w.scrollTo(0,0));await page.waitForTimeout(700);
+ const away=await page.locator('.butterfly').evaluate(b=>[+b.dataset.worldX,+b.dataset.worldY]);
+ assert.ok(Math.hypot(away[0]-before[0],away[1]-before[1])<400,'butterfly stays at the flowers rather than pursuing the viewport');
+ await page.locator('.butterfly').evaluate(b=>{const w=document.querySelector('#world');w.scrollTo(+b.dataset.worldX-w.clientWidth/2,+b.dataset.worldY-w.clientHeight/2);});
+ await page.waitForTimeout(900);
+ const followed=await expectTracking('gaze follows the butterfly when returning to its flower patch');
+ assert.equal(await page.locator('.butterfly').count(),1);
+ assert.equal(await page.locator('.butterfly-wing').evaluateAll(wings=>wings.every(wing=>wing.tagName==='g')),true,'loads the geometric butterfly wings');
  assert.deepEqual(errors,[]);
- console.log('PASS actual app fly-to-eye wiring:',JSON.stringify({checks,followed}));
+ console.log('PASS actual app butterfly-to-eye wiring:',JSON.stringify({checks,followed}));
  await browser.close();
 })();

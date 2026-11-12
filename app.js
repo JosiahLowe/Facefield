@@ -1,6 +1,6 @@
-import { createFly } from './fly.js?v=white-rounded-3';
+import { createButterfly } from './butterfly.js?v=musical-butterfly-9';
 import { createSinger } from './singing.js?v=white-rounded-3';
-import { createFlowers } from './flowers.js?v=botanical-variety-8';
+import { createFlowers } from './flowers.js?v=musical-butterfly-9';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -17,11 +17,11 @@ function sizeWorld() {
   grid.style.gridAutoRows = `${cellSize}px`;
 }
 const flowers = createFlowers(world, grid);
-const fly = createFly(world, grid, flowers.nearby);
-const animation = animateFaces(grid, now => { flowers.update(now); fly.update(now); }, fly.position);
+const butterfly = createButterfly(world, grid, flowers);
+const animation = animateFaces(grid, now => { flowers.update(now); butterfly.update(now); }, butterfly.position);
 const status = document.querySelector('#status');
 const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world,
-  onSingerChange: flowers.changeSinger, onMusic: flowers.music });
+  onSingerChange: tile => { flowers.changeSinger(tile); butterfly.followSinger(flowers.patch()); }, onMusic: flowers.music });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 const seed = url.searchParams.get('seed') || freshSeed();
@@ -80,7 +80,7 @@ populate();
 // Begin inside the world, with room to explore left, right, up, and down.
 requestAnimationFrame(() => {
   world.scrollTo((world.scrollWidth - world.clientWidth) / 2, (world.scrollHeight - world.clientHeight) / 2);
-  fly.place();
+  butterfly.place();
 });
 
 new ResizeObserver(sizeWorld).observe(world);
