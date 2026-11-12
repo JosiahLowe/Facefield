@@ -22,3 +22,5 @@ body { margin: 0; }
 .fly { position: absolute; left: 0; top: 0; width: 28px; height: 28px; z-index: 1; pointer-events: none; will-change: transform; }
 .fly-body { position: absolute; inset: 0; width: 28px; height: 28px; overflow: visible; transform-origin: center; }
 .fly-shadow { position: absolute; left: 8px; top: 13px; width: 12px; height: 7px; border-radius: 50%; background: var(--ink); filter: blur(2px); }
+
+.flowers { position: absolute; left: 0; top: 0; pointer-events: none; overflow: hidden; }

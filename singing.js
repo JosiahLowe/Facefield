@@ -89,7 +89,7 @@ export function playNote(context, output, midi, start, duration, wave = null) {
   return { oscillator, gain, vibrato, vibratoGain, start, end };
 }
 
-export function createSinger({ button, status, animation, world }) {
+export function createSinger({ button, status, animation, world, onSingerChange = () => {}, onMusic = () => {} }) {
   let context, output, panner, wave, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
@@ -173,6 +173,8 @@ export function createSinger({ button, status, animation, world }) {
       target.dataset.melody = String(song.pattern);
       target.setAttribute('aria-description', 'This face sings when sound is enabled. Tap or press Enter or Space to finish this phrase, then pass singing to another offscreen face.');
     }
+    onMusic(0);
+    onSingerChange(target);
   }
   function changeFace(candidates) {
     const available = candidates.filter(face => face !== previousSinger);
@@ -222,6 +224,7 @@ export function createSinger({ button, status, animation, world }) {
       opening = Math.max(0, Math.min(attack, release));
     }
     if (target) animation.setSingingMouth(target, opening);
+    onMusic(context.state === 'running' ? opening : 0, note ? note.end-note.start : 0);
     frame = requestAnimationFrame(mouthFrame);
   }
   function stop() {
@@ -235,6 +238,7 @@ export function createSinger({ button, status, animation, world }) {
       try { voice.oscillator.stop(); voice.vibrato.stop(); } catch { /* already ended */ }
     }
     notes.length = 0;
+    onMusic(0);
     if (target) animation.setSingingMouth(target, null);
     if (context?.state === 'running') context.suspend().catch(() => {});
     button.textContent = 'Enable Sound';

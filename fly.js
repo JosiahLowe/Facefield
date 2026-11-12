@@ -9,7 +9,7 @@ export function createFlight(x, y, random = Math.random) {
 }
 
 // All positions and velocities are in world pixels, independent of scroll speed.
-export function stepFlight(fly, dt, view, world, random = Math.random) {
+export function stepFlight(fly, dt, view, world, random = Math.random, flower = null) {
   dt = clamp(dt, 0, .05); // No jumps after a hidden tab or a long Safari frame.
   fly.time += dt;
   const inset = Math.min(60, view.width * .16, view.height * .16);
@@ -26,34 +26,50 @@ export function stepFlight(fly, dt, view, world, random = Math.random) {
     // Chase a world-space destination only after noticing the player has left.
     fly.gx = view.x + view.width * .5;
     fly.gy = view.y + view.height * .48;
+    fly.flowerUntil = 0;
+  } else if (fly.flowerUntil > fly.time) {
+    fly.gx = fly.flower.x + Math.sin(fly.time*2+fly.phase)*5;
+    fly.gy = fly.flower.y - 3 + Math.cos(fly.time*1.7)*3;
+    fly.mode = 'hover';
   } else if (fly.time >= fly.turnAt) {
-    const choice = random();
-    // A focused pause always ends in a trip across the viewport, never another pause.
-    const previous = fly.mode;
-    fly.mode = previous === 'hover' ? 'cross'
-      : previous === 'cross' ? (choice < .65 ? 'hover' : choice < .85 ? 'loop' : 'dart')
-      : choice < .25 ? 'hover' : choice < .45 ? 'dart' : choice < .65 ? 'loop' : choice < .8 ? 'drift' : 'cross';
-    if (fly.mode === 'cross') {
-      // Cross to the opposite horizontal side. Vary the vertical band so trips
-      // intersect across the screen rather than retracing one diagonal.
-      const fractionX = fly.x < view.x + view.width / 2 ? between(random, .72, .92) : between(random, .08, .28);
-      const goDown = (fly.y < view.y + view.height / 2) !== (random() < .3);
-      const fractionY = goDown ? between(random, .72, .92) : between(random, .08, .28);
-      fly.gx = clamp(view.x + view.width * fractionX, view.x + inset, view.x + view.width - inset);
-      fly.gy = clamp(view.y + view.height * fractionY, view.y + inset, view.y + view.height - inset);
-      fly.turnAt = fly.time + Math.hypot(fly.gx - fly.x, fly.gy - fly.y) / 180 + 1.2;
+    // Infrequent nearby investigations; viewport pursuit always takes priority.
+    // Keep normal hover departures intact, including the first cross-screen trip.
+    if (flower && fly.time > (fly.flowerCooldown ?? 9) && fly.mode !== 'hover' && random() < .22
+      && flower.x > view.x+inset && flower.x < view.x+view.width-inset
+      && flower.y > view.y+inset && flower.y < view.y+view.height-inset) {
+      fly.flower = { ...flower }; fly.flowerUntil = fly.time + 2.8;
+      fly.flowerCooldown = fly.time + 18;
+      fly.mode = 'hover'; fly.gx = flower.x; fly.gy = flower.y-3;
+      fly.turnAt = fly.flowerUntil;
     } else {
-      const reach = fly.mode === 'hover' ? 12 : fly.mode === 'dart' ? 150 : 180;
-      fly.gx = clamp(fly.x + between(random, -reach, reach), view.x + inset, view.x + view.width - inset);
-      fly.gy = clamp(fly.y + between(random, -reach, reach), view.y + inset, view.y + view.height - inset);
-      fly.turnAt = fly.time + (fly.mode === 'hover' ? between(random, 1.1, 2.2)
-        : fly.mode === 'dart' ? between(random, .45, .8) : between(random, .9, 1.8));
+      const choice = random();
+      // A focused pause always ends in a trip across the viewport, never another pause.
+      const previous = fly.mode;
+      fly.mode = previous === 'hover' ? 'cross'
+        : previous === 'cross' ? (choice < .65 ? 'hover' : choice < .85 ? 'loop' : 'dart')
+        : choice < .25 ? 'hover' : choice < .45 ? 'dart' : choice < .65 ? 'loop' : choice < .8 ? 'drift' : 'cross';
+      if (fly.mode === 'cross') {
+        // Cross to the opposite horizontal side. Vary the vertical band so trips
+        // intersect across the screen rather than retracing one diagonal.
+        const fractionX = fly.x < view.x + view.width / 2 ? between(random, .72, .92) : between(random, .08, .28);
+        const goDown = (fly.y < view.y + view.height / 2) !== (random() < .3);
+        const fractionY = goDown ? between(random, .72, .92) : between(random, .08, .28);
+        fly.gx = clamp(view.x + view.width * fractionX, view.x + inset, view.x + view.width - inset);
+        fly.gy = clamp(view.y + view.height * fractionY, view.y + inset, view.y + view.height - inset);
+        fly.turnAt = fly.time + Math.hypot(fly.gx - fly.x, fly.gy - fly.y) / 180 + 1.2;
+      } else {
+        const reach = fly.mode === 'hover' ? 12 : fly.mode === 'dart' ? 150 : 180;
+        fly.gx = clamp(fly.x + between(random, -reach, reach), view.x + inset, view.x + view.width - inset);
+        fly.gy = clamp(fly.y + between(random, -reach, reach), view.y + inset, view.y + view.height - inset);
+        fly.turnAt = fly.time + (fly.mode === 'hover' ? between(random, 1.1, 2.2)
+          : fly.mode === 'dart' ? between(random, .45, .8) : between(random, .9, 1.8));
+      }
     }
   }
   const dx = fly.gx - fly.x, dy = fly.gy - fly.y;
   const distance = Math.hypot(dx, dy);
   const speed = fly.following ? Math.min(780, distance * 1.5)
-    : Math.min(fly.mode === 'cross' ? 260 : fly.mode === 'dart' ? 240 : fly.mode === 'hover' ? 12 : 95, distance * 1.8)
+    : Math.min(fly.flowerUntil > fly.time ? 70 : fly.mode === 'cross' ? 260 : fly.mode === 'dart' ? 240 : fly.mode === 'hover' ? 12 : 95, distance * 1.8)
       * (.88 + .12 * Math.sin(fly.time * 1.6 + fly.phase));
   if (!fly.following && fly.mode === 'cross' && distance < 24) fly.turnAt = fly.time;
   const curl = !fly.following && fly.mode === 'loop' ? .85 : 0;
@@ -69,7 +85,7 @@ export function stepFlight(fly, dt, view, world, random = Math.random) {
   return fly;
 }
 
-export function createFly(world, grid) {
+export function createFly(world, grid, getFlower = () => null) {
   const element = document.createElement('div');
   element.className = 'fly';
   element.setAttribute('aria-hidden', 'true');
@@ -87,7 +103,7 @@ export function createFly(world, grid) {
   world.append(element);
   const body = element.querySelector('.fly-body'), shadow = element.querySelector('.fly-shadow');
   const wings = [...element.querySelectorAll('.fly-wing')];
-  let flight, last = 0, heading = 0, position = null;
+  let flight, last = 0, heading = 0, position = null, flower = null, nextFlowerCheck = 0;
   function viewport() {
     const view = window.visualViewport;
     return { x: world.scrollLeft + (view?.offsetLeft || 0), y: world.scrollTop + (view?.offsetTop || 0),
@@ -125,7 +141,8 @@ export function createFly(world, grid) {
       if (!flight) return;
       const dt = last ? Math.min(.05, (now - last) / 1000) : 0;
       last = now;
-      stepFlight(flight, dt, viewport(), { width: grid.clientWidth, height: grid.clientHeight });
+      if (now >= nextFlowerCheck) { flower = getFlower(position); nextFlowerCheck = now+700; }
+      stepFlight(flight, dt, viewport(), { width: grid.clientWidth, height: grid.clientHeight }, Math.random, flower);
       draw(dt);
     },
   };

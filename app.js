@@ -1,5 +1,6 @@
-import { createFly } from './fly.js?v=fly-crossings-1';
-import { createSinger } from './singing.js?v=chord-progression-1';
+import { createFly } from './fly.js?v=flowers-1';
+import { createSinger } from './singing.js?v=flowers-1';
+import { createFlowers } from './flowers.js?v=flowers-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
@@ -15,11 +16,13 @@ function sizeWorld() {
   grid.style.width = `${WORLD_COLUMNS * cellSize}px`;
   grid.style.gridAutoRows = `${cellSize}px`;
 }
-const fly = createFly(world, grid);
-const animation = animateFaces(grid, fly.update, fly.position);
+const flowers = createFlowers(world, grid);
+const fly = createFly(world, grid, flowers.nearby);
+const animation = animateFaces(grid, now => { flowers.update(now); fly.update(now); }, fly.position);
 const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
-const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world });
+const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world,
+  onSingerChange: flowers.changeSinger, onMusic: flowers.music });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 let seed = url.searchParams.get('seed') || freshSeed();
@@ -47,6 +50,7 @@ function populate() {
   singer.setFace(null);
   animation.clear();
   layout = mosaicLayout(seed, WORLD_COLUMNS, WORLD_FACE_COUNT);
+  flowers.reset(seed, layout);
   grid.style.gridTemplateColumns = `repeat(${WORLD_COLUMNS}, minmax(0, 1fr))`;
   sizeWorld();
   const fragment = document.createDocumentFragment();

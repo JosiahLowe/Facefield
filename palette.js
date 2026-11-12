@@ -8,6 +8,11 @@ export const PALETTE = {
   accent: '#A65E49',
   // Reserved for future features; this theme introduces no new facial features.
   complements: { hair: '#494B3D', lips: '#8D574C', cheeks: '#BD8C77', accessories: '#65746B' },
+  flowers: {
+    stems: ['#65746B', '#494B3D', '#6F805B'],
+    petals: ['#D0A35B', '#BD8C77', '#F5F0E6', '#A65E49', '#D6C3A5'],
+    dried: '#95836B',
+  },
   variation: { lighter: .08, darker: .06 },
   gradient: { top: .055, bottom: .025 },
   eyelidShade: .18,
