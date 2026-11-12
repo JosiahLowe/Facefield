@@ -215,10 +215,16 @@ function geometry(f, style) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   return `<g class="flower-stem" fill="${stem}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
-    <g class="flower-leaves" filter="url(#flower-shadow)">
+    <g class="flower-leaf-shadow" fill="${PALETTE.ink}" transform="translate(.035 .045)">
+      <g opacity=".055" transform="translate(0 -.01) scale(1.05)"><ellipse cx="-.13" cy="-.34" rx=".18" ry=".08" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".16" ry=".075" transform="rotate(-30 .12 -.48)"/></g>
+      <g opacity=".12"><ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g>
+    </g>
+    <g class="flower-leaves">
     <ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>
     <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g></g>
-    <g class="flower-head" filter="url(#flower-shadow)" transform="translate(0 -.70)"><g class="flower-petals" fill="${color}">${petals}</g>
+    <g class="flower-head" transform="translate(0 -.70)">
+    <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.035 .045)"><circle r=".32" opacity=".055"/><circle r=".28" opacity=".12"/></g>
+    <g class="flower-petals" fill="${color}">${petals}</g>
     <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.flowers.petals[0]}"/></g>`;
 }
 
@@ -229,15 +235,6 @@ export function createFlowers(world, grid) {
   layer.classList.add('flowers');
   layer.setAttribute('aria-hidden','true'); layer.setAttribute('focusable','false');
   world.append(layer);
-  function addShadow() {
-    // One shared definition, small local filter surfaces; never filter the world
-    // SVG or the moving stem group. SVG pivots work consistently in Safari.
-    const defs = document.createElementNS(NS,'defs');
-    defs.innerHTML = `<filter id="flower-shadow" filterUnits="userSpaceOnUse" x="-.5" y="-.8" width="1" height="1.3" color-interpolation-filters="sRGB">
-      <feDropShadow dx=".035" dy=".045" stdDeviation=".025" flood-color="${PALETTE.ink}" flood-opacity=".20"/>
-    </filter>`;
-    layer.prepend(defs);
-  }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const nodes = new Map();
   let field, unit = 1, last = 0, reconciled = -Infinity, dirty = true, music = 0, duration = 0;
@@ -267,7 +264,7 @@ export function createFlowers(world, grid) {
       root.innerHTML = `<g class="flower-growth">${geometry(item.f,item.style)}</g>`;
       layer.append(root);
       nodes.set(item.key,{ root, growth: root.firstElementChild,
-        stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'),
+        stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
         petals: root.querySelector('.flower-petals'),
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
     }
@@ -288,7 +285,9 @@ export function createFlowers(world, grid) {
       node.root.setAttribute('opacity',number(life.opacity));
       node.growth.setAttribute('transform',`rotate(${number(f.rotation+motion.sway+life.droop*.35)}) scale(${number(life.growth)})`);
       node.head.setAttribute('transform',`translate(0 -.70) rotate(${number(life.droop*.5)})`);
-      node.petals.setAttribute('transform',`scale(${number(.18+life.bloom*.82+motion.expansion)})`);
+      const petalScale = number(.18+life.bloom*.82+motion.expansion);
+      node.petals.setAttribute('transform',`scale(${petalScale})`);
+      node.headShadow.setAttribute('transform',`translate(.035 .045) scale(${petalScale})`);
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
@@ -305,7 +304,7 @@ export function createFlowers(world, grid) {
   setInterval(() => { if (reduced.matches && !document.hidden) update(performance.now(),true); },250);
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
-    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); layer.replaceChildren(); addShadow(); visible = []; music = 0; resize(); },
+    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); layer.replaceChildren(); visible = []; music = 0; resize(); },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,

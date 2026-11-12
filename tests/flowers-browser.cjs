@@ -45,10 +45,9 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
       });
     }
     assert.deepEqual(await clearance(),[],'flower geometry clears eyes, noses and mouths');
-    assert.equal(await page.locator('#flower-shadow').count(),1,'one shared shadow definition');
+    assert.equal(await page.locator('.flowers [filter],.flowers filter').count(),0,'petal visibility never depends on SVG filters');
     assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>
-      f.querySelector('.flower-head').getAttribute('filter')==='url(#flower-shadow)'
-      && f.querySelector('.flower-leaves').getAttribute('filter')==='url(#flower-shadow)')),'heads and leaves cast local shadows');
+      f.querySelector('.flower-head-shadow circle') && f.querySelector('.flower-leaf-shadow ellipse'))),'heads and leaves cast local shadows');
     const quietPetals=()=>page.locator('.flower-petals').evaluateAll(ps=>ps.map(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]));
     const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     let blooms=0,resting=0;

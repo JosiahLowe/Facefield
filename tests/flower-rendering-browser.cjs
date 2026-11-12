@@ -1,0 +1,48 @@
+const {chromium,webkit}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+  const engine=process.env.FACEFIELD_BROWSER==='webkit' ? webkit : chromium;
+  const browser=await engine.launch(engine===chromium
+    ? {executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']} : {});
+  try {
+    const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+    await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
+    await page.waitForSelector('.flower[data-stage=bloom]');
+    const result=await page.evaluate(async()=>{
+      const flowers=[...document.querySelectorAll('.flower[data-stage=bloom]')];
+      const original=flowers.sort((a,b)=>+b.getAttribute('transform').match(/scale\(([\d.]+)/)[1]-+a.getAttribute('transform').match(/scale\(([\d.]+)/)[1])[0];
+      const ns='http://www.w3.org/2000/svg';
+      async function paint(shadows){
+        const svg=document.createElementNS(ns,'svg');
+        svg.setAttribute('width','128');svg.setAttribute('height','128');
+        svg.setAttribute('viewBox','0 0 128 128');
+        const flower=original.cloneNode(true);
+        flower.setAttribute('transform','translate(64 100) scale(80)');
+        flower.setAttribute('opacity','1');
+        if(!shadows)flower.querySelectorAll('.flower-head-shadow,.flower-leaf-shadow').forEach(el=>el.remove());
+        svg.append(flower);
+        const image=new Image();
+        image.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
+        await image.decode();
+        const canvas=document.createElement('canvas');canvas.width=128;canvas.height=128;
+        const context=canvas.getContext('2d');context.fillStyle='#607050';context.fillRect(0,0,128,128);
+        context.drawImage(image,0,0);
+        return context.getImageData(0,0,128,128).data;
+      }
+      const withShadow=await paint(true),withoutShadow=await paint(false);
+      let whitePixels=0,shadowPixels=0,leafPixels=0;
+      for(let i=0;i<withShadow.length;i+=4){
+        if(withShadow[i]>245&&withShadow[i+1]>245&&withShadow[i+2]>245)whitePixels++;
+        if(withShadow[i]+withShadow[i+1]+withShadow[i+2]+8<withoutShadow[i]+withoutShadow[i+1]+withoutShadow[i+2])shadowPixels++;
+        if(Math.abs(withShadow[i]-101)<3&&Math.abs(withShadow[i+1]-116)<3&&Math.abs(withShadow[i+2]-107)<3)leafPixels++;
+      }
+      return {whitePixels,shadowPixels,leafPixels,filters:document.querySelectorAll('.flowers [filter],.flowers filter').length};
+    });
+    assert.equal(result.filters,0,'flower geometry renders without filter references');
+    assert.ok(result.whitePixels>300,'white petals must actually paint: '+JSON.stringify(result));
+    assert.ok(result.leafPixels>100,'leaves must actually paint: '+JSON.stringify(result));
+    assert.ok(result.shadowPixels>50,'head and leaf shadows must actually paint: '+JSON.stringify(result));
+    await page.screenshot({path:'/tmp/facefield-flower-rendering.png'});
+    console.log('PASS rendered flower pixels:',process.env.FACEFIELD_BROWSER||'chromium',JSON.stringify(result));
+  } finally {await browser.close();}
+})();
