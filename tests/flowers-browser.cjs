@@ -45,12 +45,29 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
       });
     }
     assert.deepEqual(await clearance(),[],'flower geometry clears eyes, noses and mouths');
+    assert.equal(await page.locator('#flower-shadow').count(),1,'one shared shadow definition');
+    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>
+      f.querySelector('.flower-head').getAttribute('filter')==='url(#flower-shadow)'
+      && f.querySelector('.flower-leaves').getAttribute('filter')==='url(#flower-shadow)')),'heads and leaves cast local shadows');
+    const quietPetals=()=>page.locator('.flower-petals').evaluateAll(ps=>ps.map(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]));
+    const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
+    let blooms=0,resting=0;
+    for(let i=0;i<8;i++){
+      await page.clock.fastForward(1000);await page.waitForTimeout(60);
+      const scales=await quietPetals();
+      blooms+=scales.filter(s=>s>1.002).length;resting+=scales.filter(s=>s===1).length;
+      assert.ok(scales.every(s=>s<=1.04),'idle blooms are small');
+      assert.deepEqual(await clearance(),[],'sway and blooms retain facial clearance');
+    }
+    assert.ok(blooms>0&&resting>blooms,'idle blooms are occasional and independent');
+    const swaying=await page.locator('.flower-growth').evaluateAll((gs,before)=>gs.filter((g,i)=>g.getAttribute('transform')!==before[i]).length,rotations);
+    assert.ok(swaying>10,'flowers sway independently at their stem bases');
     await page.locator('#enable-sound').tap();
-    await page.waitForFunction(()=>[...document.querySelectorAll('.flower-petals')].some(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]>1.005));
+    await page.waitForFunction(()=>[...document.querySelectorAll('.flower-petals')].some(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]>1.045));
     assert.deepEqual(await clearance(),[],'music expansion preserves facial clearance');
     await page.locator('#enable-sound').tap();
     await page.waitForTimeout(1600);
-    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]<1.002)),'muting releases flower pulses');
+    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]<1.041)),'muting releases music pulses while idle blooming remains restrained');
 
     const previous=await page.locator('[data-singer]').getAttribute('data-index');
     await page.locator('[data-singer]').evaluate(t=>t.click());

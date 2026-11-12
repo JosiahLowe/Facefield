@@ -5,6 +5,25 @@ const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 export const FLOWER_LIMITS = { remnants: 48, retiring: 4, rendered: 420 };
 
+export function flowerMotionProfile(seed, id) {
+  // A separate stream leaves all existing positions, sizes and density intact.
+  const r = randomFrom(`${seed}:flower-motion:${id}`);
+  return { speed: 2*Math.PI/(8+r()*6), amplitude: .8+r()*1.3, phase: r()*Math.PI*2,
+    bloomPeriod: 26+r()*20, bloomDuration: 4.5+r()*3, bloomPhase: r(), bloomAmount: .025+r()*.015 };
+}
+export function flowerMotion(f, seconds, life, energy = 0, duration = 0, reduced = false) {
+  if (reduced || life.dry) return { sway: 0, expansion: 0, bloom: 0, pulse: 0 };
+  const m = f.motion;
+  const angle = seconds*m.speed+m.phase;
+  const sway = Math.sin(angle)*m.amplitude + Math.sin(angle*.73+m.phase)*.3*clamp(energy);
+  const cycleTime = ((seconds+m.bloomPhase*m.bloomPeriod)%m.bloomPeriod+m.bloomPeriod)%m.bloomPeriod;
+  const progress = cycleTime/m.bloomDuration;
+  // A slow opening and relaxation, followed by a much longer still interval.
+  const bloom = life.responsive && progress<1 ? Math.sin(progress*Math.PI)**2*m.bloomAmount : 0;
+  const pulse = life.responsive ? clamp(energy)*(.07+clamp(duration/4)*.035) : 0;
+  return { sway, expansion: Math.min(.105,bloom+pulse), bloom, pulse };
+}
+
 // Mosaic-cell coordinates survive scrolling and scale with the faces on resize.
 // These bounds include full petal expansion, stem sway and the retiring droop.
 export function flowerBounds(f) {
@@ -55,6 +74,7 @@ export function generateFlowerSites(seed, layout) {
       if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
         && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*.6)) local.push(f);
     }
+    for (const f of local) f.motion = flowerMotionProfile(seed,f.id);
     sites.push(...local);
   }
   // Only actual shared face edges qualify, never internal lines within a tile
@@ -195,9 +215,10 @@ function geometry(f, style) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   return `<g class="flower-stem" fill="${stem}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
+    <g class="flower-leaves" filter="url(#flower-shadow)">
     <ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>
-    <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g>
-    <g class="flower-head" transform="translate(0 -.70)"><g class="flower-petals" fill="${color}">${petals}</g>
+    <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g></g>
+    <g class="flower-head" filter="url(#flower-shadow)" transform="translate(0 -.70)"><g class="flower-petals" fill="${color}">${petals}</g>
     <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.flowers.petals[0]}"/></g>`;
 }
 
@@ -208,6 +229,15 @@ export function createFlowers(world, grid) {
   layer.classList.add('flowers');
   layer.setAttribute('aria-hidden','true'); layer.setAttribute('focusable','false');
   world.append(layer);
+  function addShadow() {
+    // One shared definition, small local filter surfaces; never filter the world
+    // SVG or the moving stem group. SVG pivots work consistently in Safari.
+    const defs = document.createElementNS(NS,'defs');
+    defs.innerHTML = `<filter id="flower-shadow" filterUnits="userSpaceOnUse" x="-.5" y="-.8" width="1" height="1.3" color-interpolation-filters="sRGB">
+      <feDropShadow dx=".035" dy=".045" stdDeviation=".025" flood-color="${PALETTE.ink}" flood-opacity=".20"/>
+    </filter>`;
+    layer.prepend(defs);
+  }
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const nodes = new Map();
   let field, unit = 1, last = 0, reconciled = -Infinity, dirty = true, music = 0, duration = 0;
@@ -253,13 +283,12 @@ export function createFlowers(world, grid) {
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
       const response = life.responsive && patch === field.active ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
-      const pulse = reduced.matches ? 0 : node.energy*(.07+Math.min(1,duration/4)*.035);
-      const sway = reduced.matches || life.dry ? 0 : Math.sin(now/1800+f.phase)*2.4;
+      const motion = flowerMotion(f,now/1000,life,node.energy,duration,reduced.matches);
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.setAttribute('opacity',number(life.opacity));
-      node.growth.setAttribute('transform',`rotate(${number(f.rotation+sway+life.droop*.35)}) scale(${number(life.growth)})`);
+      node.growth.setAttribute('transform',`rotate(${number(f.rotation+motion.sway+life.droop*.35)}) scale(${number(life.growth)})`);
       node.head.setAttribute('transform',`translate(0 -.70) rotate(${number(life.droop*.5)})`);
-      node.petals.setAttribute('transform',`scale(${number(.18+life.bloom*.82+pulse)})`);
+      node.petals.setAttribute('transform',`scale(${number(.18+life.bloom*.82+motion.expansion)})`);
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
@@ -276,7 +305,7 @@ export function createFlowers(world, grid) {
   setInterval(() => { if (reduced.matches && !document.hidden) update(performance.now(),true); },250);
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
-    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); layer.replaceChildren(); visible = []; music = 0; resize(); },
+    reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); layer.replaceChildren(); addShadow(); visible = []; music = 0; resize(); },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,

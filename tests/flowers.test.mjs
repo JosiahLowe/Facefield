@@ -1,7 +1,8 @@
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS } from '../flowers.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion } from '../flowers.js';
 import { createFlight, stepFlight } from '../fly.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
@@ -10,6 +11,9 @@ const view = { left: 0, top: 0, right: 48, bottom: 48 };
 test('world flower sites reproduce from seed, keep clearance and vary across seeds', () => {
   const sites = generateFlowerSites(seed,layout);
   assert.deepEqual(sites,generateFlowerSites(seed,layout));
+  const positions=sites.map(({id,x,y,size})=>({id,x,y,size}));
+  assert.equal(createHash('sha256').update(JSON.stringify(positions)).digest('hex'),
+    '115f48b69370c8ffc38e6ee63f81d36c0b9d123581ade6fd0fe32060f92ca7be','animation changes preserve existing placement');
   assert.notDeepEqual(sites,generateFlowerSites('another',layout));
   assert.ok(sites.length > 1000 && sites.length < 12000);
   assert.equal(new Set(sites.map(f => f.id)).size,sites.length);
@@ -104,4 +108,37 @@ test('fly occasionally investigates a flower, departs, and prioritizes viewport 
   assert.equal(fly.following,true);
   assert.equal(fly.flowerUntil,0);
   assert.ok(fly.gx>=farView.x && fly.gy>=farView.y);
+});
+
+
+test('seeded flower motion varies independently, blooms occasionally, and stays restrained', () => {
+  const sites=generateFlowerSites(seed,layout).slice(0,120);
+  const life={responsive:true,dry:false};
+  assert.deepEqual(flowerMotionProfile(seed,sites[0].id),sites[0].motion);
+  assert.ok(new Set(sites.map(f=>f.motion.speed)).size>100);
+  assert.ok(new Set(sites.map(f=>f.motion.amplitude)).size>100);
+  let blooming=0,total=0;
+  for (const f of sites) {
+    for (let t=0;t<90;t+=.5) {
+      const quiet=flowerMotion(f,t,life),next=flowerMotion(f,t+1/60,life);
+      assert.ok(Math.abs(quiet.sway)<=2.1 && Math.abs(next.sway-quiet.sway)<.04);
+      assert.ok(quiet.expansion>=0 && quiet.expansion<=.04);
+      if (quiet.bloom>0) blooming++;
+      total++;
+      const near=flowerMotion(f,t,life,1,4),far=flowerMotion(f,t,life,.15,4);
+      assert.ok(near.pulse>far.pulse && near.expansion<=.105);
+      assert.ok(Math.abs(near.sway)<=2.4);
+    }
+  }
+  assert.ok(blooming/total>.08 && blooming/total<.3,'long quiet intervals between slow blooms');
+  const atOnce=sites.map(f=>flowerMotion(f,30,life));
+  assert.ok(atOnce.some(m=>m.bloom===0) && atOnce.some(m=>m.bloom>0),'flowers do not all bloom together');
+});
+
+test('decorative flower motion stops for reduced motion and retiring patches', () => {
+  const f={motion:flowerMotionProfile(seed,'quiet')};
+  const still={sway:0,expansion:0,bloom:0,pulse:0};
+  assert.deepEqual(flowerMotion(f,10,{responsive:true,dry:false},1,4,true),still);
+  assert.deepEqual(flowerMotion(f,10,{responsive:false,dry:true},1,4),still);
+  assert.equal(flowerMotion(f,10,{responsive:false,dry:false},1,4).expansion,0,'buds do not pulse or bloom before maturity');
 });
