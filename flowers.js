@@ -5,6 +5,15 @@ const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 export const FLOWER_LIMITS = { remnants: 48, retiring: 4, rendered: 420 };
 
+export function flowerPosture(seed,id) {
+  const r=randomFrom(`${seed}:flower-posture:${id}`),choice=r();
+  const kind=choice<.4?'upright':choice<.7?'left':'right';
+  const bow=kind==='upright'?0:(kind==='left'?-1:1)*(.10+r()*.18);
+  // Keep the curved head, leaves and projected shadow inside the original
+  // clearance envelope without moving or removing a seeded flower site.
+  return {kind,bow,scale:.58/(.58+Math.abs(bow))};
+}
+
 export function flowerAppearance(seed, id) {
   const r = randomFrom(`${seed}:flower-appearance:${id}`);
   const green = PALETTE.flowers.stems[Math.floor(r()*PALETTE.flowers.stems.length)];
@@ -58,12 +67,16 @@ export function flowerWeight(load,seconds) {
 export function flowerPose(f,life,seconds,energy=0,duration=0,weight=0,reduced=false) {
   const motion=flowerMotion(f,seconds,life,energy,duration,reduced);
   weight=reduced?0:clamp(weight,0,1);
-  const side=f.rotation<0?-1:1;
-  const base=Math.max(-8.4,Math.min(8.4,f.rotation+motion.sway*(1-weight*.7)+weight*5*side));
-  const angle=base+life.droop*.35,headTilt=life.droop*.5+weight*3*side;
-  const headOffset=-.70+weight*.045,radians=angle*Math.PI/180,scale=f.size*life.growth;
-  return {motion,angle,headTilt,headOffset,weight,
-    x:f.x-Math.sin(radians)*headOffset*scale,y:f.y+Math.cos(radians)*headOffset*scale};
+  const posture=f.posture||{kind:'upright',bow:0,scale:1};
+  const side=Math.sign(posture.bow)||(f.rotation<0?-1:1);
+  const base=Math.max(-8.4,Math.min(8.4,f.rotation*.25+motion.sway*(1-weight*.7)+weight*5*side));
+  const angle=base+life.droop*.35*side;
+  const headTilt=Math.sign(posture.bow)*(10+Math.abs(posture.bow)*40)+life.droop*.5*side+weight*3*side;
+  const headX=posture.bow,headOffset=-.70+Math.abs(posture.bow)*.3+weight*.045;
+  const growthScale=life.growth*posture.scale,radians=angle*Math.PI/180,scale=f.size*growthScale;
+  return {motion,angle,headTilt,headX,headOffset,growthScale,weight,
+    x:f.x+(Math.cos(radians)*headX-Math.sin(radians)*headOffset)*scale,
+    y:f.y+(Math.sin(radians)*headX+Math.cos(radians)*headOffset)*scale};
 }
 
 // Mosaic-cell coordinates survive scrolling and scale with the faces on resize.
@@ -116,7 +129,10 @@ export function generateFlowerSites(seed, layout) {
       if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
         && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*.6)) local.push(f);
     }
-    for (const f of local) f.motion = flowerMotionProfile(seed,f.id);
+    for (const f of local) {
+      f.motion = flowerMotionProfile(seed,f.id);
+      f.posture = flowerPosture(seed,f.id);
+    }
     sites.push(...local);
   }
   // Only actual shared face edges qualify, never internal lines within a tile
@@ -259,7 +275,7 @@ function geometry(f, style) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   const leaves = a.leaves.map(l=>`<ellipse cx="${l.x}" cy="${l.y}" rx="${l.rx}" ry="${l.ry}" transform="rotate(${l.angle} ${l.x} ${l.y})"/>`).join('');
-  return `<g class="flower-stem" fill="${a.stemColor}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
+  return `<g class="flower-stem" fill="${a.stemColor}"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/>
     <g class="flower-leaves">${leaves}</g></g>
     <g class="flower-head" transform="translate(0 -.70)">
     <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
@@ -285,19 +301,23 @@ export function createFlowers(world, grid) {
     if (load&&!load.target&&value<.001) loads.delete(id);
     return value;
   }
-  function setOccupant(id) {
+  function patchFor(id) {
+    return field?.active?.id===id?field.active:field?.retiring.find(p=>p.id===id);
+  }
+  function setOccupant(id,patchId=field?.active?.id) {
     id=reduced.matches?null:id;
-    if (id===occupant) return;
+    const key=id?`${patchId}:${id}`:null;
+    if (key===occupant) return;
     const seconds=performance.now()/1000;
     if (occupant) loads.set(occupant,{value:loadFor(occupant,seconds),target:0,at:seconds});
-    occupant=field?.active?.flowers.has(id)?id:null;
+    occupant=patchFor(patchId)?.flowers.has(id)?key:null;
     if (occupant) loads.set(occupant,{value:loadFor(occupant,seconds),target:1,at:seconds});
     for (const key of loads.keys()) loadFor(key,seconds);
   }
   function headFor(f,patch,now) {
     const life=flowerLife(f,patch,now/1000),node=nodes.get(`${patch.id}:${f.id}`);
     const energy=node?.energy??(life.responsive?music/(1+(f.distance/4)**2):0);
-    return flowerPose(f,life,now/1000,energy,duration,loadFor(f.id,now/1000),reduced.matches);
+    return flowerPose(f,life,now/1000,energy,duration,loadFor(`${patch.id}:${f.id}`,now/1000),reduced.matches);
   }
   function resize() {
     unit = grid.clientWidth/48 || 1;
@@ -320,12 +340,14 @@ export function createFlowers(world, grid) {
       const root = document.createElementNS(NS,'g');
       root.classList.add('flower'); root.dataset.flower = item.key;
       root.dataset.site = item.f.id; root.dataset.x = item.f.x; root.dataset.y = item.f.y;
+      root.dataset.posture=item.f.posture.kind;
       root.setAttribute('transform',`translate(${number(item.f.x)} ${number(item.f.y)}) scale(${number(item.f.size)})`);
       root.innerHTML = `<g class="flower-growth">${geometry(item.f,item.style)}</g>`;
       layer.append(root);
       nodes.set(item.key,{ root, growth: root.firstElementChild,
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
         petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
+        stemPath: root.querySelector('.flower-stem-path'), leaves:[...root.querySelectorAll('.flower-leaves ellipse')],
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
     }
     reconciled = now; dirty = false;
@@ -340,13 +362,21 @@ export function createFlowers(world, grid) {
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
       const response = life.responsive && patch === field.active ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
-      const pose = flowerPose(f,life,now/1000,node.energy,duration,loadFor(f.id,now/1000),reduced.matches);
+      const pose = flowerPose(f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
       const motion = pose.motion;
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.dataset.load=number(pose.weight);
       node.root.setAttribute('opacity',number(life.opacity));
-      node.growth.setAttribute('transform',`rotate(${number(pose.angle)}) scale(${number(life.growth)})`);
-      node.head.setAttribute('transform',`translate(0 ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
+      node.growth.setAttribute('transform',`rotate(${number(pose.angle)}) scale(${number(pose.growthScale)})`);
+      node.stemPath.setAttribute('d',`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
+      node.leaves.forEach((leaf,i)=>{
+        const l=f.appearance.leaves[i],t=-l.y/.70;
+        const x=l.x+pose.headX*t*t,y=l.y+(pose.headOffset+.70)*t*t;
+        const tilt=Math.atan2(2*pose.headX*t,.70-2*(pose.headOffset+.70)*t)*180/Math.PI;
+        leaf.setAttribute('cx',number(x));leaf.setAttribute('cy',number(y));
+        leaf.setAttribute('transform',`rotate(${number(l.angle+tilt)} ${number(x)} ${number(y)})`);
+      });
+      node.head.setAttribute('transform',`translate(${number(pose.headX)} ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
       const turn = reduced.matches ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
@@ -360,6 +390,7 @@ export function createFlowers(world, grid) {
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
+        node.stemPath.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.petals.setAttribute('fill',PALETTE.flowers.petals[0]);
         node.dryLevel = dryLevel;
       }
@@ -374,7 +405,7 @@ export function createFlowers(world, grid) {
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
     reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
-    changeSinger(tile) { setOccupant(null); music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
+    changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,
     setOccupant,
@@ -394,9 +425,9 @@ export function createFlowers(world, grid) {
       }
       return {id:patch.id,singer:patch.singer,center:patch.center,flowers:destinations};
     },
-    flowerHead(id,now=performance.now()) {
-      const patch=field?.active,f=patch?.flowers.get(id);
-      if (!f||flowerLife(f,patch,now/1000).bloom<=.65) return null;
+    flowerHead(id,now=performance.now(),patchId=field?.active?.id) {
+      const patch=patchFor(patchId),f=patch?.flowers.get(id);
+      if (!f||flowerLife(f,patch,now/1000).bloom<=(patch.retired===null ? .65 : .15)) return null;
       const pose=headFor(f,patch,now);
       return {id,x:pose.x,y:pose.y};
     },

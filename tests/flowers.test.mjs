@@ -2,7 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance, flowerWeight, flowerPose } from '../flowers.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance, flowerWeight, flowerPose, flowerPosture } from '../flowers.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
 const view = { left: 0, top: 0, right: 48, bottom: 48 };
@@ -177,4 +177,30 @@ test('butterfly weight bends a flower, then eases upright without moving its roo
   assert.notDeepEqual([resting.x,resting.y],[free.x,free.y]);
   assert.deepEqual([f.x,f.y],original,'root remains in stable world coordinates');
   assert.deepEqual(flowerPose(f,life,2,0,0,1,true),flowerPose(f,life,2,0,0,0,true),'reduced motion disables the decorative bend');
+});
+
+
+test('seeded flower postures follow 40/30/30 distribution and retain their bow while swaying',()=>{
+  const counts={upright:0,left:0,right:0};
+  for(let i=0;i<10000;i++){
+    const p=flowerPosture(seed,`posture-${i}`);counts[p.kind]++;
+    assert.deepEqual(p,flowerPosture(seed,`posture-${i}`));
+  }
+  assert.ok(Math.abs(counts.upright/10000-.4)<.02,JSON.stringify(counts));
+  assert.ok(Math.abs(counts.left/10000-.3)<.02&&Math.abs(counts.right/10000-.3)<.02);
+  const sites=generateFlowerSites(seed,layout),life={...flowerLife(sites[0],null,0),responsive:true};
+  for(const kind of ['upright','left','right']){
+    const f=sites.find(f=>f.posture.kind===kind);
+    for(let seconds=0;seconds<30;seconds+=.25){
+      const pose=flowerPose(f,life,seconds),still=flowerPose(f,life,seconds,0,0,0,true);
+      assert.equal(pose.headX,f.posture.bow);
+      assert.equal(still.headX,f.posture.bow,'reduced motion preserves resting posture');
+      if(kind==='left')assert.ok(pose.x<f.x&&pose.headTilt<0);
+      if(kind==='right')assert.ok(pose.x>f.x&&pose.headTilt>0);
+      assert.ok(pose.growthScale<=life.growth,'bowed geometry remains within clearance envelope');
+    }
+    const wilted=flowerPose(f,{...life,dry:true,droop:28,growth:.38,responsive:false},30);
+    if(kind==='left')assert.ok(wilted.x<f.x,'left bows wilt toward their resting side');
+    if(kind==='right')assert.ok(wilted.x>f.x,'right bows wilt toward their resting side');
+  }
 });

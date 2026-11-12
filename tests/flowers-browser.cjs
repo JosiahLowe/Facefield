@@ -53,6 +53,9 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>
       f.querySelector('.flower-head-shadow circle') && !f.querySelector('.flower-leaf-shadow'))),'only flower heads cast shadows');
     const quietPetals=()=>page.locator('.flower-petals').evaluateAll(ps=>ps.map(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]));
+    const postures=await page.locator('.flower').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,f.dataset.posture])));
+    assert.ok(Object.values(postures).includes('left')&&Object.values(postures).includes('right')&&Object.values(postures).includes('upright'),'all three postures render');
+    assert.ok(await page.locator('.flower-stem-path').evaluateAll(ps=>ps.every(p=>p.getAttribute('d').includes('Q0 -.35'))),'bowing is built into the stem curve');
     const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     const headTurns=await page.locator('.flower-spin').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     async function shadowsAt430(){return page.locator('.flower').evaluateAll(fs=>fs.every(f=>{
@@ -71,6 +74,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
       assert.ok(await shadowsAt430(),'4:30 shadow direction stays fixed through motion');
     }
     assert.ok(blooms>0&&resting>blooms,'idle blooms are occasional and independent');
+    assert.deepEqual(await page.locator('.flower').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,f.dataset.posture]))),postures,'postures remain stable during animation');
     const swaying=await page.locator('.flower-growth').evaluateAll((gs,before)=>gs.filter((g,i)=>g.getAttribute('transform')!==before[i]).length,rotations);
     assert.ok(swaying>10,'flowers sway independently at their stem bases');
     assert.ok(await page.locator('.flower-spin').evaluateAll((gs,before)=>gs.filter((g,i)=>g.getAttribute('transform')!==before[i]).length,headTurns)>10,'heads visibly turn independently');
