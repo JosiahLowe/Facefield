@@ -1,9 +1,25 @@
 import { randomFrom } from './faces.js';
-import { PALETTE, mixColor } from './palette.js?v=white-rounded-3';
+import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 export const FLOWER_LIMITS = { remnants: 48, retiring: 4, rendered: 420 };
+
+export function flowerAppearance(seed, id) {
+  const r = randomFrom(`${seed}:flower-appearance:${id}`);
+  const green = PALETTE.flowers.stems[Math.floor(r()*PALETTE.flowers.stems.length)];
+  const stemColor = mixColor(green,r()<.5 ? PALETTE.paper : PALETTE.ink,r()*.09);
+  const leafCount = 1+Math.floor(r()*4), count = 3+Math.floor(r()*7);
+  const leaves = Array.from({length:leafCount},(_,i)=>{
+    const side = r()<.5 ? -1 : 1, rx = .10+r()*.09;
+    return { x: side*rx*.7, y: -.16-(i+.25+r()*.5)/leafCount*.43,
+      rx, ry: .035+r()*.04, angle: -side*(20+r()*25) };
+  });
+  // Dimensions stay within the original animated clearance envelope.
+  const petals = Array.from({length:9},()=>({ radius: .085+r()*.045,
+    rx: .075+r()*.04, ry: .11+r()*.04, offset: .14+r()*.02 }));
+  return {stemColor,leaves,count,shape:r()<.5 ? 'circle' : 'oval',petals};
+}
 
 export function flowerMotionProfile(seed, id) {
   // A separate stream leaves all existing positions, sizes and density intact.
@@ -178,7 +194,7 @@ export function createFlowerField(seed, layout) {
       for (const site of sites) {
         const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
         const density = singerDensity(site.x,site.y,center,style.color);
-        if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38,
+        if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38, appearance: flowerAppearance(seed,site.id),
           distance: Math.hypot(site.x-center.x,site.y-center.y), remnant: false });
       }
       // Prevent multiple old visits to one singer from accumulating decoration.
@@ -216,28 +232,24 @@ export function createFlowerField(seed, layout) {
 const NS = 'http://www.w3.org/2000/svg';
 const number = n => n.toFixed(4);
 function geometry(f, style) {
-  const shape = f.rank < .8 ? style.shape : f.shape;
-  const count = f.rank < .8 ? style.petals : f.petals;
+  const a = f.appearance;
+  const shape = f.rank < .35 ? (style.shape ? 'circle' : 'oval') : a.shape;
+  const count = f.rank < .35 ? style.petals : a.count;
   const color = PALETTE.flowers.petals[0];
-  const stem = PALETTE.flowers.stems[f.color % PALETTE.flowers.stems.length];
   let petals = '';
   for (let i=0;i<count;i++) {
-    const petal = shape === 0 ? '<ellipse cx="0" cy="-.16" rx=".105" ry=".15"/>'
-      : '<ellipse cx="0" cy="-.16" rx=".12" ry=".13"/>';
+    const p = a.petals[i];
+    const petal = shape === 'circle' ? `<circle cx="0" cy="${-p.offset}" r="${p.radius}"/>`
+      : `<ellipse cx="0" cy="${-p.offset}" rx="${p.rx}" ry="${p.ry}"/>`;
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
-  return `<g class="flower-stem" fill="${stem}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
-    <g class="flower-leaf-shadow" fill="${PALETTE.ink}" transform="translate(.14 .18)">
-      <g opacity=".055" transform="translate(0 -.01) scale(1.05)"><ellipse cx="-.13" cy="-.34" rx=".18" ry=".08" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".16" ry=".075" transform="rotate(-30 .12 -.48)"/></g>
-      <g opacity=".12"><ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g>
-    </g>
-    <g class="flower-leaves">
-    <ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>
-    <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g></g>
+  const leaves = a.leaves.map(l=>`<ellipse cx="${l.x}" cy="${l.y}" rx="${l.rx}" ry="${l.ry}" transform="rotate(${l.angle} ${l.x} ${l.y})"/>`).join('');
+  return `<g class="flower-stem" fill="${a.stemColor}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
+    <g class="flower-leaves">${leaves}</g></g>
     <g class="flower-head" transform="translate(0 -.70)">
-    <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.14 .18)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
+    <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
     <g class="flower-petals" fill="${color}"><g class="flower-spin">${petals}</g></g>
-    <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.flowers.petals[0]}"/></g>`;
+    <circle class="flower-center" r=".08" fill="${PALETTE.flowers.center}" stroke="${PALETTE.ink}" stroke-width=".012"/></g>`;
 }
 
 // Shares the face loop. Only culling/lifecycle reconciliation runs at 8 Hz;
@@ -301,8 +313,12 @@ export function createFlowers(world, grid) {
       node.petals.setAttribute('transform',`scale(${petalScale})`);
       const turn = reduced.matches ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
       node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
-      // Keep the light direction fixed while the petals turn independently.
-      node.headShadow.setAttribute('transform',`translate(.14 .18) scale(${petalScale})`);
+      // Cancel the parent stem/head tilt so the shadow stays at 4:30 in world
+      // coordinates, even as petals spin, stems sway and retired heads droop.
+      const tilt = (f.rotation+motion.sway+life.droop*.85)*Math.PI/180;
+      const shadowX = .16*(Math.cos(tilt)+Math.sin(tilt));
+      const shadowY = .16*(Math.cos(tilt)-Math.sin(tilt));
+      node.headShadow.setAttribute('transform',`translate(${number(shadowX)} ${number(shadowY)}) scale(${petalScale})`);
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));

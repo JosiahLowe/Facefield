@@ -9,8 +9,9 @@ export const PALETTE = {
   // Reserved for future features; this theme introduces no new facial features.
   complements: { hair: '#494B3D', lips: '#8D574C', cheeks: '#BD8C77', accessories: '#65746B' },
   flowers: {
-    stems: ['#65746B', '#494B3D', '#6F805B'],
+    stems: ['#65746B', '#494B3D', '#6F805B', '#526B48', '#87956A'],
     petals: ['#FFFFFF'],
+    center: '#D0A35B',
     dried: '#95836B',
   },
   variation: { lighter: .08, darker: .06 },

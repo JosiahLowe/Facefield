@@ -30,8 +30,12 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.ok(Object.keys(before).length>farCount*2,'vegetation visibly increases toward the singer');
     assert.equal(farCount,0,'no flowers far from any singer patch');
     assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'all petals are white');
-    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>[...p.querySelector('.flower-spin').children].every(g=>g.firstElementChild.tagName==='ellipse'))),'every petal is rounded');
-    assert.equal(await page.locator('.flower-head [fill="#D0A35B"]').count(),0,'flower heads contain no yellow');
+    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>[...p.querySelector('.flower-spin').children].every(g=>['ellipse','circle'].includes(g.firstElementChild.tagName)))),'every petal is rounded');
+    assert.ok(await page.locator('.flower-center').evaluateAll(cs=>cs.every(c=>c.getAttribute('fill')==='#D0A35B')),'all centers are yellow');
+    assert.ok(await page.locator('.flower-stem').evaluateAll(gs=>new Set(gs.map(g=>g.getAttribute('fill'))).size>5),'stems have varied greens');
+    assert.ok(await page.locator('.flower-leaves').evaluateAll(gs=>new Set(gs.map(g=>g.children.length)).size>2),'leaf counts vary');
+    assert.ok(await page.locator('.flower-spin').evaluateAll(gs=>new Set(gs.map(g=>g.children.length)).size>2),'petal counts vary');
+    assert.ok(await page.locator('.flower-spin circle').count()>0 && await page.locator('.flower-spin ellipse').count()>0,'circular and oval petals both render');
     const sizes=await page.locator('.flower').evaluateAll(fs=>fs.map(f=>+f.getAttribute('transform').match(/scale\(([\d.]+)/)[1]));
     assert.ok(Math.max(...sizes)/Math.min(...sizes)>1.5,'flowers have noticeably varied sizes');
     assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>Number.isInteger(+f.dataset.x)||Number.isInteger(+f.dataset.y))),'all roots sit on seams');
@@ -47,11 +51,16 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.deepEqual(await clearance(),[],'flower geometry clears eyes, noses and mouths');
     assert.equal(await page.locator('.flowers [filter],.flowers filter').count(),0,'petal visibility never depends on SVG filters');
     assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>
-      f.querySelector('.flower-head-shadow circle') && f.querySelector('.flower-leaf-shadow ellipse'))),'heads and leaves cast local shadows');
+      f.querySelector('.flower-head-shadow circle') && !f.querySelector('.flower-leaf-shadow'))),'only flower heads cast shadows');
     const quietPetals=()=>page.locator('.flower-petals').evaluateAll(ps=>ps.map(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]));
     const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     const headTurns=await page.locator('.flower-spin').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
-    assert.ok(await page.locator('.flower-head-shadow').evaluateAll(gs=>gs.every(g=>g.getAttribute('transform').startsWith('translate(.14 .18)'))),'head shadows project down and right');
+    async function shadowsAt430(){return page.locator('.flower').evaluateAll(fs=>fs.every(f=>{
+      const a=f.querySelector('.flower-center').getBoundingClientRect(),b=f.querySelector('.flower-head-shadow circle').getBoundingClientRect();
+      const dx=b.x+b.width/2-a.x-a.width/2,dy=b.y+b.height/2-a.y-a.height/2;
+      return dx>0 && dy>0 && Math.abs(dx-dy)<.02;
+    }));}
+    assert.ok(await shadowsAt430(),'head shadows align at 4:30 in world coordinates');
     let blooms=0,resting=0;
     for(let i=0;i<8;i++){
       await page.clock.fastForward(1000);await page.waitForTimeout(60);
@@ -59,6 +68,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
       blooms+=scales.filter(s=>s>1.002).length;resting+=scales.filter(s=>s===1).length;
       assert.ok(scales.every(s=>s<=1.04),'idle blooms are small');
       assert.deepEqual(await clearance(),[],'sway and blooms retain facial clearance');
+      assert.ok(await shadowsAt430(),'4:30 shadow direction stays fixed through motion');
     }
     assert.ok(blooms>0&&resting>blooms,'idle blooms are occasional and independent');
     const swaying=await page.locator('.flower-growth').evaluateAll((gs,before)=>gs.filter((g,i)=>g.getAttribute('transform')!==before[i]).length,rotations);

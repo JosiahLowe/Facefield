@@ -2,7 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn } from '../flowers.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance } from '../flowers.js';
 import { createFlight, stepFlight } from '../fly.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
@@ -159,4 +159,20 @@ test('flower heads lazily turn half forward, pause, and return a quarter without
   const a=flowerHeadTurn({motion:flowerMotionProfile(seed,'one')},10);
   const b=flowerHeadTurn({motion:flowerMotionProfile(seed,'two')},10);
   assert.notEqual(a,b,'each flower has its own phase and speed');
+});
+
+
+test('flower appearance has stable varied greens, leaves, and circular/oval petals', () => {
+  const appearances=Array.from({length:100},(_,i)=>flowerAppearance(seed,`appearance-${i}`));
+  assert.deepEqual(appearances[0],flowerAppearance(seed,'appearance-0'));
+  assert.notDeepEqual(appearances[0],flowerAppearance('another','appearance-0'));
+  assert.ok(new Set(appearances.map(a=>a.stemColor)).size>30);
+  assert.deepEqual([...new Set(appearances.map(a=>a.leaves.length))].sort(),[1,2,3,4]);
+  assert.deepEqual([...new Set(appearances.map(a=>a.count))].sort(),[3,4,5,6,7,8,9]);
+  assert.deepEqual([...new Set(appearances.map(a=>a.shape))].sort(),['circle','oval']);
+  const leaves=appearances.flatMap(a=>a.leaves),petals=appearances.flatMap(a=>a.petals);
+  assert.ok(new Set(leaves.map(l=>l.y)).size>100 && new Set(leaves.map(l=>l.rx)).size>100);
+  assert.ok(leaves.some(l=>l.x<0)&&leaves.some(l=>l.x>0));
+  assert.ok(new Set(petals.map(p=>p.radius)).size>100);
+  assert.ok(petals.every(p=>p.offset+Math.max(p.radius,p.ry)<=.31));
 });

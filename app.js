@@ -1,6 +1,6 @@
 import { createFly } from './fly.js?v=white-rounded-3';
 import { createSinger } from './singing.js?v=white-rounded-3';
-import { createFlowers } from './flowers.js?v=lazy-heads-7';
+import { createFlowers } from './flowers.js?v=botanical-variety-8';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
