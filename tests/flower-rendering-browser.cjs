@@ -30,18 +30,19 @@ const assert=require('node:assert/strict');
         return context.getImageData(0,0,128,128).data;
       }
       const withShadow=await paint(true),withoutShadow=await paint(false);
-      let whitePixels=0,shadowPixels=0,leafPixels=0;
+      let whitePixels=0,shadowPixels=0,leafPixels=0,wx=0,wy=0,sx=0,sy=0;
       for(let i=0;i<withShadow.length;i+=4){
-        if(withShadow[i]>245&&withShadow[i+1]>245&&withShadow[i+2]>245)whitePixels++;
-        if(withShadow[i]+withShadow[i+1]+withShadow[i+2]+8<withoutShadow[i]+withoutShadow[i+1]+withoutShadow[i+2])shadowPixels++;
+        if(withShadow[i]>245&&withShadow[i+1]>245&&withShadow[i+2]>245){whitePixels++;wx+=(i/4)%128;wy+=Math.floor(i/4/128);}
+        if(withShadow[i]+withShadow[i+1]+withShadow[i+2]+8<withoutShadow[i]+withoutShadow[i+1]+withoutShadow[i+2]){shadowPixels++;sx+=(i/4)%128;sy+=Math.floor(i/4/128);}
         if(Math.abs(withShadow[i]-101)<3&&Math.abs(withShadow[i+1]-116)<3&&Math.abs(withShadow[i+2]-107)<3)leafPixels++;
       }
-      return {whitePixels,shadowPixels,leafPixels,filters:document.querySelectorAll('.flowers [filter],.flowers filter').length};
+      return {whitePixels,shadowPixels,leafPixels,shadowOffset:[sx/shadowPixels-wx/whitePixels,sy/shadowPixels-wy/whitePixels],filters:document.querySelectorAll('.flowers [filter],.flowers filter').length};
     });
     assert.equal(result.filters,0,'flower geometry renders without filter references');
     assert.ok(result.whitePixels>300,'white petals must actually paint: '+JSON.stringify(result));
     assert.ok(result.leafPixels>100,'leaves must actually paint: '+JSON.stringify(result));
     assert.ok(result.shadowPixels>50,'head and leaf shadows must actually paint: '+JSON.stringify(result));
+    assert.ok(result.shadowOffset[0]>4 && result.shadowOffset[1]>8,'visible shadows project to the front right: '+JSON.stringify(result));
     await page.screenshot({path:'/tmp/facefield-flower-rendering.png'});
     console.log('PASS rendered flower pixels:',process.env.FACEFIELD_BROWSER||'chromium',JSON.stringify(result));
   } finally {await browser.close();}

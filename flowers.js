@@ -9,7 +9,18 @@ export function flowerMotionProfile(seed, id) {
   // A separate stream leaves all existing positions, sizes and density intact.
   const r = randomFrom(`${seed}:flower-motion:${id}`);
   return { speed: 2*Math.PI/(8+r()*6), amplitude: .8+r()*1.3, phase: r()*Math.PI*2,
-    bloomPeriod: 26+r()*20, bloomDuration: 4.5+r()*3, bloomPhase: r(), bloomAmount: .025+r()*.015 };
+    bloomPeriod: 26+r()*20, bloomDuration: 4.5+r()*3, bloomPhase: r(), bloomAmount: .025+r()*.015,
+    spinDuration: 8+r()*6, spinPause: 1.5+r()*1.5, spinPhase: r(), spinDirection: r()<.5 ? -1 : 1 };
+}
+export function flowerHeadTurn(f, seconds) {
+  const m = f.motion, leg = m.spinDuration+m.spinPause, period = leg*2;
+  const time = seconds+m.spinPhase*period, cycle = Math.floor(time/period);
+  const local = time-cycle*period;
+  // Half a turn, a short rest, a quarter turn back, another rest. The net
+  // quarter turn lets heads wander rather than repeat the same orientation.
+  const turn = local<leg ? 180*smooth(local/m.spinDuration)
+    : 180-90*smooth((local-leg)/m.spinDuration);
+  return m.spinDirection*(cycle*90+turn);
 }
 export function flowerMotion(f, seconds, life, energy = 0, duration = 0, reduced = false) {
   if (reduced || life.dry) return { sway: 0, expansion: 0, bloom: 0, pulse: 0 };
@@ -153,6 +164,7 @@ export function createFlowerField(seed, layout) {
       prune(now);
       if (active) {
         active.retired = now;
+        for (const f of active.flowers.values()) f.retiredAt = now;
         // Only a few of the closest flowers become lasting traces.
         [...active.flowers.values()].filter(f => f.distance < 4 && flowerLife(f,active,now).bloom > .6)
           .sort((a,b) => a.rank-b.rank).slice(0,3).forEach(f => { f.remnant = true; });
@@ -215,7 +227,7 @@ function geometry(f, style) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   return `<g class="flower-stem" fill="${stem}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
-    <g class="flower-leaf-shadow" fill="${PALETTE.ink}" transform="translate(.035 .045)">
+    <g class="flower-leaf-shadow" fill="${PALETTE.ink}" transform="translate(.14 .18)">
       <g opacity=".055" transform="translate(0 -.01) scale(1.05)"><ellipse cx="-.13" cy="-.34" rx=".18" ry=".08" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".16" ry=".075" transform="rotate(-30 .12 -.48)"/></g>
       <g opacity=".12"><ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/><ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g>
     </g>
@@ -223,8 +235,8 @@ function geometry(f, style) {
     <ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>
     <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g></g>
     <g class="flower-head" transform="translate(0 -.70)">
-    <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.035 .045)"><circle r=".32" opacity=".055"/><circle r=".28" opacity=".12"/></g>
-    <g class="flower-petals" fill="${color}">${petals}</g>
+    <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.14 .18)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
+    <g class="flower-petals" fill="${color}"><g class="flower-spin">${petals}</g></g>
     <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.flowers.petals[0]}"/></g>`;
 }
 
@@ -265,7 +277,7 @@ export function createFlowers(world, grid) {
       layer.append(root);
       nodes.set(item.key,{ root, growth: root.firstElementChild,
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
-        petals: root.querySelector('.flower-petals'),
+        petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
     }
     reconciled = now; dirty = false;
@@ -287,7 +299,10 @@ export function createFlowers(world, grid) {
       node.head.setAttribute('transform',`translate(0 -.70) rotate(${number(life.droop*.5)})`);
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
-      node.headShadow.setAttribute('transform',`translate(.035 .045) scale(${petalScale})`);
+      const turn = reduced.matches ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
+      node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
+      // Keep the light direction fixed while the petals turn independently.
+      node.headShadow.setAttribute('transform',`translate(.14 .18) scale(${petalScale})`);
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));

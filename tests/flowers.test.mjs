@@ -2,7 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion } from '../flowers.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn } from '../flowers.js';
 import { createFlight, stepFlight } from '../fly.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
@@ -141,4 +141,22 @@ test('decorative flower motion stops for reduced motion and retiring patches', (
   assert.deepEqual(flowerMotion(f,10,{responsive:true,dry:false},1,4,true),still);
   assert.deepEqual(flowerMotion(f,10,{responsive:false,dry:true},1,4),still);
   assert.equal(flowerMotion(f,10,{responsive:false,dry:false},1,4).expansion,0,'buds do not pulse or bloom before maturity');
+});
+
+
+test('flower heads lazily turn half forward, pause, and return a quarter without jumps', () => {
+  const f={motion:{...flowerMotionProfile(seed,'turn'),spinPhase:0,spinDirection:1}};
+  const m=f.motion,leg=m.spinDuration+m.spinPause,period=leg*2;
+  assert.equal(flowerHeadTurn(f,0),0);
+  assert.equal(flowerHeadTurn(f,m.spinDuration),180);
+  assert.equal(flowerHeadTurn(f,leg),180);
+  assert.equal(flowerHeadTurn(f,leg+m.spinDuration),90);
+  assert.equal(flowerHeadTurn(f,period),90);
+  assert.equal(flowerHeadTurn(f,period+m.spinDuration),270);
+  for(let t=0;t<period*3;t+=.1)assert.ok(Math.abs(flowerHeadTurn(f,t+1/60)-flowerHeadTurn(f,t))<.6,'smooth rotation, including reversals and cycle boundaries');
+  const reverse={motion:{...m,spinDirection:-1}};
+  assert.equal(flowerHeadTurn(reverse,m.spinDuration),-180);
+  const a=flowerHeadTurn({motion:flowerMotionProfile(seed,'one')},10);
+  const b=flowerHeadTurn({motion:flowerMotionProfile(seed,'two')},10);
+  assert.notEqual(a,b,'each flower has its own phase and speed');
 });
