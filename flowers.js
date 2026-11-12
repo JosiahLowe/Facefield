@@ -3,7 +3,6 @@ import { PALETTE, mixColor } from './palette.js';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
-const pick = (r, items) => items[Math.floor(r() * items.length)];
 export const FLOWER_LIMITS = { remnants: 48, retiring: 4, rendered: 420 };
 
 // Mosaic-cell coordinates survive scrolling and scale with the faces on resize.
@@ -22,42 +21,65 @@ export function featureBounds(cell) {
 }
 const overlaps = (a,b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 export function safeFlower(f, cell) {
-  const b = flowerBounds(f), x = cell.column - 1, y = cell.row - 1;
-  return b.left >= x + .015 && b.right <= x + cell.width - .015
-    && b.top >= y + .015 && b.bottom <= y + cell.height - .015
-    && !featureBounds(cell).some(rect => overlaps(b, rect));
+  return !featureBounds(cell).some(rect => overlaps(flowerBounds(f), rect));
 }
 export function generateFlowerSites(seed, layout) {
-  const sites = [];
-  layout.forEach((cell, tile) => {
-    const r = randomFrom(`${seed}:flowers:${tile}`), local = [];
-    const unit = Math.min(cell.width, cell.height);
-    for (let attempt = 0; attempt < 240 && local.length < 7; attempt++) {
-      const f = { id: `${tile}-${local.length}`, tile,
-        x: cell.column - 1 + r() * cell.width, y: cell.row - 1 + r() * cell.height,
-        size: (.16 + r() * .10) * unit, phase: r() * Math.PI * 2,
-        rotation: (r() - .5) * 12, petals: 4 + Math.floor(r() * 4),
-        shape: Math.floor(r() * 3), color: Math.floor(r() * PALETTE.flowers.petals.length),
-        variation: r() * .13, rank: r(), delay: r() * 5, duration: 10 + r() * 5,
-        background: r() < .025 };
-      if (safeFlower(f, cell) && local.every(other => Math.hypot(f.x-other.x, f.y-other.y) > (f.size+other.size)*.6)) local.push(f);
+  const sites = [], occupied = new Map();
+  let width = 0, height = 0;
+  layout.forEach((cell,tile) => {
+    width = Math.max(width,cell.column-1+cell.width);
+    height = Math.max(height,cell.row-1+cell.height);
+    for (let y=cell.row-1;y<cell.row-1+cell.height;y++) {
+      for (let x=cell.column-1;x<cell.column-1+cell.width;x++) occupied.set(`${x},${y}`,tile);
+    }
+  });
+  function seam(axis,x,y) {
+    const r = randomFrom(`${seed}:flower-seam:${axis}:${x}:${y}`);
+    const local = [];
+    for (let attempt=0;attempt<16 && local.length<2;attempt++) {
+      const offset = .12+r()*.76;
+      const f = { id: `${axis}-${x}-${y}-${local.length}`,
+        x: axis==='v' ? x : x+offset, y: axis==='h' ? y : y+offset,
+        size: .12+r()*.08, phase: r()*Math.PI*2, rotation: (r()-.5)*12,
+        petals: 4+Math.floor(r()*4), shape: Math.floor(r()*3), color: 0,
+        rank: r(), delay: r()*5, duration: 10+r()*5 };
+      const bounds = flowerBounds(f), tiles = new Set();
+      if (bounds.left<0 || bounds.top<0 || bounds.right>width || bounds.bottom>height) continue;
+      for (let row=Math.floor(bounds.top);row<=Math.floor(bounds.bottom);row++) {
+        for (let col=Math.floor(bounds.left);col<=Math.floor(bounds.right);col++) {
+          const tile = occupied.get(`${col},${row}`);
+          if (tile!==undefined) tiles.add(tile);
+        }
+      }
+      f.tiles = [...tiles];
+      if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
+        && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*.6)) local.push(f);
     }
     sites.push(...local);
-  });
+  }
+  // Only actual shared face edges qualify, never internal lines within a tile
+  // or the outside world border. Roots sit exactly on these seams.
+  for (let y=0;y<height;y++) for (let x=1;x<width;x++) {
+    if (occupied.get(`${x-1},${y}`)!==occupied.get(`${x},${y}`)) seam('v',x,y);
+  }
+  for (let y=1;y<height;y++) for (let x=0;x<width;x++) {
+    if (occupied.get(`${x},${y-1}`)!==occupied.get(`${x},${y}`)) seam('h',x,y);
+  }
   return sites;
 }
 export function singerStyle(seed, singer) {
   const r = randomFrom(`${seed}:flower-style:${singer}`);
   return { shape: Math.floor(r()*3), petals: 4+Math.floor(r()*4), color: Math.floor(r()*PALETTE.flowers.petals.length) };
 }
-// A broad, smooth tail supplies a gradient across the world. Low-frequency
-// overlapping waves create lobes and gaps instead of a circular patch boundary.
+// Compact, softly tapered patches grow only close to a singer. Overlapping
+// waves vary the reach so the edge does not form a perfect circle.
+export const FLOWER_RADIUS = 7;
 export function singerDensity(x, y, singer, phase = 0) {
   const dx = x-singer.x, dy = y-singer.y;
   const distance = Math.hypot(dx,dy);
   const organic = .82 + .12*Math.sin(x*.79+phase)*Math.cos(y*.63-phase)
     + .06*Math.sin(x*1.71+y*.91+phase);
-  return .94 * organic / (1 + (distance / 6) ** 1.8);
+  return .94 * organic * (1-smooth(distance/(5.5+organic)));
 }
 export function flowerLife(f, patch, now) {
   if (!patch) return { growth: 1, bloom: 1, opacity: .86, droop: 0, dry: false, dryProgress: 0, responsive: false };
@@ -122,7 +144,6 @@ export function createFlowerField(seed, layout) {
       const center = { x: cell.column-1+cell.width/2, y: cell.row-1+cell.height/2 };
       const style = singerStyle(seed,index), flowers = new Map();
       for (const site of sites) {
-        if (site.background) continue;
         const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
         const density = singerDensity(site.x,site.y,center,style.color);
         if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38,
@@ -145,7 +166,6 @@ export function createFlowerField(seed, layout) {
         const f = active.flowers.get(site.id);
         if (f) append(f,active,`${active.id}:${f.id}`,active.style);
       }
-      for (const f of local) if (f.background) append(f,null,`background:${f.id}`,f);
       for (const f of remnants) {
         if (f.x>=view.left && f.x<=view.right && f.y>=view.top && f.y<=view.bottom) {
           result.push({ f, key: f.key, style: f.style, patch: null,
@@ -166,7 +186,7 @@ const number = n => n.toFixed(4);
 function geometry(f, style) {
   const shape = f.rank < .8 ? style.shape : f.shape;
   const count = f.rank < .8 ? style.petals : f.petals;
-  const color = mixColor(PALETTE.flowers.petals[f.rank < .8 ? style.color : f.color], PALETTE.paper, f.variation);
+  const color = PALETTE.flowers.petals[0];
   const stem = PALETTE.flowers.stems[f.color % PALETTE.flowers.stems.length];
   let petals = '';
   for (let i=0;i<count;i++) {
@@ -245,7 +265,7 @@ export function createFlowers(world, grid) {
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
-        node.petals.setAttribute('fill',mixColor(node.petalColor,PALETTE.flowers.dried,dryLevel/20));
+        node.petals.setAttribute('fill',PALETTE.flowers.petals[0]);
         node.dryLevel = dryLevel;
       }
     }

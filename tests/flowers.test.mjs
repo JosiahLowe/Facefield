@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
-import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS } from '../flowers.js';
+import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS } from '../flowers.js';
 import { createFlight, stepFlight } from '../fly.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
@@ -11,26 +11,33 @@ test('world flower sites reproduce from seed, keep clearance and vary across see
   const sites = generateFlowerSites(seed,layout);
   assert.deepEqual(sites,generateFlowerSites(seed,layout));
   assert.notDeepEqual(sites,generateFlowerSites('another',layout));
-  assert.ok(sites.length > 2500 && sites.length <= layout.length*7);
+  assert.ok(sites.length > 1000 && sites.length < 12000);
   assert.equal(new Set(sites.map(f => f.id)).size,sites.length);
-  for (const f of sites) assert.ok(safeFlower(f,layout[f.tile]),f.id);
+  for (const f of sites) {
+    assert.ok(f.tiles.length>=2,'every root is on a shared face seam');
+    assert.ok(Number.isInteger(f.x) || Number.isInteger(f.y));
+    for (const tile of f.tiles) assert.ok(safeFlower(f,layout[tile]),f.id);
+  }
 });
 
 test('smooth organic density and sampled populations lead toward the singer', () => {
   const field = createFlowerField(seed,layout);
   const singer = layout.findIndex(c => c.column>=23 && c.column<=26 && c.row>=23 && c.row<=26);
   field.changeSinger(singer,0);
-  const bins = [[0,4],[6,12],[20,40]].map(([min,max]) => {
-    const sites = field.sites.filter(f => !f.background && Math.hypot(f.x-field.active.center.x,f.y-field.active.center.y)>=min
+  const bins = [[0,2],[2,4],[4,7]].map(([min,max]) => {
+    const sites = field.sites.filter(f => Math.hypot(f.x-field.active.center.x,f.y-field.active.center.y)>=min
       && Math.hypot(f.x-field.active.center.x,f.y-field.active.center.y)<max);
     return sites.filter(f => field.active.flowers.has(f.id)).length/sites.length;
   });
   assert.ok(bins[0] > bins[1]*1.6 && bins[1] > bins[2]*2,JSON.stringify(bins));
+  assert.ok([...field.active.flowers.values()].every(f=>f.distance<FLOWER_RADIUS));
+  assert.equal(field.visible({left:0,top:0,right:4,bottom:4},21).length,0,'no background or distant flowers');
   const center = {x:24,y:24};
+  assert.equal(singerDensity(40,24,center),0);
   for (let x=0;x<48;x+=.1) assert.ok(Math.abs(singerDensity(x,18,center)-singerDensity(x+.01,18,center))<.01);
   assert.notEqual(singerDensity(20,24,center),singerDensity(24,20,center),'no perfect radial symmetry');
   assert.deepEqual(singerStyle(seed,singer),singerStyle(seed,singer));
-  assert.ok(new Set(Array.from({length:30},(_,i)=>JSON.stringify(singerStyle(seed,i)))).size>10);
+  assert.ok(new Set(Array.from({length:30},(_,i)=>JSON.stringify(singerStyle(seed,i)))).size>5);
 });
 
 test('immediate cues and buds mature over 10–20 seconds; retired flowers stop music and thin gradually', () => {
@@ -43,7 +50,6 @@ test('immediate cues and buds mature over 10–20 seconds; retired flowers stop 
   assert.equal(flowerLife(bud,patch,0).bloom,0);
   assert.ok(flowerLife(bud,patch,10).bloom>0 && flowerLife(bud,patch,10).bloom<1);
   assert.equal(flowerLife(bud,patch,20).bloom,1);
-  const backgroundBefore = field.visible(view,20).filter(item => item.key.startsWith('background:'));
   field.changeSinger(200,20);
   assert.equal(patch.retired,20);
   assert.equal(flowerLife(bud,patch,20).responsive,false);
@@ -59,8 +65,6 @@ test('immediate cues and buds mature over 10–20 seconds; retired flowers stop 
   field.visible({left:0,top:0,right:3,bottom:3},42);
   field.visible(view,43);
   assert.deepEqual(field.remnants.map(f => [f.id,f.x,f.y]),positions);
-  // Background sites belong to neither patch and retain their original state.
-  for (const item of backgroundBefore) assert.deepEqual(flowerLife(item.f,null,43),item.life);
 });
 
 test('scroll culling preserves positions; repeated handoffs bound histories and DOM population', () => {

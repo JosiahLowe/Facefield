@@ -1,6 +1,6 @@
-import { createFly } from './fly.js?v=flowers-1';
-import { createSinger } from './singing.js?v=flowers-1';
-import { createFlowers } from './flowers.js?v=flowers-1';
+import { createFly } from './fly.js?v=seam-flowers-2';
+import { createSinger } from './singing.js?v=seam-flowers-2';
+import { createFlowers } from './flowers.js?v=seam-flowers-2';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();

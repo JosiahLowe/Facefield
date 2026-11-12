@@ -28,6 +28,9 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     await page.waitForTimeout(200);
     assert.deepEqual(await read(),before,'scroll return preserves flower positions and appearance');
     assert.ok(Object.keys(before).length>farCount*2,'vegetation visibly increases toward the singer');
+    assert.equal(farCount,0,'no flowers far from any singer patch');
+    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'all petals are white');
+    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>Number.isInteger(+f.dataset.x)||Number.isInteger(+f.dataset.y))),'all roots sit on seams');
 
     async function clearance() {
       return page.evaluate(()=>{
