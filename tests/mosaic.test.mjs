@@ -39,12 +39,12 @@ test('theme varies botanical colors and preserves circular eye geometry on recta
     assert.ok(PALETTE.skin.includes(face.baseColor));
     assert.ok(face.svg.includes('<rect data-feature="skin"'));
     const rounding=Number(face.svg.match(/data-feature="skin"[^>]* rx="([^"]+)"/)[1]);
-    assert.ok(rounding<=12, 'corners never become circular or capsule-shaped');
+    assert.equal(rounding,0, 'all faces have square corners');
     assert.ok(face.svg.includes(`fill="${PALETTE.eye}"`));
     assert.ok(face.svg.includes(`stroke="${PALETTE.ink}"`));
     assert.ok(!face.svg.includes('fill="white"')&&!face.svg.includes('stroke="black"'));
     assert.ok(face.svg.includes('<linearGradient'));
     assert.ok(face.svg.includes('data-features transform="translate('));
   });
-  assert.ok(colors.size>20);assert.deepEqual([...shapes].sort(), ['rect', 'rounded']);
+  assert.ok(colors.size>20);assert.deepEqual([...shapes].sort(), ['rect']);
 });

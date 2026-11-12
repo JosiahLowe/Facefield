@@ -5,23 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="">
   <title>Facefield — A living wall of faces</title>
-  <link rel="stylesheet" href="styles.css?v=white-rounded-3">
-  <script type="module" src="app.js?v=white-rounded-3"></script>
+  <link rel="stylesheet" href="styles.css?v=square-faces-4">
+  <script type="module" src="app.js?v=square-faces-4"></script>
 </head>
 <body>
   <div id="world">
-    <main id="grid" aria-label="Facefield: tap the current singer to advance to the next singer"></main>
+    <main id="grid" aria-label="Facefield"></main>
   </div>
-  <nav class="controls" aria-label="Grid controls">
-    <button id="seed" title="Copy a link to this exact grid">Copy seed link</button>
-    <button id="test-mouths" title="Choose a new neutral, smiling, or frowning expression">Change mouths</button>
-    <button id="shuffle"><span aria-hidden="true">↻</span> Shuffle</button>
-  </nav>
-  <nav class="controls sound-control" aria-label="Sound control">
+  <nav class="sound-control" aria-label="Sound control">
     <button id="enable-sound" aria-pressed="false">Enable Sound</button>
-    <button id="change-singer" title="Choose a different face beyond the current view">Offscreen singer</button>
   </nav>
-  <p class="instructions">Tap the singer to finish its phrase, then scroll to find the next singer.</p>
   <span id="status" class="sr-only" role="status"></span>
 </body>
 </html>

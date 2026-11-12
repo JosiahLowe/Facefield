@@ -60,7 +60,7 @@ const assert=require('node:assert/strict');
  const reloaded=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  for(let i=0;i<restored.length;i++) assert.ok(JSON.stringify(reloaded[i])===JSON.stringify(restored[i]), 'restored gaze mismatch tile '+i+': '+JSON.stringify({restored:restored[i],reloaded:reloaded[i]}));
  await page.emulateMedia({reducedMotion:'no-preference'});
- await page.locator('.face').nth(0).click();await page.locator('#shuffle').click();
+ await page.locator('.face').nth(0).click();
  await page.waitForTimeout(250);assert.equal(await page.locator('.face').count(),1152);assert.deepEqual(errors,[]);
  console.log('PASS animated browser:',JSON.stringify(result));
  await browser.close();

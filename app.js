@@ -4,7 +4,7 @@ import { createFlowers } from './flowers.js?v=white-rounded-3';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
-import { renderFace } from './faces.js?v=botanical-mosaic-1';
+import { renderFace } from './faces.js?v=square-faces-4';
 import { animateFaces } from './behavior.js?v=fly-crossings-1';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
@@ -19,14 +19,13 @@ function sizeWorld() {
 const flowers = createFlowers(world, grid);
 const fly = createFly(world, grid, flowers.nearby);
 const animation = animateFaces(grid, now => { flowers.update(now); fly.update(now); }, fly.position);
-const testButton = document.querySelector('#test-mouths');
 const status = document.querySelector('#status');
 const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world,
   onSingerChange: flowers.changeSinger, onMusic: flowers.music });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
-let seed = url.searchParams.get('seed') || freshSeed();
-let revisions = Array(WORLD_FACE_COUNT).fill(0);
+const seed = url.searchParams.get('seed') || freshSeed();
+const revisions = Array(WORLD_FACE_COUNT).fill(0);
 let layout;
 const saved = url.searchParams.get('v');
 if (saved) saved.split('.').slice(0, WORLD_FACE_COUNT).forEach((value, i) => {
@@ -76,28 +75,6 @@ grid.addEventListener('click', event => {
   const tile = event.target.closest('.face');
   if (tile?.dataset.singer === 'true') advanceSinger();
 });
-document.querySelector('#shuffle').addEventListener('click', () => {
-  seed = freshSeed();
-  revisions.fill(0);
-  populate();
-  syncURL();
-  status.textContent = 'All faces shuffled.';
-});
-document.querySelector('#seed').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(location.href);
-    status.textContent = 'Seed link copied. It reproduces this exact grid.';
-    document.querySelector('#seed').textContent = 'Link copied ✓';
-  } catch {
-    // The address bar always contains the complete reproducible state.
-    status.textContent = 'Copy the URL from your address bar to reproduce this grid.';
-    document.querySelector('#seed').textContent = 'Seed is in URL';
-  }
-});
-testButton.addEventListener('click', () => {
-  animation.changeMouths();
-  status.textContent = 'Visible faces are changing expression.';
-});
 syncURL();
 populate();
 // Begin inside the world, with room to explore left, right, up, and down.
@@ -108,7 +85,6 @@ requestAnimationFrame(() => {
 
 new ResizeObserver(sizeWorld).observe(world);
 
-document.querySelector('#change-singer').addEventListener('click', advanceSinger);
 function advanceSinger() {
   singer.advanceAfterPhrase(offscreenCandidates);
 }

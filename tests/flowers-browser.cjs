@@ -53,7 +53,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]<1.002)),'muting releases flower pulses');
 
     const previous=await page.locator('[data-singer]').getAttribute('data-index');
-    await page.locator('#change-singer').tap();
+    await page.locator('[data-singer]').evaluate(t=>t.click());
     const next=await page.locator('[data-singer]').getAttribute('data-index');
     assert.notEqual(next,previous);
     assert.ok(await page.locator('.flower[data-stage=dry]').count()>10,'old patch remains during gradual wilting');

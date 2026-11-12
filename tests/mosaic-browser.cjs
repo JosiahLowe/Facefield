@@ -23,7 +23,7 @@ const assert=require('node:assert/strict');
     width:document.documentElement.scrollWidth, shapes:new Set(tiles.map(t=>t.querySelector('svg').dataset.shape)).size,
     sizes:new Set(rects.map(r=>`${Math.round(r.width)}x${Math.round(r.height)}`)).size};
   });
-  assert.deepEqual(result,{count:1152,overlap:false,uniform:true,uniqueIds:true,width,shapes:2,sizes:4});
+  assert.deepEqual(result,{count:1152,overlap:false,uniform:true,uniqueIds:true,width,shapes:1,sizes:4});
  }
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(100);
  const before=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.innerHTML,area:t.style.gridArea})));
@@ -35,7 +35,6 @@ const assert=require('node:assert/strict');
  }
  const state=await page.locator('#grid').innerHTML();await page.reload();await page.waitForSelector('.face');
  assert.equal(await page.locator('#grid').innerHTML(),state);
- await page.locator('#shuffle').click();assert.notEqual(await page.locator('#grid').innerHTML(),state);
- assert.deepEqual(errors,[]);console.log('PASS mosaic browser: 320/390/768/1440px, four sizes with rectangular silhouettes, no overlap/overflow, uniform facial scale, unique gradient IDs, inert face taps, exact seed reload and shuffle.');
+ assert.deepEqual(errors,[]);console.log('PASS mosaic browser: 320/390/768/1440px, four sizes with rectangular silhouettes, no overlap/overflow, uniform facial scale, unique gradient IDs, inert face taps, exact seed reload.');
  await browser.close();
 })();

@@ -91,15 +91,14 @@ export function renderFace(seed, index, revision = 0, geometry = { width: 1, hei
   const baseColor = choose(stream('color'), COLORS);
   const tone = stream('skin-tone')() * 2 - 1;
   const color = skinTone(baseColor, tone);
-  const radius = stream('corners')() < .3 ? 12 : 0;
-  const shape = radius ? 'rounded' : 'rect';
+  const shape = 'rect';
   const unit = Math.min(geometry.width, geometry.height);
   const width = 100 * geometry.width / unit, height = 100 * geometry.height / unit;
   const gradientId = `skin-${index}-${revision}`;
-  // All heads remain rectangular; some retain subtly rounded corners.
-  const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="${radius}" fill="url(#${gradientId})"/>`;
+  // Square edges fill every mosaic tile without exposing the backing surface.
+  const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="0" fill="url(#${gradientId})"/>`;
   const top = mixColor(color, PALETTE.ink, PALETTE.gradient.top);
   const bottom = mixColor(color, PALETTE.paper, PALETTE.gradient.bottom);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
-  return { color, baseColor, backingColor: PALETTE.background, shape, svg };
+  return { color, baseColor, backingColor: color, shape, svg };
 }
