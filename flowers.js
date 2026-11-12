@@ -1,5 +1,5 @@
 import { randomFrom } from './faces.js';
-import { PALETTE, mixColor } from './palette.js';
+import { PALETTE, mixColor } from './palette.js?v=white-rounded-3';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
@@ -40,8 +40,8 @@ export function generateFlowerSites(seed, layout) {
       const offset = .12+r()*.76;
       const f = { id: `${axis}-${x}-${y}-${local.length}`,
         x: axis==='v' ? x : x+offset, y: axis==='h' ? y : y+offset,
-        size: .12+r()*.08, phase: r()*Math.PI*2, rotation: (r()-.5)*12,
-        petals: 4+Math.floor(r()*4), shape: Math.floor(r()*3), color: 0,
+        size: .14+r()*.20, phase: r()*Math.PI*2, rotation: (r()-.5)*12,
+        petals: 4+Math.floor(r()*4), shape: Math.floor(r()*2), color: 0,
         rank: r(), delay: r()*5, duration: 10+r()*5 };
       const bounds = flowerBounds(f), tiles = new Set();
       if (bounds.left<0 || bounds.top<0 || bounds.right>width || bounds.bottom>height) continue;
@@ -69,7 +69,7 @@ export function generateFlowerSites(seed, layout) {
 }
 export function singerStyle(seed, singer) {
   const r = randomFrom(`${seed}:flower-style:${singer}`);
-  return { shape: Math.floor(r()*3), petals: 4+Math.floor(r()*4), color: Math.floor(r()*PALETTE.flowers.petals.length) };
+  return { shape: Math.floor(r()*2), petals: 4+Math.floor(r()*4), color: Math.floor(r()*PALETTE.flowers.petals.length) };
 }
 // Compact, softly tapered patches grow only close to a singer. Overlapping
 // waves vary the reach so the edge does not form a perfect circle.
@@ -87,7 +87,7 @@ export function flowerLife(f, patch, now) {
   const growth = growAt(patch.retired ?? now);
   const age = patch.retired === null ? 0 : smooth((now-patch.retired)/(10+f.rank*10));
   const dry = patch.retired !== null;
-  return { growth: .18+.82*growth, bloom: smooth((growth-.15)/.85)*(1-age*.65),
+  return { growth: (.18+.82*growth)*(1-age*.62), bloom: smooth((growth-.15)/.85)*(1-age*.65),
     opacity: (.35+.65*growth)*(f.remnant ? 1-age*.53 : 1-age),
     droop: age*(22+f.rank*9), dry, dryProgress: age,
     responsive: !dry && growth > .95 };
@@ -169,7 +169,7 @@ export function createFlowerField(seed, layout) {
       for (const f of remnants) {
         if (f.x>=view.left && f.x<=view.right && f.y>=view.top && f.y<=view.bottom) {
           result.push({ f, key: f.key, style: f.style, patch: null,
-            life: { growth: 1, bloom: .22, opacity: .47, droop: 28, dry: true, dryProgress: 1, responsive: false } });
+            life: { growth: .38, bloom: .22, opacity: .47, droop: 28, dry: true, dryProgress: 1, responsive: false } });
         }
       }
       for (const patch of retiring) for (const site of local) {
@@ -191,15 +191,14 @@ function geometry(f, style) {
   let petals = '';
   for (let i=0;i<count;i++) {
     const petal = shape === 0 ? '<ellipse cx="0" cy="-.16" rx=".105" ry=".15"/>'
-      : shape === 1 ? '<path d="M-.105 -.09 L0 -.31 L.105 -.09Z"/>'
-      : '<rect x="-.085" y="-.30" width=".17" height=".24" rx=".075"/>';
+      : '<ellipse cx="0" cy="-.16" rx=".12" ry=".13"/>';
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   return `<g class="flower-stem" fill="${stem}"><rect x="-.018" y="-.70" width=".036" height=".70" rx=".018"/>
-    ${shape === 1 ? '<path d="M0 -.28 L-.29 -.49 L-.20 -.22Z"/>' : '<ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>'}
+    <ellipse cx="-.13" cy="-.34" rx=".16" ry=".065" transform="rotate(30 -.13 -.34)"/>
     <ellipse cx=".12" cy="-.48" rx=".14" ry=".06" transform="rotate(-30 .12 -.48)"/></g>
     <g class="flower-head" transform="translate(0 -.70)"><g class="flower-petals" fill="${color}">${petals}</g>
-    <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.skin[2]}"/></g>`;
+    <circle r=".082" fill="${PALETTE.ink}"/><circle r=".037" fill="${PALETTE.flowers.petals[0]}"/></g>`;
 }
 
 // Shares the face loop. Only culling/lifecycle reconciliation runs at 8 Hz;
@@ -240,7 +239,6 @@ export function createFlowers(world, grid) {
       nodes.set(item.key,{ root, growth: root.firstElementChild,
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'),
         petals: root.querySelector('.flower-petals'),
-        petalColor: root.querySelector('.flower-petals').getAttribute('fill'),
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
     }
     reconciled = now; dirty = false;

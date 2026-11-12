@@ -13,6 +13,9 @@ test('world flower sites reproduce from seed, keep clearance and vary across see
   assert.notDeepEqual(sites,generateFlowerSites('another',layout));
   assert.ok(sites.length > 1000 && sites.length < 12000);
   assert.equal(new Set(sites.map(f => f.id)).size,sites.length);
+  assert.ok(Math.min(...sites.map(f=>f.size))<.16);
+  assert.ok(Math.max(...sites.map(f=>f.size))>.30,'larger blossoms survive clearance checks');
+  assert.ok(sites.every(f=>f.size>=.14 && f.size<=.34 && f.shape<2));
   for (const f of sites) {
     assert.ok(f.tiles.length>=2,'every root is on a shared face seam');
     assert.ok(Number.isInteger(f.x) || Number.isInteger(f.y));
@@ -56,7 +59,7 @@ test('immediate cues and buds mature over 10–20 seconds; retired flowers stop 
   assert.equal(flowerLife(bud,patch,20).dryProgress,0,'no instant brown replacement');
   const fading = flowers.find(f => !f.remnant && f.rank>.7);
   const midway = flowerLife(fading,patch,28);
-  assert.ok(midway.opacity>0 && midway.opacity<1 && midway.droop>0 && midway.bloom<1);
+  assert.ok(midway.opacity>0 && midway.opacity<1 && midway.droop>0 && midway.bloom<1 && midway.growth<flowerLife(fading,patch,20).growth);
   assert.equal(flowerLife(fading,patch,40).opacity,0);
   field.visible(view,41);
   assert.equal(field.retiring.length,0);

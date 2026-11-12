@@ -30,6 +30,10 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.ok(Object.keys(before).length>farCount*2,'vegetation visibly increases toward the singer');
     assert.equal(farCount,0,'no flowers far from any singer patch');
     assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'all petals are white');
+    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>[...p.children].every(g=>g.firstElementChild.tagName==='ellipse'))),'every petal is rounded');
+    assert.equal(await page.locator('.flower-head [fill="#D0A35B"]').count(),0,'flower heads contain no yellow');
+    const sizes=await page.locator('.flower').evaluateAll(fs=>fs.map(f=>+f.getAttribute('transform').match(/scale\(([\d.]+)/)[1]));
+    assert.ok(Math.max(...sizes)/Math.min(...sizes)>1.5,'flowers have noticeably varied sizes');
     assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>Number.isInteger(+f.dataset.x)||Number.isInteger(+f.dataset.y))),'all roots sit on seams');
 
     async function clearance() {
@@ -53,6 +57,10 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     const next=await page.locator('[data-singer]').getAttribute('data-index');
     assert.notEqual(next,previous);
     assert.ok(await page.locator('.flower[data-stage=dry]').count()>10,'old patch remains during gradual wilting');
+    const oldSizes=await page.locator('.flower[data-stage=dry]').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,+f.querySelector('.flower-growth').getAttribute('transform').match(/scale\(([\d.]+)/)[1]])));
+    await page.clock.fastForward(4000); await page.waitForTimeout(200);
+    assert.ok(await page.locator('.flower[data-stage=dry]').evaluateAll((fs,old)=>fs.every(f=>+f.querySelector('.flower-growth').getAttribute('transform').match(/scale\(([\d.]+)/)[1]<old[f.dataset.flower]),oldSizes),'previous patch visibly shrinks after changing singers');
+    assert.ok(await page.locator('.flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'wilting petals stay white');
     await page.locator('[data-singer]').evaluate(t=>{
       const w=document.querySelector('#world');w.scrollTo(t.offsetLeft-w.clientWidth/2+t.offsetWidth/2,t.offsetTop-w.clientHeight/2+t.offsetHeight/2);
     });
