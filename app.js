@@ -1,12 +1,12 @@
-import { createButterfly } from './butterfly.js?v=quick-moth-red-22';
-import { createSinger } from './singing.js?v=quick-moth-red-22';
-import { createFlowers } from './flowers.js?v=quick-moth-red-22';
+import { createButterfly } from './butterfly.js?v=soft-pink-blush-23';
+import { createSinger } from './singing.js?v=soft-pink-blush-23';
+import { createFlowers } from './flowers.js?v=soft-pink-blush-23';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
-import { createMothStory } from './story.js?v=quick-moth-red-22';
+import { createMothStory } from './story.js?v=soft-pink-blush-23';
 applyPalette();
-import { renderFace } from './faces.js?v=quick-moth-red-22';
-import { animateFaces } from './behavior.js?v=quick-moth-red-22';
+import { renderFace } from './faces.js?v=soft-pink-blush-23';
+import { animateFaces } from './behavior.js?v=soft-pink-blush-23';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');

@@ -19,7 +19,7 @@ export function gazeOffset(angle, distance) {
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
 export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
-export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: 1 };
+export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: .85 };
 
 export function cryingTearPose(eye,t){
   // Match the lower blink cap's cut, rather than the hidden bottom of the
@@ -203,15 +203,18 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const leaving=s.nearMoth&&!near;
     s.nearMoth=near;
     s.warmth=near?(instant?target:s.warmth+(target-s.warmth)*(1-Math.exp(-dt/.24))):0;
-    s.blushStrength=s.blushProximity>0?1:0;
-    s.cheeks.setAttribute('opacity',String(s.blushStrength));
+    const blushTarget=s.blushProximity;
+    const response=blushTarget>s.blushStrength?.35:.55;
+    s.blushStrength=instant?blushTarget:s.blushStrength+(blushTarget-s.blushStrength)*(1-Math.exp(-dt/response));
+    if(!blushTarget&&s.blushStrength<.005)s.blushStrength=0;
+    s.cheeks.setAttribute('opacity',(s.blushStrength*MOTH_BLUSH.opacity).toFixed(3));
     s.tile.dataset.mothNearby=String(near);
     if(near){
       s.mouth.motion=null;
       if(!s.mouth.singing||instant)paintMood(s,s.smileBend*s.warmth);
     }else if(leaving&&!s.mouth.singing){
       // Near the edge the smile is already tiny. Clamp at neutral on exit so
-      // neither a smile nor blush can linger outside the moth's looking range.
+      // smiles do not linger outside the looking range; blush fades separately.
       paintMood(s,0);
       s.mouth.motion={from:{bend:0,corner:0},target:{bend:s.mouth.restBend,corner:0},start:now,duration:800};
     }else if(leaving&&s.mouth.element.getAttribute('fill')==='none'){

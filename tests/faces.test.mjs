@@ -117,7 +117,10 @@ test('resting faces never smile and start with invisible rosy cheeks',()=>{
     const svg=renderFace('resting-faces',i).svg;
     const d=svg.match(/data-feature="mouth" d="([^"]+)"/)[1].match(/-?\d+(?:\.\d+)?/g).map(Number);
     assert.ok(d[3]-(d[1]+d[5])/2<=0,'resting mouth is neutral or a frown');
-    assert.ok(svg.includes('data-feature="cheeks" fill="#BE4D47" opacity="0"'));
+    assert.ok(svg.includes(`data-feature="cheeks" fill="url(#blush-${i}-0)" opacity="0"`));
+    assert.ok(svg.includes(`radialGradient id="blush-${i}-0"`));
+    assert.ok(svg.includes('stop-color="#DE8BA5" stop-opacity=".85"'));
+    assert.ok(svg.includes('stop-color="#DE8BA5" stop-opacity="0"'));
     assert.equal((svg.match(/<circle /g)||[]).length,6,'four eye circles and two cheek circles');
     const cheeks=[...svg.matchAll(/<circle data-feature="cheek" cx="([\d.]+)" cy="55" r="([\d.]+)"/g)];
     assert.equal(cheeks.length,2);

@@ -1,4 +1,4 @@
-import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js?v=quick-moth-red-22';
+import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js?v=soft-pink-blush-23';
 
 // All geometry uses a 100 × 100 coordinate system. Feature builders can be
 // extended independently without coupling their random streams.
@@ -95,11 +95,13 @@ export function renderFace(seed, index, revision = 0, geometry = { width: 1, hei
   const unit = Math.min(geometry.width, geometry.height);
   const width = 100 * geometry.width / unit, height = 100 * geometry.height / unit;
   const gradientId = `skin-${index}-${revision}`;
+  const blushId = `blush-${index}-${revision}`;
   // Square edges fill every mosaic tile without exposing the backing surface.
   const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="0" fill="url(#${gradientId})"/>`;
   const top = mixColor(color, PALETTE.ink, PALETTE.gradient.top);
   const bottom = mixColor(color, PALETTE.paper, PALETTE.gradient.bottom);
-  const cheeks = `<g data-feature="cheeks" fill="${PALETTE.blush}" opacity="0"><circle data-feature="cheek" cx="16" cy="55" r="10"/><circle data-feature="cheek" cx="84" cy="55" r="10"/></g>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${cheeks}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
+  const cheeks = `<g data-feature="cheeks" fill="url(#${blushId})" opacity="0"><circle data-feature="cheek" cx="16" cy="55" r="10"/><circle data-feature="cheek" cx="84" cy="55" r="10"/></g>`;
+  const blushGradient = `<radialGradient id="${blushId}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${PALETTE.blush}" stop-opacity=".85"/><stop offset="55%" stop-color="${PALETTE.blush}" stop-opacity=".45"/><stop offset="100%" stop-color="${PALETTE.blush}" stop-opacity="0"/></radialGradient>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient>${blushGradient}</defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${cheeks}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
   return { color, baseColor, backingColor: color, shape, svg };
 }

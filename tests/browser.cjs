@@ -24,7 +24,7 @@ const assert=require('node:assert/strict');
      const mouth=mouthPaths[index].getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number), rest=mouthRest[index];
      if(mouth.some((n,i)=>Math.abs(n-rest[i])>.0001))mouthMoved.add(index);
      const bend=mouth[3]-(mouth[1]+mouth[5])/2;
-     if(tile.dataset.mothNearby!=='true')noFarSmiles&&=bend<=.000001&&+tile.querySelector('[data-feature=cheeks]').getAttribute('opacity')===0;
+     if(tile.dataset.mothNearby!=='true')noFarSmiles&&=bend<=.000001;
      const now=performance.now();
      if(bend===0 && previousBends.has(index) && previousBends.get(index)!==0)neutralStarts.set(index,now);
      if(bend!==0)neutralStarts.delete(index);
@@ -42,7 +42,7 @@ const assert=require('node:assert/strict');
    }check();
   });
  });
- assert.ok(result.noFarSmiles,'only moth-aware faces smile or blush');
+ assert.ok(result.noFarSmiles,'only moth-aware faces smile; blush may fade after departure');
  assert.ok(result.mouthMoved.length>4&&result.mouthBounds&&result.nosesUnchanged);
 
  assert.ok(result.moved.every(i=>result.visibleIndices.includes(i)));
