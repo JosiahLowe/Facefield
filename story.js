@@ -10,16 +10,22 @@ export function createStorySequence(onEnter = () => {}) {
     get state() { return state; },
     get elapsed() { return elapsed; },
     start() { if (state !== 'idle') return false; enter('traveling'); return true; },
-    step(dt, { arrived = false, discovered = false } = {}) {
+    step(dt, { arrived = false, discovered = false, offscreen = false } = {}) {
       elapsed += Math.max(0, dt);
       if (state === 'traveling' && arrived) enter('singing');
-      else if (state === 'singing' && elapsed >= STORY_TIMING.introduction) enter('scream');
-      else if (state === 'scream' && elapsed >= STORY_TIMING.scream) enter('death');
+      else if (state === 'singing' && elapsed >= STORY_TIMING.introduction && offscreen) enter('scream');
+      else if (state === 'scream' && !offscreen) enter('singing');
+      else if (state === 'scream' && elapsed >= STORY_TIMING.scream && offscreen) enter('death');
       else if (state === 'death' && elapsed >= STORY_TIMING.death) enter('crying');
       else if (state === 'crying' && discovered) enter('discovered');
     },
     resume() { if (state !== 'discovered') return false; enter('idle'); return true; },
   };
+}
+
+export function outsideViewport(face,view,margin=0){
+  return face.right<=view.left-margin||face.left>=view.right+margin
+    ||face.bottom<=view.top-margin||face.top>=view.bottom+margin;
 }
 
 // Match the existing close-listening area (12% of the viewport diagonal).
@@ -38,10 +44,14 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
   const sequence = createStorySequence(state => {
     world.dataset.mothStory = state;
     button.disabled = state !== 'idle';
-    if(state==='scream'){
+    if(state==='singing'){
+      singer.setScene('song');animation.setStoryExpression(tile,null);
+    }else if(state==='scream'){
       singer.setScene('scream');animation.setStoryExpression(tile,'scream');
     }else if(state==='death'){
-      singer.setScene('silence');butterfly.fall();
+      // Resolve the death atomically while offscreen. A visible fall could be
+      // caught by a single fast scroll even after checking its starting frame.
+      singer.setScene('silence');butterfly.fall({immediate:true});
     }else if(state==='crying'){
       singer.setScene('crying');animation.setStoryExpression(tile,'crying');
       tile.setAttribute('aria-label','Crying singer');
@@ -52,6 +62,13 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
     }
   });
   world.dataset.mothStory = 'idle';
+  function viewport(){
+    const rect=world.getBoundingClientRect(),view=window.visualViewport;
+    const left=Math.max(rect.left,view?.offsetLeft||0),top=Math.max(rect.top,view?.offsetTop||0);
+    const right=Math.min(rect.right,(view?.offsetLeft||0)+(view?.width||innerWidth));
+    const bottom=Math.min(rect.bottom,(view?.offsetTop||0)+(view?.height||innerHeight));
+    return {left,top,right,bottom,width:right-left,height:bottom-top};
+  }
   function tick(now) {
     frame = 0;
     if (sequence.state === 'idle' || document.hidden) { last = null; return; }
@@ -62,13 +79,18 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
       {x:world.scrollLeft+(view?.offsetLeft||0),y:world.scrollTop+(view?.offsetTop||0),
         width:view?.width||world.clientWidth,height:view?.height||world.clientHeight},
       {width:world.scrollWidth,height:world.scrollHeight});
-    sequence.step(dt, { arrived: butterfly.storyArrived(), discovered: found });
+    // Read current geometry each frame, never delayed IntersectionObserver
+    // notifications. The extra margin guards viewport edges and fast scrolling.
+    sequence.step(dt, { arrived: butterfly.storyArrived(), discovered: found,
+      offscreen:outsideViewport(tile.getBoundingClientRect(),viewport(),64) });
     frame = requestAnimationFrame(tick);
   }
   function wake() { if (!frame && !document.hidden && sequence.state !== 'idle') frame = requestAnimationFrame(tick); }
   button.addEventListener('click', () => {
     if (sequence.state !== 'idle') return;
-    const next = singer.advanceNow(candidates());
+    const view=viewport();
+    const distant=candidates().filter(t=>outsideViewport(t.getBoundingClientRect(),view,Math.max(view.width,view.height)));
+    const next = singer.advanceNow(distant);
     if (!next) return;
     tile = next;
     sequence.start();

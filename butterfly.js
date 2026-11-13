@@ -227,9 +227,13 @@ export function createButterfly(world,grid,flowers) {
       flight.target=null;flight.mode='story-travel';storyLast=null;draw(0);
     },
     storyArrived:()=>!!story?.arrived,
-    fall(){
+    fall({immediate=false}={}){
       if(!story)return;
       story.phase='death';story.fallAt=null;story.from={x:flight.x,y:flight.y};
+      if(immediate){
+        flight.x=story.rest.x;flight.y=story.rest.y;flight.vx=0;flight.vy=0;flight.mode='dead';
+        story.phase='dead';heading=1.05;lift=0;shadowHeight=0;shadowRest=1;draw(0);
+      }
     },
     endStory(){
       if(!flight)return;

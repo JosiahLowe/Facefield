@@ -333,11 +333,12 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if(crying){
       paintCryingMouth(s);
       for(const [i,tear] of [...s.story.tears.children].entries()){
-        const t=reduced.matches?.35:((now-s.story.at)/2400+i*.43)%1;
-        const shrink=smooth(Math.max(0,Math.min(1,(t-.5)/.5)));
+        const eyeIndex=Math.floor(i/3),drop=i%3;
+        const t=reduced.matches?.16+drop*.28:((now-s.story.at)/3000+drop/3+eyeIndex*.17)%1;
+        const shrink=smooth(t);
         const size=Math.min(1,t/.08)*(1-shrink);
-        const eye=s.eyes[i];
-        tear.setAttribute('transform',`translate(${eye.x} ${eye.y+eye.r+1+t*18}) scale(${size})`);
+        const eye=s.eyes[eyeIndex],start=eye.y+eye.r+1;
+        tear.setAttribute('transform',`translate(${eye.x} ${start+t*(93-start)}) scale(${size})`);
       }
     }else{
       m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);
@@ -355,7 +356,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       if(!mode){delete tile.dataset.storyExpression;delete tile.dataset.sobOpening;schedule(s,performance.now());return;}
       restore(s);
       const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
-      if(mode==='crying')for(const eye of s.eyes){
+      if(mode==='crying')for(let i=0;i<6;i++){
         const tear=document.createElementNS(NS,'path');
         tear.setAttribute('d','M0 0 C-1.2 2.8-3.3 4.6-3.3 6.6 A3.3 3.3 0 0 0 3.3 6.6 C3.3 4.6 1.2 2.8 0 0Z');tears.append(tear);
       }

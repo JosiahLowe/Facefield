@@ -1,16 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStorySequence, STORY_TIMING, inDiscoveryArea } from '../story.js';
+import { createStorySequence, STORY_TIMING, inDiscoveryArea, outsideViewport } from '../story.js';
 import { stepStoryFlight } from '../butterfly.js';
+const step=(s,dt,input={})=>s.step(dt,{offscreen:true,...input});
+
+test('death is gated by fresh offscreen geometry, even after the introduction or scream',()=>{
+  const s=createStorySequence();s.start();s.step(0,{arrived:true});
+  s.step(100,{offscreen:false});assert.equal(s.state,'singing');
+  s.step(0,{offscreen:true});assert.equal(s.state,'scream');
+  s.step(STORY_TIMING.scream,{offscreen:false});assert.equal(s.state,'singing','arrival on the last scream frame cancels death');
+  for(let i=0;i<500;i++)s.step(.016,{offscreen:i%2===0});
+  assert.notEqual(s.state,'death','rapid visibility changes cannot kill the moth');
+  s.step(STORY_TIMING.introduction,{offscreen:true});assert.equal(s.state,'scream');
+  s.step(STORY_TIMING.scream,{offscreen:true});assert.equal(s.state,'death');
+});
+
+test('viewport guard counts partial visibility, zoom offsets and a safety margin',()=>{
+  const view={left:100,top:50,right:490,bottom:894};
+  assert.equal(outsideViewport({left:480,top:100,right:600,bottom:220},view),false);
+  assert.equal(outsideViewport({left:500,top:100,right:620,bottom:220},view,64),false);
+  assert.equal(outsideViewport({left:560,top:100,right:680,bottom:220},view,64),true);
+  assert.equal(outsideViewport({left:100,top:-100,right:220,bottom:49},view),true);
+});
 
 test('stage 1: repeated presses cannot interrupt; introduction waits for actual arrival',()=>{
   const history=[],s=createStorySequence(state=>history.push(state));
   assert.equal(s.start(),true);
-  for(let i=0;i<100;i++){s.step(1);assert.equal(s.start(),false);}
+  for(let i=0;i<100;i++){step(s,1);assert.equal(s.start(),false);}
   assert.equal(s.state,'traveling','offscreen journeys have no timeout');
-  s.step(.05,{arrived:true});assert.equal(s.state,'singing');
-  s.step(STORY_TIMING.introduction-.1);assert.equal(s.state,'singing');
-  s.step(.11);assert.equal(s.state,'scream');
+  step(s,.05,{arrived:true});assert.equal(s.state,'singing');
+  step(s,STORY_TIMING.introduction-.1);assert.equal(s.state,'singing');
+  step(s,.11);assert.equal(s.state,'scream');
   assert.deepEqual(history,['traveling','singing','scream']);
 });
 
@@ -26,10 +46,10 @@ test('stage 1: direct world flight is continuous, bounded and reaches a distant 
 
 test('stage 2: scream, silent fall and crying occur in order without skipping stages',()=>{
   const events=[],s=createStorySequence(state=>events.push(state));s.start();
-  s.step(0,{arrived:true});s.step(STORY_TIMING.introduction);
-  assert.equal(s.state,'scream');s.step(STORY_TIMING.scream-.01);assert.equal(s.state,'scream');
-  s.step(.02);assert.equal(s.state,'death');s.step(STORY_TIMING.death);assert.equal(s.state,'crying');
-  s.step(3600);assert.equal(s.state,'crying','scene remains until discovery');
+  step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);
+  assert.equal(s.state,'scream');step(s,STORY_TIMING.scream-.01);assert.equal(s.state,'scream');
+  step(s,.02);assert.equal(s.state,'death');step(s,STORY_TIMING.death);assert.equal(s.state,'crying');
+  step(s,3600);assert.equal(s.state,'crying','scene remains until discovery');
   assert.deepEqual(events,['traveling','singing','scream','death','crying']);
 });
 
@@ -38,11 +58,11 @@ test('stage 3: only discovery unlocks resolution; the complete event can run aga
   for(let cycle=0;cycle<12;cycle++){
     assert.equal(s.state,'idle');assert.equal(s.start(),true);
     assert.equal(s.resume(),false);
-    s.step(0,{arrived:true,discovered:true});s.step(STORY_TIMING.introduction);
-    s.step(STORY_TIMING.scream);s.step(STORY_TIMING.death);
+    step(s,0,{arrived:true,discovered:true});step(s,STORY_TIMING.introduction);
+    step(s,STORY_TIMING.scream);step(s,STORY_TIMING.death);
     assert.equal(s.state,'crying');assert.equal(s.resume(),false);
-    s.step(1,{discovered:true});assert.equal(s.state,'discovered');
-    s.step(100);assert.equal(s.state,'discovered');assert.equal(s.start(),false);
+    step(s,1,{discovered:true});assert.equal(s.state,'discovered');
+    step(s,100);assert.equal(s.state,'discovered');assert.equal(s.start(),false);
     assert.equal(s.resume(),true);
   }
 });
