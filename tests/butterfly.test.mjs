@@ -109,7 +109,7 @@ test('garden visits sometimes change their mind, while still landing regularly',
 
 
 test('moth shadow turns with heading and changes footprint with wings, height and landing',()=>{
-  for(const heading of [-Math.PI,-1,0,.8,Math.PI])assert.equal(mothShadowPose(heading,.8,.5,0,1).rotation,heading);
+  for(const heading of [-Math.PI,-1,0,.8,Math.PI])assert.equal(mothShadowPose(heading,.8,.5,0,1).rotation,heading+Math.PI/2);
   const open=mothShadowPose(.8,1,.5,0,1),folded=mothShadowPose(.8,.3,.5,0,1);
   assert.ok(open.scaleX>folded.scaleX,'folding wings narrows the shadow');
   assert.equal(open.scaleY,folded.scaleY,'wing flutter does not bounce the shadow length');

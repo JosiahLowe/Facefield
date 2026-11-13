@@ -132,7 +132,7 @@ export function stepButterfly(state,dt,bounds,flowerHead=()=>null,random=Math.ra
 export function mothShadowPose(heading,spread,height,rest,speed) {
   height=clamp(height,0,1);rest=clamp(rest,0,1);spread=clamp(spread,0,1);
   const size=.9+.1*height-.15*rest;
-  return {rotation:heading,offset:4+height*3,
+  return {rotation:heading+Math.PI/2,offset:4+height*3,
     scaleX:size*(.6+.4*spread),scaleY:size*(.85+.1*clamp(speed/1.8,0,1)),
     opacity:(.22-.07*height-.06*rest)*(.8+.2*spread)};
 }

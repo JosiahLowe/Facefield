@@ -36,7 +36,7 @@ const assert=require('node:assert/strict');
       });
       assert.ok(result.roots.every(d=>d<.05),'wings remain attached at their body hinges');
       assert.ok(result.symmetry<.01,'wings and eyespots remain symmetrical during flutter');
-      assert.equal(result.shadowAngle,result.bodyAngle,'shadow turns with the actual moth heading');
+      assert.ok(Math.abs(result.shadowAngle-result.bodyAngle-Math.PI/2)<.002,'shadow long axis aligns with the moth body');
       shadowShapes.add(result.shadowScale);shadowAngles.add(result.shadowAngle);
       spreads.add(result.spread);await page.waitForTimeout(90);
     }

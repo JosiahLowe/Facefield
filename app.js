@@ -1,4 +1,4 @@
-import { createButterfly } from './butterfly.js?v=moving-moth-shadow-14';
+import { createButterfly } from './butterfly.js?v=body-aligned-shadow-15';
 import { createSinger } from './singing.js?v=white-rounded-3';
 import { createFlowers } from './flowers.js?v=curious-gardens-10';
 import { applyPalette } from './palette.js';
