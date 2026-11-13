@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { personality, gazeOffset } from '../behavior.js';
+import { cryingTearPose } from '../behavior.js';
+
+test('tears emerge directly from the visible lower eyelid before rolling down',()=>{
+  for(const lidSide of ['none','top','bottom']){
+    const eye={x:28,y:31,r:13,lidSide,cut:36};
+    const rest=lidSide==='bottom'?eye.cut:eye.y+eye.r;
+    const lid=rest+(eye.y-.02-rest)*.52;
+    const birth=cryingTearPose(eye,0),grown=cryingTearPose(eye,.12),old=cryingTearPose(eye,.99);
+    assert.ok(Math.abs(birth.y-lid)<.5,'newborn tear touches the visible lid');
+    assert.equal(birth.y,grown.y,'tear grows at the eye rather than spawning on the cheek');
+    assert.equal(birth.size,.35);assert.equal(grown.size,1);
+    assert.ok(old.y>90&&old.size<.001,'old tear disappears near the bottom of the face');
+  }
+});
 
 test('personalities reproduce from seed, tile, and revision with all five profiles', () => {
   const names = new Set();
@@ -94,7 +108,7 @@ test('looking range returns to 320 pixels and blush has a separate smaller radiu
   assert.equal(flyAttention(450,0),0);
   assert.ok(flyAttention(240,0)>0);
   assert.equal(MOTH_BLUSH.radius,160);
-  assert.ok(MOTH_BLUSH.opacity<.45);
+  assert.equal(MOTH_BLUSH.opacity,.48);
   assert.equal(flyAttention(240,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius),0);
   assert.ok(flyAttention(100,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius)>0);
 });

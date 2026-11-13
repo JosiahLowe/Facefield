@@ -44,7 +44,7 @@ const assert=require('node:assert/strict');
     assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0),'no smile or rosy cheeks linger beyond looking proximity');
     for(let i=0;i<12;i++){await page.waitForTimeout(100);assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0));}
     await page.evaluate(c=>{window.mothPoint=c;},center);await page.waitForTimeout(750);
-    faces=await read();assert.ok(faces[0].bend>8&&faces[0].blush>.24&&faces[0].blush<=.30);
+    faces=await read();assert.ok(faces[0].bend>8&&faces[0].blush>.40&&faces[0].blush<=.48);
     await page.evaluate(()=>reactions.setSingingMouth(document.querySelector('.face'),.9));
     assert.equal((await read())[0].open,true,'singing mouth animation takes priority');
     await page.evaluate(()=>reactions.setSingingMouth(document.querySelector('.face'),0));
@@ -53,7 +53,7 @@ const assert=require('node:assert/strict');
     await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(150);
     const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(600);
     assert.equal(await page.locator('#grid').innerHTML(),still,'reduced motion keeps a static proximity reaction');
-    assert.ok((await read())[0].bend>0&&(await read())[0].blush>.24&&(await read())[0].blush<=.30);
+    assert.ok((await read())[0].bend>0&&(await read())[0].blush>.40&&(await read())[0].blush<=.48);
     await page.evaluate(c=>{window.mothPoint={x:c.x-450,y:c.y};},center);await page.waitForTimeout(600);
     assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0));
     assert.equal(await page.locator('[data-feature=cheek]').count(),6);
@@ -62,6 +62,6 @@ const assert=require('node:assert/strict');
       return Math.abs(b.width-b.height)<.01&&b.left>=frame.left&&b.right<=frame.right&&b.top>=frame.top&&b.bottom<=frame.bottom;
     })),'round cheeks remain inside every face frame');
     assert.deepEqual(errors,[]);
-    console.log('PASS moth reactions: neutral/frowning idle faces, 320px looking/smiling range, separate 160px blush range, lighter circular cheeks within the face frame, singing priority and static reduced-motion reactions.');
+    console.log('PASS moth reactions: neutral/frowning idle faces, 320px looking/smiling range, separate 160px blush range, larger, stronger circular cheeks within the face frame, singing priority and static reduced-motion reactions.');
   } finally {await browser.close();}
 })();

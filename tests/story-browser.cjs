@@ -29,7 +29,7 @@ const assert=require('node:assert/strict');
       const b=document.querySelector('.butterfly'),s=document.querySelector('[data-singer]'),u=document.querySelector('#grid').clientWidth/48;
       return Math.hypot(+b.dataset.worldX-(s.offsetLeft+s.offsetWidth/2),+b.dataset.worldY-(s.offsetTop+s.offsetHeight/2-.32*u));
     });
-    assert.ok(arrival<10,'actual arrival before introduction');
+    assert.ok(arrival<32,'moth has reached its small moving hover around the singer before introduction');
     assert.deepEqual(await camera(),scroll,'camera never follows the story');
     for(let i=0;i<60&&await state()==='singing';i++)await page.clock.runFor(100);
     assert.equal(await state(),'scream');

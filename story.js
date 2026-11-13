@@ -79,10 +79,10 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
       {x:world.scrollLeft+(view?.offsetLeft||0),y:world.scrollTop+(view?.offsetTop||0),
         width:view?.width||world.clientWidth,height:view?.height||world.clientHeight},
       {width:world.scrollWidth,height:world.scrollHeight});
-    // Read current geometry each frame, never delayed IntersectionObserver
-    // notifications. The extra margin guards viewport edges and fast scrolling.
+    // Death resolves atomically, so the actual visible bounds are sufficient.
+    // An extra buffer would leave an already offscreen singer waiting forever.
     sequence.step(dt, { arrived: butterfly.storyArrived(), discovered: found,
-      offscreen:outsideViewport(tile.getBoundingClientRect(),viewport(),64) });
+      offscreen:outsideViewport(tile.getBoundingClientRect(),viewport()) });
     frame = requestAnimationFrame(tick);
   }
   function wake() { if (!frame && !document.hidden && sequence.state !== 'idle') frame = requestAnimationFrame(tick); }

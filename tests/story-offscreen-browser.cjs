@@ -32,6 +32,8 @@ const assert=require('node:assert/strict');
     await page.clock.runFor(16000);
     assert.equal(await state(),'singing','getting there early defers the event indefinitely');
     assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
+    const hover=await page.locator('.butterfly').getAttribute('style');await page.clock.runFor(700);
+    assert.notEqual(await page.locator('.butterfly').getAttribute('style'),hover,'waiting moth keeps moving rather than freezing at the singer');
     assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollLeft,w.scrollTop]),camera,'player camera remains unrestricted');
     await move(false);await page.clock.runFor(32);assert.equal(await state(),'scream');
     await page.clock.runFor(720);await move(true);await page.clock.runFor(32);
@@ -42,7 +44,15 @@ const assert=require('node:assert/strict');
     // the point at which an uninterrupted introduction would have completed.
     for(let i=0;i<310;i++){await move(i%2===0);await page.clock.runFor(16);}
     assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
-    await move(false);
+    await page.evaluate(()=>{
+      const w=document.querySelector('#world'),t=document.querySelector('[data-singer]');
+      // Only one pixel outside: this used to wait forever in the 64px buffer.
+      const top=t.offsetTop>w.clientHeight?t.offsetTop-w.clientHeight-1:t.offsetTop+t.offsetHeight+1;
+      w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,top);
+    });
+    assert.ok(await page.locator('[data-singer]').evaluate(t=>{
+      const r=t.getBoundingClientRect();return r.top>innerHeight&&r.top<innerHeight+3||r.bottom<0&&r.bottom>-3;
+    }),'singer is just outside the actual viewport');
     for(let i=0;i<80&&await state()!=='death';i++)await page.clock.runFor(100);
     assert.equal(await state(),'death');
     assert.equal(await page.locator('.butterfly').getAttribute('data-mode'),'dead','death resolves immediately offscreen');

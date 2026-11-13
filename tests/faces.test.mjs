@@ -121,7 +121,7 @@ test('resting faces never smile and start with invisible rosy cheeks',()=>{
     assert.equal((svg.match(/<circle /g)||[]).length,6,'four eye circles and two cheek circles');
     const cheeks=[...svg.matchAll(/<circle data-feature="cheek" cx="([\d.]+)" cy="55" r="([\d.]+)"/g)];
     assert.equal(cheeks.length,2);
-    for(const [,x,r] of cheeks){assert.ok(+r>5.5,'cheeks are larger');assert.ok(+x-+r>=0&&+x+ +r<=100,'cheeks stay inside the face');}
+    for(const [,x,r] of cheeks){assert.equal(+r,10,'cheeks use the enlarged circular radius');assert.ok(+x-+r>=0&&+x+ +r<=100,'cheeks stay inside the face');}
     assert.deepEqual(cheeks.map(m=>+m[1]),[16,84],'cheeks sit farther apart');
   }
 });

@@ -260,7 +260,12 @@ export function createButterfly(world,grid,flowers) {
         flight.vx=0;flight.vy=0;flight.mode='dead';
         if(t===1){story.phase='dead';heading=1.05;lift=0;shadowHeight=0;shadowRest=1;}
       }else{
-        story.arrived=stepStoryFlight(flight,dt,story.goal);
+        if(!story.arrived)story.arrived=stepStoryFlight(flight,dt,story.goal);
+        else{
+          const hover={x:story.goal.x+Math.sin(flight.time*1.8)*.20,
+            y:story.goal.y+Math.sin(flight.time*2.4+flight.phase)*.10};
+          if(!reduced.matches)stepStoryFlight(flight,dt,hover,.5);
+        }
         flight.mode=story.arrived?'story-hover':'story-travel';
       }
       draw(dt);

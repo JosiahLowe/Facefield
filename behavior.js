@@ -19,7 +19,18 @@ export function gazeOffset(angle, distance) {
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
 export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
-export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: .30 };
+export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: .48 };
+
+export function cryingTearPose(eye,t){
+  // Match the lower blink cap's cut, rather than the hidden bottom of the
+  // original eye circle. Drops sit on the visible lower lid while emerging.
+  const rest=eye.lidSide==='bottom'?eye.cut:eye.y+eye.r;
+  const start=rest+(eye.y-.02-rest)*.52-.4;
+  const progress=Math.max(0,Math.min(1,(t-.12)/.88));
+  const shrink=progress*progress*(3-2*progress);
+  return {x:eye.x,y:start+progress*(93-start),
+    size:Math.min(1,.35+t/.12*.65)*(1-shrink)};
+}
 export function flyAttention(dx, dy, radius = FLY_TRACKING.detectionRadius, innerRadius = FLY_TRACKING.fullAttentionRadius) {
   const inner = Math.max(0, Math.min(radius - 1, innerRadius));
   const near = Math.max(0, Math.min(1, (radius - Math.hypot(dx, dy)) / Math.max(1, radius - inner)));
@@ -332,13 +343,14 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     blink(s,crying?.52:.2);
     if(crying){
       paintCryingMouth(s);
+      // Tears lie over the lower lids so newborn drops do not disappear behind
+      // the eye caps and first become visible down on the cheeks.
+      if(s.story.tears.nextSibling)s.story.tears.parentNode.append(s.story.tears);
       for(const [i,tear] of [...s.story.tears.children].entries()){
         const eyeIndex=Math.floor(i/3),drop=i%3;
         const t=reduced.matches?.16+drop*.28:((now-s.story.at)/3000+drop/3+eyeIndex*.17)%1;
-        const shrink=smooth(t);
-        const size=Math.min(1,t/.08)*(1-shrink);
-        const eye=s.eyes[eyeIndex],start=eye.y+eye.r+1;
-        tear.setAttribute('transform',`translate(${eye.x} ${start+t*(93-start)}) scale(${size})`);
+        const pose=cryingTearPose(s.eyes[eyeIndex],t);
+        tear.setAttribute('transform',`translate(${pose.x} ${pose.y}) scale(${pose.size})`);
       }
     }else{
       m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);

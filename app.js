@@ -1,12 +1,12 @@
-import { createButterfly } from './butterfly.js?v=offscreen-story-20';
-import { createSinger } from './singing.js?v=offscreen-story-20';
-import { createFlowers } from './flowers.js?v=offscreen-story-20';
+import { createButterfly } from './butterfly.js?v=lively-hover-tears-21';
+import { createSinger } from './singing.js?v=lively-hover-tears-21';
+import { createFlowers } from './flowers.js?v=lively-hover-tears-21';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
-import { createMothStory } from './story.js?v=offscreen-story-20';
+import { createMothStory } from './story.js?v=lively-hover-tears-21';
 applyPalette();
-import { renderFace } from './faces.js?v=offscreen-story-20';
-import { animateFaces } from './behavior.js?v=offscreen-story-20';
+import { renderFace } from './faces.js?v=lively-hover-tears-21';
+import { animateFaces } from './behavior.js?v=lively-hover-tears-21';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
