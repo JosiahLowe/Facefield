@@ -40,7 +40,7 @@ export function inDiscoveryArea(face, view, extent = null) {
     <= Math.hypot(view.width,view.height)*.12;
 }
 
-export function createMothStory({ button, singer, butterfly, animation, world, candidates }) {
+export function createMothStory({ button, singer, butterfly, flowers, animation, world, candidates }) {
   let tile = null, frame = 0, last = null;
   const sequence = createStorySequence(state => {
     world.dataset.mothStory = state;
@@ -53,6 +53,7 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
       // Resolve the death atomically while offscreen. A visible fall could be
       // caught by a single fast scroll even after checking its starting frame.
       singer.setScene('silence');butterfly.fall({immediate:true});
+      flowers.clear();
     }else if(state==='crying'){
       singer.setScene('crying');animation.setStoryExpression(tile,'crying');
       tile.setAttribute('aria-label','Crying singer');
@@ -119,6 +120,7 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
       const next=candidates();if(!next.length)return false;
       cancelAnimationFrame(frame);frame=0;last=null;
       singer.setScene('song');animation.setStoryExpression(tile,null);
+      animation.clearMourning();
       butterfly.endStory();
       sequence.resume();tile=null;
       singer.advanceNow(next);

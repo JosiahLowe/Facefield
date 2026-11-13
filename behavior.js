@@ -233,7 +233,18 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     }
     return {dx:moth.x-s.center.x,dy:moth.y-s.center.y};
   }
+  function syncMourning(s,moth){
+    if(s.story&&!s.mourning)return;
+    const offset=moth?.dead?mothOffset(s,moth):null;
+    const near=offset&&Math.hypot(offset.dx,offset.dy)<FLY_TRACKING.detectionRadius;
+    if(near&&!s.mourning){
+      setStoryExpression(s.tile,'mourning');s.mourning=true;s.tile.dataset.mourning='true';
+    }else if(!near&&s.mourning){
+      s.mourning=false;delete s.tile.dataset.mourning;setStoryExpression(s.tile,null);
+    }
+  }
   function refreshStaticReaction(s) {
+    syncMourning(s,getFlyPosition());
     if(s.story){paintStory(s,performance.now());return;}
     const offset=mothOffset(s,getFlyPosition());
     s.proximity=offset?flyAttention(offset.dx,offset.dy):0;
@@ -280,6 +291,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if (onFrame) onFrame(now);
     const fly = getFlyPosition();
     for (const s of visible) {
+      syncMourning(s,fly);
       if(s.story){paintStory(s,now);continue;}
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
@@ -339,12 +351,12 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.tile.dataset.sobOpening=opening.toFixed(3);
   }
   function paintStory(s,now){
-    const m=s.mouth,crying=s.story.mode==='crying';
+    const m=s.mouth,crying=s.story.mode==='crying'||s.story.mode==='mourning';
     s.cheeks.setAttribute('opacity','0');
     s.tile.dataset.mothNearby='false';
     blink(s,crying?.52:.2);
     if(crying){
-      paintCryingMouth(s);
+      if(s.story.mode==='mourning')paintMood(s,-13);else paintCryingMouth(s);
       // Tears lie over the lower lids so newborn drops do not disappear behind
       // the eye caps and first become visible down on the cheeks.
       if(s.story.tears.nextSibling)s.story.tears.parentNode.append(s.story.tears);
@@ -359,24 +371,28 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       m.element.setAttribute('fill',m.element.getAttribute('stroke'));
     }
   }
+  function setStoryExpression(tile,mode){
+    const s=states.get(tile);if(!s)return;
+    if(s.story){s.story.tears?.remove();s.story=null;restore(s);}
+    if(!mode){delete tile.dataset.storyExpression;delete tile.dataset.sobOpening;schedule(s,performance.now());return;}
+    restore(s);
+    const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
+    if(mode==='crying'||mode==='mourning')for(let i=0;i<6;i++){
+      const tear=document.createElementNS(NS,'path');
+      tear.setAttribute('d','M0 0 C-1.2 2.8-3.3 4.6-3.3 6.6 A3.3 3.3 0 0 0 3.3 6.6 C3.3 4.6 1.2 2.8 0 0Z');tears.append(tear);
+    }
+    s.svg.querySelector('[data-features]').append(tears);
+    s.story={mode,tears,at:performance.now()};s.mouth.singing=false;
+    tile.dataset.storyExpression=mode;paintStory(s,performance.now());
+  }
   return {
     setCryingMouth(tile,opening){
       const s=states.get(tile);if(s?.story?.mode!=='crying')return;
       s.story.opening=Math.max(0,Math.min(1,opening));paintCryingMouth(s);
     },
-    setStoryExpression(tile,mode){
-      const s=states.get(tile);if(!s)return;
-      if(s.story){s.story.tears?.remove();s.story=null;restore(s);}
-      if(!mode){delete tile.dataset.storyExpression;delete tile.dataset.sobOpening;schedule(s,performance.now());return;}
-      restore(s);
-      const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
-      if(mode==='crying')for(let i=0;i<6;i++){
-        const tear=document.createElementNS(NS,'path');
-        tear.setAttribute('d','M0 0 C-1.2 2.8-3.3 4.6-3.3 6.6 A3.3 3.3 0 0 0 3.3 6.6 C3.3 4.6 1.2 2.8 0 0Z');tears.append(tear);
-      }
-      s.svg.querySelector('[data-features]').append(tears);
-      s.story={mode,tears,at:performance.now()};s.mouth.singing=false;
-      tile.dataset.storyExpression=mode;paintStory(s,performance.now());
+    setStoryExpression,
+    clearMourning(){
+      for(const s of states.values())if(s.mourning){s.mourning=false;delete s.tile.dataset.mourning;setStoryExpression(s.tile,null);}
     },
     setSingingMouth(tile, opening) {
       const s = states.get(tile);

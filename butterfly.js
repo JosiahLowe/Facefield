@@ -182,7 +182,7 @@ export function createButterfly(world,grid,flowers) {
     const altitude=dead||landed?0:.5+.5*Math.sin(flight.time*1.4+flight.phase);
     lift+=((dead?0:landed?9:3+altitude*3)-lift)*(1-Math.exp(-dt*5));
     const x=flight.x*unit,y=flight.y*unit-lift;
-    position={x,y};
+    position={x,y,dead:!!dead};
     element.style.transform=`translate3d(${(x-18).toFixed(2)}px,${(y-18).toFixed(2)}px,0)`;
     const moving=Math.hypot(flight.vx,flight.vy)>.06;
     const direction=dead?1.05:landed?0:moving?Math.atan2(flight.vy,flight.vx)+Math.PI/2:heading;

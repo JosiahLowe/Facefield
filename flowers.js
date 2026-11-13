@@ -208,6 +208,7 @@ export function createFlowerField(seed, layout) {
     get active() { return active; },
     get retiring() { return retiring; },
     get remnants() { return remnants; },
+    clear() { active=null;retiring=[];remnants=[]; },
     changeSinger(index, now) {
       if (active?.singer === index) return;
       prune(now);
@@ -407,6 +408,7 @@ export function createFlowers(world, grid) {
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
     reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
+    clear() { field?.clear();nodes.clear();loads.clear();occupant=null;layer.replaceChildren();visible=[];music=0;dirty=true; },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,

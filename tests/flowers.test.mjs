@@ -7,6 +7,18 @@ import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerS
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
 const view = { left: 0, top: 0, right: 48, bottom: 48 };
 
+test('moth death clears flowers and history, while new singers can grow again',()=>{
+  const field=createFlowerField(seed,layout);
+  field.changeSinger(500,0);field.changeSinger(501,30);field.visible(view,60);
+  assert.ok(field.visible(view,60).length>0);
+  const sites=field.sites;
+  field.clear();
+  assert.equal(field.active,null);assert.deepEqual(field.retiring,[]);assert.deepEqual(field.remnants,[]);
+  assert.deepEqual(field.visible(view,100),[]);
+  field.changeSinger(502,101);assert.ok(field.visible(view,120).length>0);
+  assert.equal(field.sites,sites,'stable world sites survive the death and recovery');
+});
+
 test('world flower sites reproduce from seed, keep clearance and vary across seeds', () => {
   const sites = generateFlowerSites(seed,layout);
   assert.deepEqual(sites,generateFlowerSites(seed,layout));

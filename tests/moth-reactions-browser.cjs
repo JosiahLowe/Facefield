@@ -50,12 +50,8 @@ const assert=require('node:assert/strict');
     assert.ok((await read()).every(f=>f.blush===0),'the departing blush settles fully to zero');
     await page.evaluate(c=>{window.mothPoint=c;},center);await page.waitForTimeout(750);
     faces=await read();assert.ok(faces[0].bend>8&&faces[0].blush>.7&&faces[0].blush<=.85);
-    const gradient=await page.locator('.face').first().evaluate(t=>{
-      const g=t.querySelector('[data-feature=cheeks]'),id=g.getAttribute('fill').match(/#([^)]+)/)[1];
-      const radial=t.querySelector(`[id="${id}"]`);
-      return {tag:radial.tagName,stops:[...radial.children].map(s=>[s.getAttribute('stop-color'),+s.getAttribute('stop-opacity')])};
-    });
-    assert.equal(gradient.tag,'radialGradient');assert.deepEqual(gradient.stops,[['#DE8BA5',.85],['#DE8BA5',.45],['#DE8BA5',0]]);
+    assert.equal(await page.locator('[data-feature=cheeks]').first().getAttribute('fill'),'#DE8BA5');
+    assert.equal(await page.locator('radialGradient').count(),0,'blush has no transparent radial edges');
     await page.screenshot({path:'/tmp/facefield-soft-pink-blush.png'});
     await page.evaluate(()=>reactions.setSingingMouth(document.querySelector('.face'),.9));
     assert.equal((await read())[0].open,true,'singing mouth animation takes priority');
@@ -73,7 +69,17 @@ const assert=require('node:assert/strict');
       const b=e.getBoundingClientRect(),frame=e.closest('.face').getBoundingClientRect();
       return Math.abs(b.width-b.height)<.01&&b.left>=frame.left&&b.right<=frame.right&&b.top>=frame.top&&b.bottom<=frame.bottom;
     })),'round cheeks remain inside every face frame');
+    // The same nearby faces mourn a dead moth rather than smiling/blushing.
+    await page.evaluate(c=>{window.mothPoint={...c,dead:true};},center);await page.waitForTimeout(600);
+    assert.equal(await page.locator('[data-mourning=true]').count(),3);
+    assert.ok((await read()).every(f=>f.bend<0&&f.blush===0&&!f.open));
+    assert.equal(await page.locator('[data-feature=tears] path').count(),18);
+    await page.evaluate(c=>{window.mothPoint={x:c.x-240,y:c.y,dead:true};},center);await page.waitForTimeout(600);
+    assert.equal(await page.locator('[data-mourning=true]').count(),1,'mourning stays local to the corpse');
+    await page.evaluate(c=>{window.mothPoint=c;},center);await page.waitForTimeout(600);
+    assert.equal(await page.locator('[data-mourning=true],[data-feature=tears]').count(),0,'living moth clears mourning');
+    assert.ok((await read())[0].bend>0&&(await read())[0].blush>0);
     assert.deepEqual(errors,[]);
-    console.log('PASS moth reactions: neutral/frowning idle faces, 320px looking/smiling range, separate 160px blush range, pink radial-gradient cheeks with smooth approach/departure fades within the face frame, singing priority and static reduced-motion reactions.');
+    console.log('PASS moth reactions: neutral/frowning idle faces, 320px looking/smiling range, separate 160px blush range, solid pink cheeks with smooth approach/departure fades within the face frame, singing priority and static reduced-motion reactions and local mourning for a dead moth.');
   } finally {await browser.close();}
 })();
