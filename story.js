@@ -1,6 +1,6 @@
 // Seconds of visible time. Travel can take as long as necessary; arrival is
 // explicit, never guessed from the distance or from an animation timeout.
-export const STORY_TIMING = { introduction: 4.6, scream: .85, death: 1.2 };
+export const STORY_TIMING = { introduction: .8, scream: .85, death: .2 };
 export const STORY_STATES = ['idle','traveling','singing','scream','death','crying','discovered'];
 
 export function createStorySequence(onEnter = () => {}) {
@@ -10,6 +10,7 @@ export function createStorySequence(onEnter = () => {}) {
     get state() { return state; },
     get elapsed() { return elapsed; },
     start() { if (state !== 'idle') return false; enter('traveling'); return true; },
+    redirect() { if(!['traveling','singing','scream'].includes(state))return false;enter('traveling');return true; },
     step(dt, { arrived = false, discovered = false, offscreen = false } = {}) {
       elapsed += Math.max(0, dt);
       if (state === 'traveling' && arrived) enter('singing');
@@ -69,6 +70,16 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
     const bottom=Math.min(rect.bottom,(view?.offsetTop||0)+(view?.height||innerHeight));
     return {left,top,right,bottom,width:right-left,height:bottom-top};
   }
+  function distantCandidates(){
+    const view=viewport();
+    return candidates().filter(t=>outsideViewport(t.getBoundingClientRect(),view,Math.max(view.width,view.height)));
+  }
+  function redirect(){
+    const available=distantCandidates();if(!available.length)return false;
+    singer.setScene('song');animation.setStoryExpression(tile,null);
+    const next=singer.advanceNow(available);if(!next)return false;
+    tile=next;sequence.redirect();butterfly.beginStory(tile);return true;
+  }
   function tick(now) {
     frame = 0;
     if (sequence.state === 'idle' || document.hidden) { last = null; return; }
@@ -79,18 +90,20 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
       {x:world.scrollLeft+(view?.offsetLeft||0),y:world.scrollTop+(view?.offsetTop||0),
         width:view?.width||world.clientWidth,height:view?.height||world.clientHeight},
       {width:world.scrollWidth,height:world.scrollHeight});
-    // Death resolves atomically, so the actual visible bounds are sufficient.
-    // An extra buffer would leave an already offscreen singer waiting forever.
+    const offscreen=outsideViewport(tile.getBoundingClientRect(),viewport());
+    // If the player races ahead, move the scene to a fresh distant singer,
+    // rather than leaving the moth waiting in front of a watched face.
+    if(!offscreen&&(sequence.state==='scream'||sequence.state==='singing'&&sequence.elapsed+dt>=STORY_TIMING.introduction)){
+      if(redirect()){frame=requestAnimationFrame(tick);return;}
+    }
     sequence.step(dt, { arrived: butterfly.storyArrived(), discovered: found,
-      offscreen:outsideViewport(tile.getBoundingClientRect(),viewport()) });
+      offscreen });
     frame = requestAnimationFrame(tick);
   }
   function wake() { if (!frame && !document.hidden && sequence.state !== 'idle') frame = requestAnimationFrame(tick); }
   button.addEventListener('click', () => {
     if (sequence.state !== 'idle') return;
-    const view=viewport();
-    const distant=candidates().filter(t=>outsideViewport(t.getBoundingClientRect(),view,Math.max(view.width,view.height)));
-    const next = singer.advanceNow(distant);
+    const next = singer.advanceNow(distantCandidates());
     if (!next) return;
     tile = next;
     sequence.start();

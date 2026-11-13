@@ -1,4 +1,4 @@
-import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js?v=gentle-cheeks-13';
+import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js?v=quick-moth-red-22';
 
 // All geometry uses a 100 × 100 coordinate system. Feature builders can be
 // extended independently without coupling their random streams.

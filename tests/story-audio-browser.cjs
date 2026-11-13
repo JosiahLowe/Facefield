@@ -32,9 +32,9 @@ const assert=require('node:assert/strict');
     await page.evaluate(()=>document.querySelector('#enable-sound').click());await page.clock.runFor(100);
     await page.evaluate(()=>document.querySelector('#kill-moth').click());
     const index=await page.locator('[data-singer]').getAttribute('data-index');
-    await until('singing');await page.clock.runFor(1000);
+    await until('singing');await page.clock.runFor(150);
     const notesBefore=await page.evaluate(()=>audioRecords.filter(n=>n.frequency.value>40).length);
-    assert.ok(notesBefore>=3,'new singer plays an introduction');
+    assert.ok(notesBefore>=2,'new singer plays an introduction');
     await until('scream');await page.clock.runFor(150);
     const separation=await page.evaluate(()=>{
       const tones=audioRecords.filter(n=>n.frequency.value>40),scream=tones.find(n=>n.frequency.value===560);

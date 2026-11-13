@@ -4,6 +4,16 @@ import { createStorySequence, STORY_TIMING, inDiscoveryArea, outsideViewport } f
 import { stepStoryFlight } from '../butterfly.js';
 const step=(s,dt,input={})=>s.step(dt,{offscreen:true,...input});
 
+test('short event timings reach crying promptly and a pursued scene can redirect without unlocking',()=>{
+  const s=createStorySequence();s.start();step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);
+  assert.equal(s.state,'scream');assert.equal(s.redirect(),true);assert.equal(s.state,'traveling');
+  assert.equal(s.start(),false,'redirect keeps the event locked');
+  step(s,.2);assert.equal(s.state,'traveling','redirect still requires actual arrival');
+  step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);step(s,STORY_TIMING.scream);step(s,STORY_TIMING.death);
+  assert.equal(s.state,'crying');assert.equal(s.redirect(),false,'completed scene remains fixed');
+  assert.ok(.7+STORY_TIMING.introduction+STORY_TIMING.scream+STORY_TIMING.death<3,'normal travel and narrative complete within three seconds');
+});
+
 test('death is gated by fresh offscreen geometry, even after the introduction or scream',()=>{
   const s=createStorySequence();s.start();s.step(0,{arrived:true});
   s.step(100,{offscreen:false});assert.equal(s.state,'singing');

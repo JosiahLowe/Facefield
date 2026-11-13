@@ -19,7 +19,7 @@ export function gazeOffset(angle, distance) {
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
 export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
-export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: .48 };
+export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: 1 };
 
 export function cryingTearPose(eye,t){
   // Match the lower blink cap's cut, rather than the hidden bottom of the
@@ -203,9 +203,8 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const leaving=s.nearMoth&&!near;
     s.nearMoth=near;
     s.warmth=near?(instant?target:s.warmth+(target-s.warmth)*(1-Math.exp(-dt/.24))):0;
-    const blushTarget=Math.sqrt(s.blushProximity);
-    s.blushStrength=s.blushProximity>0?(instant?blushTarget:s.blushStrength+(blushTarget-s.blushStrength)*(1-Math.exp(-dt/.24))):0;
-    s.cheeks.setAttribute('opacity',(s.blushStrength*MOTH_BLUSH.opacity).toFixed(3));
+    s.blushStrength=s.blushProximity>0?1:0;
+    s.cheeks.setAttribute('opacity',String(s.blushStrength));
     s.tile.dataset.mothNearby=String(near);
     if(near){
       s.mouth.motion=null;

@@ -6,65 +6,57 @@ const assert=require('node:assert/strict');
     const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true}),errors=[];
     page.on('pageerror',e=>errors.push(e.message));await page.clock.install();
     await page.addInitScript(()=>{Math.random=()=>.8;});
-    await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
-    await page.waitForFunction(()=>document.querySelector('.butterfly')?.style.transform);
+    const base=(process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield';
     const state=()=>page.locator('#world').getAttribute('data-moth-story');
-    const move=async visible=>page.evaluate(visible=>{
-      const w=document.querySelector('#world'),t=document.querySelector('[data-singer]');
-      if(visible)w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,t.offsetTop+t.offsetHeight/2-w.clientHeight/2);
-      else w.scrollTo(t.offsetLeft<w.scrollWidth/2?w.scrollWidth:0,t.offsetTop<w.scrollHeight/2?w.scrollHeight:0);
-      return [w.scrollLeft,w.scrollTop];
-    },visible);
-    await page.evaluate(()=>{
-      const w=document.querySelector('#world');window.storyTransitions=[];
+    const start=()=>page.evaluate(()=>{
+      const w=document.querySelector('#world');window.transitions=[];
       new MutationObserver(()=>{
-        const state=w.dataset.mothStory,t=document.querySelector('[data-singer]'),r=t.getBoundingClientRect();
-        window.storyTransitions.push({state,visible:r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight,
-          mode:document.querySelector('.butterfly').dataset.mode});
+        const t=document.querySelector('[data-singer]'),r=t.getBoundingClientRect();
+        transitions.push({state:w.dataset.mothStory,time:performance.now(),visible:r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight});
       }).observe(w,{attributes:true,attributeFilter:['data-moth-story']});
-      document.querySelector('#kill-moth').click();
+      const at=performance.now();document.querySelector('#kill-moth').click();return {at,camera:[w.scrollLeft,w.scrollTop]};
     });
-    assert.ok(await page.locator('[data-singer]').evaluate(t=>{
-      const r=t.getBoundingClientRect(),margin=Math.max(innerWidth,innerHeight);
-      return r.right<=-margin||r.left>=innerWidth+margin||r.bottom<=-margin||r.top>=innerHeight+margin;
-    }),'new singer is at least a viewport away');
-    const camera=await move(true);
-    await page.clock.runFor(16000);
-    assert.equal(await state(),'singing','getting there early defers the event indefinitely');
-    assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
-    const hover=await page.locator('.butterfly').getAttribute('style');await page.clock.runFor(700);
-    assert.notEqual(await page.locator('.butterfly').getAttribute('style'),hover,'waiting moth keeps moving rather than freezing at the singer');
-    assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollLeft,w.scrollTop]),camera,'player camera remains unrestricted');
-    await move(false);await page.clock.runFor(32);assert.equal(await state(),'scream');
-    await page.clock.runFor(720);await move(true);await page.clock.runFor(32);
-    assert.equal(await state(),'singing','fast arrival during scream cancels death');
-    assert.equal(await page.locator('[data-singer]').getAttribute('data-audio-scene'),'song');
-    assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
-    // Move across the whole world once per animation frame, including around
-    // the point at which an uninterrupted introduction would have completed.
-    for(let i=0;i<310;i++){await move(i%2===0);await page.clock.runFor(16);}
-    assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
-    await page.evaluate(()=>{
+    const visit=()=>page.evaluate(()=>{
       const w=document.querySelector('#world'),t=document.querySelector('[data-singer]');
-      // Only one pixel outside: this used to wait forever in the 64px buffer.
-      const top=t.offsetTop>w.clientHeight?t.offsetTop-w.clientHeight-1:t.offsetTop+t.offsetHeight+1;
-      w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,top);
+      w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,t.offsetTop+t.offsetHeight/2-w.clientHeight/2);
+      return t.dataset.index;
     });
-    assert.ok(await page.locator('[data-singer]').evaluate(t=>{
-      const r=t.getBoundingClientRect();return r.top>innerHeight&&r.top<innerHeight+3||r.bottom<0&&r.bottom>-3;
-    }),'singer is just outside the actual viewport');
-    for(let i=0;i<80&&await state()!=='death';i++)await page.clock.runFor(100);
-    assert.equal(await state(),'death');
-    assert.equal(await page.locator('.butterfly').getAttribute('data-mode'),'dead','death resolves immediately offscreen');
-    await move(true);await page.clock.runFor(32);
-    const point=await page.locator('.butterfly').getAttribute('style');await page.clock.runFor(300);
-    assert.equal(await page.locator('.butterfly').getAttribute('style'),point,'scrolling in cannot reveal a fall');
-    await page.clock.runFor(1500);assert.equal(await state(),'discovered');
-    const transitions=await page.evaluate(()=>storyTransitions);
-    assert.ok(transitions.some(t=>t.state==='death'));
-    assert.ok(transitions.filter(t=>['scream','death'].includes(t.state)).every(t=>!t.visible),'no scream or death starts onscreen');
+    const until=async expected=>{for(let i=0;i<100&&await state()!==expected;i++)await page.clock.runFor(50);assert.equal(await state(),expected);};
+    await page.goto(base);await page.waitForFunction(()=>document.querySelector('.butterfly')?.style.transform);
+    const first=await start();await page.clock.runFor(300);
+    assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead','not an immediate kill');
+    await until('crying');
+    const timing=await page.evaluate(()=>transitions.find(t=>t.state==='crying').time);
+    assert.ok(timing-first.at>=1200&&timing-first.at<3000,'crying begins within three seconds of pressing Kill Moth');
+    assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollLeft,w.scrollTop]),first.camera,'no camera movement');
+    assert.ok(await page.evaluate(()=>transitions.filter(t=>['scream','death'].includes(t.state)).every(t=>!t.visible)));
+    await visit();await page.clock.runFor(100);assert.equal(await state(),'discovered');
     await page.evaluate(()=>document.querySelector('[data-singer]').click());assert.equal(await state(),'idle');
+    // Race straight to the new singer: the moth must not wait there forever.
+    await start();const caught=await visit();await page.clock.runFor(1600);
+    assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),caught,'watched scene redirects to a new distant singer');
+    await until('crying');
+    assert.equal(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
+    assert.ok(await page.evaluate(()=>transitions.filter(t=>['scream','death'].includes(t.state)).every(t=>!t.visible)));
+    await visit();await page.clock.runFor(100);await page.evaluate(()=>document.querySelector('[data-singer]').click());
+    // Jump across the world every frame. Fresh geometry must still guard death.
+    await start();
+    for(let i=0;i<120;i++){
+      await page.evaluate(i=>{
+        const w=document.querySelector('#world'),t=document.querySelector('[data-singer]');
+        if(i%2)w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,t.offsetTop+t.offsetHeight/2-w.clientHeight/2);
+        else w.scrollTo(t.offsetLeft<w.scrollWidth/2?w.scrollWidth:0,t.offsetTop<w.scrollHeight/2?w.scrollHeight:0);
+      },i);await page.clock.runFor(16);
+      if(['crying','discovered'].includes(await state()))break;
+    }
+    // Leave the current destination offscreen and allow the short scene to finish.
+    await page.evaluate(()=>{const w=document.querySelector('#world'),t=document.querySelector('[data-singer]');w.scrollTo(t.offsetLeft<w.scrollWidth/2?w.scrollWidth:0,t.offsetTop<w.scrollHeight/2?w.scrollHeight:0);});
+    if(await state()!=='discovered')await until('crying');
+    assert.ok(await page.evaluate(()=>transitions.filter(t=>['scream','death'].includes(t.state)).every(t=>!t.visible)),'fast scrolling never exposes a death');
+    await visit();await page.clock.runFor(100);assert.equal(await state(),'discovered');
+    const corpse=await page.locator('.butterfly').getAttribute('style');await page.clock.runFor(400);
+    assert.equal(await page.locator('.butterfly').getAttribute('style'),corpse,'only a motionless corpse is discovered');
     assert.deepEqual(errors,[]);
-    console.log('PASS offscreen story: distant selection, visible singer waits, last-moment scream cancellation, frame-by-frame cross-world scrolling, atomic hidden death, unchanged camera and normal discovery/resolution.');
+    console.log('PASS quick offscreen event: crying within 3 seconds, brief delay, no camera motion, pursued scene redirects instead of waiting, fast-scroll guards, fixed corpse and normal resolution.');
   }finally{await browser.close();}
 })();

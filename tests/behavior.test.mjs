@@ -108,7 +108,7 @@ test('looking range returns to 320 pixels and blush has a separate smaller radiu
   assert.equal(flyAttention(450,0),0);
   assert.ok(flyAttention(240,0)>0);
   assert.equal(MOTH_BLUSH.radius,160);
-  assert.equal(MOTH_BLUSH.opacity,.48);
+  assert.equal(MOTH_BLUSH.opacity,1);
   assert.equal(flyAttention(240,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius),0);
   assert.ok(flyAttention(100,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius)>0);
 });

@@ -224,6 +224,9 @@ export function createButterfly(world,grid,flowers) {
       const unit=grid.clientWidth/48;
       const rest={x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12};
       story={goal:{x:patch.center.x,y:patch.center.y-.32},rest,arrived:false,phase:'travel'};
+      // Bound travel to 0.7 seconds across this world, keeping continuous
+      // world-space flight while making the departure an unmistakable dart.
+      story.speed=Math.max(32,distance(flight,story.goal)/.7);
       flight.target=null;flight.mode='story-travel';storyLast=null;draw(0);
     },
     storyArrived:()=>!!story?.arrived,
@@ -260,7 +263,7 @@ export function createButterfly(world,grid,flowers) {
         flight.vx=0;flight.vy=0;flight.mode='dead';
         if(t===1){story.phase='dead';heading=1.05;lift=0;shadowHeight=0;shadowRest=1;}
       }else{
-        if(!story.arrived)story.arrived=stepStoryFlight(flight,dt,story.goal);
+        if(!story.arrived)story.arrived=stepStoryFlight(flight,dt,story.goal,story.speed);
         else{
           const hover={x:story.goal.x+Math.sin(flight.time*1.8)*.20,
             y:story.goal.y+Math.sin(flight.time*2.4+flight.phase)*.10};
