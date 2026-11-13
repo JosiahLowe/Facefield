@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MELODY, frequencyFor, VIBRATO, chooseSinger, chooseSong } from '../singing.js';
+import { sobOpening, SOB_PULSES } from '../singing.js';
+
+test('crying mouth uses the three synthesized sob envelopes and rests in the gaps',()=>{
+  const sob={kind:'sob',start:10},scream={kind:'scream',start:10};
+  assert.equal(sobOpening([sob],9),0);assert.equal(sobOpening([scream],10.025),0);
+  for(const [offset,duration,,,,level] of SOB_PULSES){
+    const start=sob.start+offset;
+    assert.ok(Math.abs(sobOpening([sob],start+.025)-1)<1e-10,'mouth opens at each audible attack');
+    assert.ok(Math.abs(sobOpening([sob],start+.0125)-.5)<1e-10);
+    const middle=.025+(duration-.045)/2;
+    assert.ok(Math.abs(sobOpening([sob],start+middle)-Math.sqrt(.001/level))<1e-10,'mouth follows gain decay');
+    assert.equal(sobOpening([sob],start+duration+.01),0);
+  }
+  assert.equal(sobOpening([sob],20),0);assert.equal(sobOpening([],10.025),0,'cleared audio has no residual mouth movement');
+});
 
 test('long melody stays in C major and includes sustained notes and breaths', () => {
   assert.ok(MELODY.length >= 15);

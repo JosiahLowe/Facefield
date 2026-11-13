@@ -17,7 +17,7 @@ body { margin: 0; }
 
 /* World-space decoration never intercepts a face tap or native touch scroll. */
 .butterfly { position: absolute; left: 0; top: 0; width: 36px; height: 36px; z-index: 1; pointer-events: none; will-change: transform; }
-.butterfly-body { position: absolute; inset: 0; width: 36px; height: 36px; transform-origin: center; }
+.butterfly-body, .moth-remnant { position: absolute; inset: 0; width: 36px; height: 36px; transform-origin: center; }
 .butterfly-shadow { position: absolute; left: 5px; top: 10px; width: 26px; height: 16px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 3px 1px #29282333; transform-origin: center; will-change: transform, opacity; }
 
 .flowers { position: absolute; left: 0; top: 0; pointer-events: none; overflow: hidden; }

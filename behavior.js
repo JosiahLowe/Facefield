@@ -318,18 +318,24 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     else if(reduced.matches&&!document.hidden)for(const s of visible)refreshStaticReaction(s);
   }, 500);
   document.addEventListener('visibilitychange', resetActivity);
+  function paintCryingMouth(s){
+    const m=s.mouth,opening=reduced.matches?0:s.story.opening||0;
+    const half=(m.right-m.left)*.33,left=m.center-half,right=m.center+half,y=m.y+2;
+    m.element.setAttribute('d',`M ${left} ${y} Q ${m.center} ${y-10-opening*7} ${right} ${y} Q ${m.center} ${y+8+opening*16} ${left} ${y} Z`);
+    m.element.setAttribute('fill',m.element.getAttribute('stroke'));
+    s.tile.dataset.sobOpening=opening.toFixed(3);
+  }
   function paintStory(s,now){
     const m=s.mouth,crying=s.story.mode==='crying';
     s.cheeks.setAttribute('opacity','0');
     s.tile.dataset.mothNearby='false';
     blink(s,crying?.52:.2);
     if(crying){
-      paintMood(s,-13);
+      paintCryingMouth(s);
       for(const [i,tear] of [...s.story.tears.children].entries()){
         const t=reduced.matches?.35:((now-s.story.at)/3300+i*.43)%1;
         const eye=s.eyes[i];
-        tear.setAttribute('cy',String(eye.y+eye.r+3+t*16));
-        tear.setAttribute('opacity',String(.62*(1-t*.65)));
+        tear.setAttribute('transform',`translate(${eye.x} ${eye.y+eye.r+1+t*18})`);
       }
     }else{
       m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);
@@ -337,15 +343,19 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     }
   }
   return {
+    setCryingMouth(tile,opening){
+      const s=states.get(tile);if(s?.story?.mode!=='crying')return;
+      s.story.opening=Math.max(0,Math.min(1,opening));paintCryingMouth(s);
+    },
     setStoryExpression(tile,mode){
       const s=states.get(tile);if(!s)return;
       if(s.story){s.story.tears?.remove();s.story=null;restore(s);}
-      if(!mode){delete tile.dataset.storyExpression;schedule(s,performance.now());return;}
+      if(!mode){delete tile.dataset.storyExpression;delete tile.dataset.sobOpening;schedule(s,performance.now());return;}
       restore(s);
       const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
       if(mode==='crying')for(const eye of s.eyes){
-        const tear=document.createElementNS(NS,'ellipse');
-        tear.setAttribute('cx',String(eye.x));tear.setAttribute('rx','1.6');tear.setAttribute('ry','2.8');tears.append(tear);
+        const tear=document.createElementNS(NS,'path');
+        tear.setAttribute('d','M0 0 C-1.2 2.8-3.3 4.6-3.3 6.6 A3.3 3.3 0 0 0 3.3 6.6 C3.3 4.6 1.2 2.8 0 0Z');tears.append(tear);
       }
       s.svg.querySelector('[data-features]').append(tears);
       s.story={mode,tears,at:performance.now()};s.mouth.singing=false;

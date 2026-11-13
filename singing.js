@@ -91,11 +91,27 @@ export function playNote(context, output, midi, start, duration, wave = null) {
 
 // Quiet synthetic vocal gestures, routed through the song's existing spatial
 // master. No samples, extra AudioContext, or full-volume connection to speakers.
+export const SOB_PULSES=[[0,.29,240,350,170,.20],[.39,.27,210,310,155,.16],[.78,.45,230,290,140,.18]];
+export function sobOpening(effects,now){
+  let opening=0;
+  for(const effect of effects){
+    if(effect.kind!=='sob')continue;
+    for(const [offset,duration,,,,level] of SOB_PULSES){
+      const t=now-effect.start-offset;
+      if(t<0||t>=duration)continue;
+      const envelope=t<.025?t/.025:t<duration-.02
+        ?Math.pow(.001/level,(t-.025)/(duration-.045))
+        :.001/level*(duration-t)/.02;
+      opening=Math.max(opening,envelope);
+    }
+  }
+  return opening;
+}
 export function playStorySound(context, output, kind, start, softened = false) {
   const sources=[],envelopes=[];
   const scream=kind==='scream',end=start+(scream?.74:1.25);
   const pulses=scream?[[0,.72,560,1180,310,.19]]
-    :[[0,.29,240,350,170,.20],[.39,.27,210,310,155,.16],[.78,.45,230,290,140,.18]];
+    :SOB_PULSES;
   for(const [offset,duration,from,peak,to,level] of pulses){
     const at=start+offset,until=at+duration;
     const voice=context.createOscillator(),gain=context.createGain();
@@ -114,7 +130,7 @@ export function playStorySound(context, output, kind, start, softened = false) {
     voice.onended=()=>{voice.disconnect();gain.disconnect();tremble.disconnect();depth.disconnect();};
     sources.push(voice,tremble);envelopes.push(gain.gain);
   }
-  return {end,stop(){
+  return {start,end,kind,stop(){
     const now=context.currentTime;
     for(const envelope of envelopes){
       envelope.cancelScheduledValues(now);envelope.setValueAtTime(0,now);
@@ -133,7 +149,10 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   let lastVolume = null, lastPan = null;
   let scene='song',nextEffect=0;
   const effects=new Set();
-  function stopEffects(){for(const effect of effects)effect.stop();effects.clear();}
+  function stopEffects(){
+    for(const effect of effects)effect.stop();effects.clear();
+    if(target)animation.setCryingMouth(target,0);
+  }
   function silenceMelody(){
     if(context){
       const now=context.currentTime;
@@ -293,6 +312,8 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       opening = Math.max(0, Math.min(attack, release));
     }
     if (target && scene==='song') animation.setSingingMouth(target, opening);
+    if(target&&(scene==='crying'||scene==='discovered'))animation.setCryingMouth(target,
+      context.state==='running'?sobOpening(effects,now):0);
     onMusic(context.state === 'running' && scene==='song' ? opening : 0, note ? note.end-note.start : 0);
     frame = requestAnimationFrame(mouthFrame);
   }

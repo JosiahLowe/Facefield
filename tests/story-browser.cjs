@@ -41,7 +41,12 @@ const assert=require('node:assert/strict');
     await page.clock.runFor(200);
     assert.deepEqual(await page.locator('.butterfly-wing').evaluateAll(ws=>ws.map(w=>w.getAttribute('transform'))),wings,'flutter stops during the fall');
     await page.clock.runFor(1300);assert.equal(await state(),'crying');
-    assert.equal(await page.locator('[data-singer] [data-feature=tears] ellipse').count(),2);
+    assert.equal(await page.locator('[data-singer] [data-feature=tears] path').count(),2);
+    assert.ok(await page.locator('[data-singer] [data-feature=tears]').evaluate(g=>
+      getComputedStyle(g).opacity==='1'&&[...g.children].every(t=>getComputedStyle(t).opacity==='1'&&!t.hasAttribute('opacity')&&t.getBBox().height>t.getBBox().width)),
+      'large solid teardrops do not fade');
+    assert.notEqual(await page.locator('[data-singer] [data-feature=mouth]').getAttribute('fill'),'none','crying mouth remains open even while muted');
+    assert.equal(await page.locator('.moth-remnant').evaluate(e=>getComputedStyle(e).display),'block');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-story-expression'),'crying');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-audio-scene'),'crying');
     const dead=await point(),wingDead=await page.locator('.butterfly-wing').evaluateAll(ws=>ws.map(w=>w.getAttribute('transform')));
@@ -67,6 +72,15 @@ const assert=require('node:assert/strict');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-audio-scene'),'discovered');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-story-expression'),'crying');
     assert.deepEqual(await point(),dead,'scrolling to discovery does not move the body');
+    const clear=await page.evaluate(()=>{
+      const s=document.querySelector('[data-singer]'),b=document.querySelector('.butterfly');
+      const frame=s.getBoundingClientRect(),x=+b.dataset.worldX-s.offsetLeft,y=+b.dataset.worldY-s.offsetTop;
+      const moth=[...b.querySelectorAll('.moth-wing-shape,.moth-head,.moth-abdomen,.moth-remnant path')].map(e=>e.getBoundingClientRect());
+      const features=[...s.querySelectorAll('circle:not([data-feature=cheek]),[data-feature=nose],[data-feature=mouth]')].map(e=>e.getBoundingClientRect());
+      const overlaps=moth.some(a=>features.some(c=>a.left<c.right&&a.right>c.left&&a.top<c.bottom&&a.bottom>c.top));
+      return {corner:x>frame.width*.8&&y>frame.height*.8,overlaps};
+    });
+    assert.deepEqual(clear,{corner:true,overlaps:false},'dead moth and red blob clear the face features');
     const tear=await page.locator('[data-singer] [data-feature=tears]').innerHTML();
     await page.clock.runFor(500);
     assert.notEqual(await page.locator('[data-singer] [data-feature=tears]').innerHTML(),tear,'tears move once visible');
@@ -79,6 +93,7 @@ const assert=require('node:assert/strict');
     assert.equal(await page.locator('[data-story-expression],[data-feature=tears]').count(),0,'expression and tears cleaned up');
     assert.equal(await page.locator('.butterfly').count(),1,'only one living replacement');
     assert.notEqual(await page.locator('.butterfly').getAttribute('data-mode'),'dead');
+    assert.equal(await page.locator('.moth-remnant').evaluate(e=>getComputedStyle(e).display),'none','red blob clears on resolution');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-audio-scene'),'song');
     assert.notEqual(await page.locator('[data-singer]').getAttribute('data-index'),next);
     assert.equal(await page.locator('#enable-sound').getAttribute('aria-pressed'),'false','event never enables sound');

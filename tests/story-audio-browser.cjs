@@ -50,7 +50,23 @@ const assert=require('node:assert/strict');
       sobs:audioRecords.filter(n=>[240,210,230].includes(n.frequency.value)).length}));
     assert.equal(crying.sobs,3,'first sob replaces the song');
     assert.ok(crying.gain>.02&&crying.gain<.1,'offscreen crying uses spatial attenuation');
+    const mouths=new Set();let opened=0,rested=0;
+    for(let i=0;i<110;i++){
+      await page.clock.runFor(40);
+      const sample=await page.evaluate(()=>{
+        const t=document.querySelector('[data-singer]'),now=performance.now()/1000;
+        const sobs=audioRecords.filter(n=>[240,210,230].includes(n.frequency.value));
+        return {opening:+t.dataset.sobOpening,path:t.querySelector('[data-feature=mouth]').getAttribute('d'),
+          active:sobs.some(n=>n.startAt<=now&&n.endAt>=now-.04),
+          gap:!sobs.some(n=>n.startAt<=now+.04&&n.endAt>=now-.04)};
+      });
+      mouths.add(sample.path);
+      if(sample.opening>.05){opened++;assert.equal(sample.active,true,'mouth expansion coincides with an audible sob');}
+      if(sample.gap){rested++;assert.equal(sample.opening,0,'no mouth pulsing in silent gaps');}
+    }
+    assert.ok(opened>2&&rested>2&&mouths.size>3,'crying mouth follows individual pulses and relaxes between them');
     await page.evaluate(()=>document.querySelector('#enable-sound').click());
+    assert.equal(await page.locator('[data-singer]').getAttribute('data-sob-opening'),'0.000','muting resets the sob envelope');
     const mute=await page.evaluate(()=>({at:performance.now()/1000,count:audioRecords.length}));
     assert.ok(await page.evaluate(at=>audioRecords.every(n=>n.endAt<=at),mute.at),'mute cancels every scheduled voice');
     await page.clock.runFor(5000);assert.equal(await page.evaluate(()=>audioRecords.length),mute.count);

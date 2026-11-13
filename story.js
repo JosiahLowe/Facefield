@@ -72,7 +72,7 @@ export function createMothStory({ button, singer, butterfly, animation, world, c
     if (!next) return;
     tile = next;
     sequence.start();
-    butterfly.beginStory();
+    butterfly.beginStory(tile);
     last = null; wake();
   });
   document.addEventListener('visibilitychange', () => { last = null; wake(); });

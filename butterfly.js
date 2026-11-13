@@ -156,7 +156,7 @@ export function createButterfly(world,grid,flowers) {
     <path class="moth-wing-shape" d="M20 14.5 L3.8 27 C1.2 29 1 30.8 3.6 31.4 C5.9 32 9 32.4 11.6 32.3 C15.8 32 18.1 23.3 20 17Z" fill="${PALETTE.moth.wing}"/>
     <circle class="moth-eyespot" cx="10.2" cy="27" r="2.1" fill="${PALETTE.moth.eyespot}"/>
   </g>`;
-  element.innerHTML=`<span class="butterfly-shadow"></span><svg class="butterfly-body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  element.innerHTML=`<span class="butterfly-shadow"></span><svg class="moth-remnant" style="display:none" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M5 23 C3 18 10 16 16 18 C21 13 30 17 29 21 C37 22 35 29 29 30 C24 35 18 31 14 32 C7 33 3 29 5 23Z" fill="#B7463D"/></svg><svg class="butterfly-body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
     ${wing('left')}<g transform="translate(40 0) scale(-1 1)">${wing('right')}</g>
     <path class="moth-antenna" d="M18.8 12.2 C17.8 8.8 14.8 6.1 11.9 7.8 M21.2 12.2 C22.2 8.8 25.2 6.1 28.1 7.8" fill="none" stroke="${PALETTE.moth.antenna}" stroke-width=".75" stroke-linecap="round"/>
     <path class="moth-abdomen" d="M20 15.5 C17.5 15.5 17 20.6 17.3 25 C17.6 29.3 19.1 33.2 20 33.2 C20.9 33.2 22.4 29.3 22.7 25 C23 20.6 22.5 15.5 20 15.5Z" fill="${PALETTE.moth.body}"/>
@@ -164,6 +164,7 @@ export function createButterfly(world,grid,flowers) {
   </svg>`;
   world.append(element);
   const body=element.querySelector('.butterfly-body'),shadow=element.querySelector('.butterfly-shadow');
+  const remnant=element.querySelector('.moth-remnant');
   const wings=[...element.querySelectorAll('.butterfly-wing')];
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let flight=null,last=0,nextPatch=0,heading=0,lift=4,position=null,occupied=null;
@@ -190,6 +191,7 @@ export function createButterfly(world,grid,flowers) {
     const spread=dead?.72:reduced.matches ? .65 : landed ? .47+.1*Math.sin(flight.time*3+flight.phase):.3+.7*(.5+.5*Math.sin(flight.time*21));
     for (const w of wings) w.setAttribute('transform',`translate(20 0) scale(${spread.toFixed(3)} 1) ${dead?'rotate(-16) ':''}translate(-20 0)`);
     body.style.opacity=dead?'.78':'1';
+    remnant.style.display=story?.phase==='dead'?'block':'none';
     const shadowEase=1-Math.exp(-dt*5);
     shadowHeight+=((landed||dead?0:altitude)-shadowHeight)*shadowEase;
     shadowRest+=((landed||dead?1:0)-shadowRest)*shadowEase;
@@ -215,11 +217,13 @@ export function createButterfly(world,grid,flowers) {
   document.addEventListener('visibilitychange',()=>{last=0;});
   return {
     followSinger,
-    beginStory() {
+    beginStory(tile) {
       const patch=flowers.patch();
       if(!flight||!patch)return;
       adoptPatch(flight,patch);flowers.setOccupant(null);occupied=null;
-      story={goal:{x:patch.center.x,y:patch.center.y-.32},rest:{x:patch.center.x+.12,y:patch.center.y+.08},arrived:false,phase:'travel'};
+      const unit=grid.clientWidth/48;
+      const rest={x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12};
+      story={goal:{x:patch.center.x,y:patch.center.y-.32},rest,arrived:false,phase:'travel'};
       flight.target=null;flight.mode='story-travel';storyLast=null;draw(0);
     },
     storyArrived:()=>!!story?.arrived,
