@@ -1,4 +1,4 @@
-import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js';
+import { PALETTE, mixColor, eyelidColor, skinTone } from './palette.js?v=moth-reactions-12';
 
 // All geometry uses a 100 × 100 coordinate system. Feature builders can be
 // extended independently without coupling their random streams.
@@ -80,9 +80,9 @@ function nose(r, curves) {
 }
 
 function mouth(r) {
-  const type = Math.floor(r() * 3), width = range(r, 28, 55);
+  const type = Math.floor(r() * 2), width = range(r, 28, 55);
   const x = (100 - width) / 2, y = range(r, 70, 75);
-  const bend = type === 0 ? 0 : type === 1 ? range(r, 9, 17) : -range(r, 7, 12);
+  const bend = type === 0 ? 0 : -range(r, 8, 14);
   return `<path data-feature="mouth" d="M ${x} ${y + 3} Q 50 ${y + 3 + bend} ${x + width} ${y + 3}" fill="none" stroke="${PALETTE.ink}" stroke-width="4.4"/>`;
 }
 export function renderFace(seed, index, revision = 0, geometry = { width: 1, height: 1 }) {
@@ -99,6 +99,7 @@ export function renderFace(seed, index, revision = 0, geometry = { width: 1, hei
   const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="0" fill="url(#${gradientId})"/>`;
   const top = mixColor(color, PALETTE.ink, PALETTE.gradient.top);
   const bottom = mixColor(color, PALETTE.paper, PALETTE.gradient.bottom);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
+  const cheeks = `<g data-feature="cheeks" fill="${PALETTE.blush}" opacity="0"><ellipse cx="22" cy="55" rx="7.5" ry="4.5"/><ellipse cx="78" cy="55" rx="7.5" ry="4.5"/></g>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${cheeks}${eyes(stream('eyes'), stream('eyelids'), color)}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
   return { color, baseColor, backingColor: color, shape, svg };
 }

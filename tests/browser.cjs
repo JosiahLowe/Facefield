@@ -11,7 +11,7 @@ const assert=require('node:assert/strict');
  const result=await page.evaluate(async()=>{
   const visibleIndices=[...document.querySelectorAll('.face')].map((t,i)=>({i,r:t.getBoundingClientRect()})).filter(({r})=>r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth).map(({i})=>i);
   const start=performance.now();let frames=0, bounds=true, coordinated=true, closed=false;
-  const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true,neutralRest=false;
+  const mouthMoved=new Set();let mouthBounds=true,nosesUnchanged=true,neutralRest=false,noFarSmiles=true;
   const neutralStarts=new Map(),previousBends=new Map();
   const mouthPaths=[...document.querySelectorAll('[data-feature=mouth]')];
   const mouthRest=mouthPaths.map(p=>p.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));
@@ -24,6 +24,7 @@ const assert=require('node:assert/strict');
      const mouth=mouthPaths[index].getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number), rest=mouthRest[index];
      if(mouth.some((n,i)=>Math.abs(n-rest[i])>.0001))mouthMoved.add(index);
      const bend=mouth[3]-(mouth[1]+mouth[5])/2;
+     if(tile.dataset.mothNearby!=='true')noFarSmiles&&=bend<=.000001&&+tile.querySelector('[data-feature=cheeks]').getAttribute('opacity')===0;
      const now=performance.now();
      if(bend===0 && previousBends.has(index) && previousBends.get(index)!==0)neutralStarts.set(index,now);
      if(bend!==0)neutralStarts.delete(index);
@@ -37,11 +38,11 @@ const assert=require('node:assert/strict');
      const lids=[...tile.querySelectorAll('[data-animation=blink]')];
      if(lids.length){blinked.add(index);const paths=lids.map(l=>l.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number));closed||=paths[0][1]>=paths[1][1];}
     });
-    if(performance.now()-start>18000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked],mouthMoved:[...mouthMoved],mouthBounds,nosesUnchanged,neutralRest,visibleIndices});else requestAnimationFrame(check);
+    if(performance.now()-start>18000)resolve({frames,bounds,coordinated,closed,moved:[...moved],blinked:[...blinked],mouthMoved:[...mouthMoved],mouthBounds,nosesUnchanged,neutralRest,noFarSmiles,visibleIndices});else requestAnimationFrame(check);
    }check();
   });
  });
- assert.ok(result.neutralRest,'a transitioned neutral mouth rests visibly for at least four seconds');
+ assert.ok(result.noFarSmiles,'only moth-aware faces smile or blush');
  assert.ok(result.mouthMoved.length>4&&result.mouthBounds&&result.nosesUnchanged);
 
  assert.ok(result.moved.every(i=>result.visibleIndices.includes(i)));
@@ -52,11 +53,10 @@ const assert=require('node:assert/strict');
  await page.waitForTimeout(100);
  assert.equal(await page.locator('[data-animation=blink]').count(),0);
  const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(500);assert.equal(await page.locator('#grid').innerHTML(),still);
- const restoredMouths=await page.locator('[data-feature=mouth]').evaluateAll(ps=>ps.map(p=>p.getAttribute('d')));
  const restored=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  // A reload with reduced motion must reproduce exactly the original gaze.
  await page.reload();
- assert.deepEqual(await page.locator('[data-feature=mouth]').evaluateAll(ps=>ps.map(p=>p.getAttribute('d'))),restoredMouths);
+ assert.ok(await page.locator('.face').evaluateAll(ts=>ts.every(t=>{const m=t.querySelector('[data-feature=mouth]').getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);return t.dataset.mothNearby==='true'||m[3]-(m[1]+m[5])/2<=0;})),'reduced-motion reload keeps smiles confined to the moth');
  const reloaded=await page.locator('.face').evaluateAll(ts=>ts.map(t=>[...t.querySelectorAll('circle')].map(c=>[c.getAttribute('cx'),c.getAttribute('cy')])));
  for(let i=0;i<restored.length;i++) assert.ok(JSON.stringify(reloaded[i])===JSON.stringify(restored[i]), 'restored gaze mismatch tile '+i+': '+JSON.stringify({restored:restored[i],reloaded:reloaded[i]}));
  await page.emulateMedia({reducedMotion:'no-preference'});

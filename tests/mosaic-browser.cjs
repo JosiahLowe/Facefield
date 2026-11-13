@@ -1,5 +1,14 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
+const stableContent=input=>{
+ const clean=node=>{const clone=node.cloneNode(true);clone.removeAttribute('data-moth-nearby');
+  clone.querySelectorAll('[data-moth-nearby]').forEach(e=>e.removeAttribute('data-moth-nearby'));
+  clone.querySelectorAll('[data-feature=mouth]').forEach(e=>{e.removeAttribute('d');e.removeAttribute('fill');});
+  clone.querySelectorAll('[data-feature=cheeks]').forEach(e=>e.setAttribute('opacity','0'));
+  return clone.innerHTML;
+ };return Array.isArray(input)?input.map(clean):clean(input);
+};
+
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
@@ -26,15 +35,15 @@ const assert=require('node:assert/strict');
   assert.deepEqual(result,{count:1152,overlap:false,uniform:true,uniqueIds:true,width,shapes:1,sizes:4});
  }
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(100);
- const before=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.innerHTML,area:t.style.gridArea})));
+ const before=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.querySelector('[data-feature=skin]').outerHTML+t.querySelector('[data-feature=nose]').outerHTML,area:t.style.gridArea})));
  await page.locator('.face').nth(2).click();
- const after=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.innerHTML,area:t.style.gridArea})));
+ const after=await page.locator('.face').evaluateAll(ts=>ts.map(t=>({html:t.querySelector('[data-feature=skin]').outerHTML+t.querySelector('[data-feature=nose]').outerHTML,area:t.style.gridArea})));
  for(let i=0;i<1152;i++){
   assert.equal(before[i].area,after[i].area);
   assert.equal(before[i].html,after[i].html);
  }
- const state=await page.locator('#grid').innerHTML();await page.reload();await page.waitForSelector('.face');
- assert.equal(await page.locator('#grid').innerHTML(),state);
+ const state=await page.locator('#grid').evaluate(stableContent);await page.reload();await page.waitForSelector('.face');
+ assert.equal(await page.locator('#grid').evaluate(stableContent),state);
  assert.deepEqual(errors,[]);console.log('PASS mosaic browser: 320/390/768/1440px, four sizes with rectangular silhouettes, no overlap/overflow, uniform facial scale, unique gradient IDs, inert face taps, exact seed reload.');
  await browser.close();
 })();

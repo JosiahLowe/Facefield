@@ -18,7 +18,7 @@ export function gazeOffset(angle, distance) {
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
-export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
+export const FLY_TRACKING = { detectionRadius: 560, fullAttentionRadius: 200, reactionTime: .16, releaseTime: .55 };
 export function flyAttention(dx, dy, radius = FLY_TRACKING.detectionRadius, innerRadius = FLY_TRACKING.fullAttentionRadius) {
   const inner = Math.max(0, Math.min(radius - 1, innerRadius));
   const near = Math.max(0, Math.min(1, (radius - Math.hypot(dx, dy)) / Math.max(1, radius - inner)));
@@ -39,7 +39,8 @@ const MOUTH_PROFILES = {
 export function mouthTarget(currentBend, name, random = Math.random, requireNeutral = false) {
   const { amount } = MOUTH_PROFILES[name];
   const current = Math.abs(currentBend) < 3 ? 0 : Math.sign(currentBend);
-  const choices = [-1, 0, 1].filter(expression => expression !== current);
+  // Idle faces never choose smiles; only the moth reaction can produce them.
+  const choices = [-1, 0].filter(expression => expression !== current);
   const expression = requireNeutral && current !== 0 ? 0 : choices[Math.floor(random() * choices.length)];
   const magnitude = name === 'sleepy' ? 8 + random() * 2 : 10 + random() * 6;
   const bend = expression * magnitude;
@@ -62,7 +63,10 @@ const smooth = t => t * t * (3 - 2 * t);
 export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) {
   const states = new Map(), visible = new Set();
   let geometryVersion = 0;
-  new ResizeObserver(() => { geometryVersion++; }).observe(grid);
+  new ResizeObserver(() => {
+    geometryVersion++;
+    if (reduced.matches&&!document.hidden) for (const s of visible) refreshStaticReaction(s);
+  }).observe(grid);
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let frame = 0, motionPaused = reduced.matches;
   const observer = new IntersectionObserver(entries => {
@@ -72,6 +76,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       if (entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0) {
         visible.add(state);
         schedule(state, performance.now());
+        if (reduced.matches) refreshStaticReaction(state);
       } else {
         visible.delete(state);
         restore(state);
@@ -102,6 +107,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.mouth.motion = null;
     s.mouth.manual = false;
     s.mouth.sinceNeutral = 0;
+    s.warmth=0;s.proximity=0;s.nearMoth=false;s.lastEmotion=0;
+    s.cheeks.setAttribute('opacity','0');
+    s.tile.dataset.mothNearby='false';
   }
   function makeBlinkLids(s) {
     for (const eye of s.eyes) {
@@ -151,7 +159,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
   }
   function updateMouth(s, now) {
     const mouth = s.mouth;
-    if (mouth.singing) return;
+    if (mouth.singing||s.nearMoth) return;
     if (!mouth.manual && !mouth.motion && now >= s.nextMouth) {
       const target = mouthTarget(mouth.current.bend, s.profile.name, Math.random, mouth.sinceNeutral >= 1);
       mouth.motion = { from: { ...mouth.current }, target, start: now, duration: between(1200, 1800) };
@@ -169,25 +177,62 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
     }
   }
+  function paintMood(s,bend,corner=0) {
+    const m=s.mouth;
+    m.current={bend,corner};
+    m.element.setAttribute('d',`M ${m.left} ${m.y-corner} Q ${m.center} ${m.y+bend} ${m.right} ${m.y+corner}`);
+    m.element.setAttribute('fill','none');
+  }
+  function updateEmotion(s,now,instant=false) {
+    const near=s.proximity>0,target=near?Math.sqrt(s.proximity):0;
+    const dt=s.lastEmotion?Math.min(.05,(now-s.lastEmotion)/1000):0;
+    s.lastEmotion=now;
+    const leaving=s.nearMoth&&!near;
+    s.nearMoth=near;
+    s.warmth=near?(instant?target:s.warmth+(target-s.warmth)*(1-Math.exp(-dt/.24))):0;
+    s.cheeks.setAttribute('opacity',(s.warmth*.72).toFixed(3));
+    s.tile.dataset.mothNearby=String(near);
+    if(near){
+      s.mouth.motion=null;
+      if(!s.mouth.singing||instant)paintMood(s,s.smileBend*s.warmth);
+    }else if(leaving&&!s.mouth.singing){
+      // Near the edge the smile is already tiny. Clamp at neutral on exit so
+      // neither a smile nor blush can linger outside the moth's looking range.
+      paintMood(s,0);
+      s.mouth.motion={from:{bend:0,corner:0},target:{bend:s.mouth.restBend,corner:0},start:now,duration:800};
+    }else if(leaving&&s.mouth.element.getAttribute('fill')==='none'){
+      paintMood(s,s.mouth.restBend);
+    }
+  }
+  function mothOffset(s,moth) {
+    if(!moth)return null;
+    if(s.geometryVersion!==geometryVersion){
+      const box=s.svg.viewBox.baseVal,tile=s.tile.getBoundingClientRect();
+      const world=grid.closest('#world')||grid.parentElement,origin=world.getBoundingClientRect();
+      const scale=tile.width/box.width;
+      s.center={x:tile.left-origin.left+world.scrollLeft+tile.width/2,
+        y:tile.top-origin.top+world.scrollTop+((box.height-100)/2+s.eyes[0].y)*scale};
+      s.geometryVersion=geometryVersion;
+    }
+    return {dx:moth.x-s.center.x,dy:moth.y-s.center.y};
+  }
+  function refreshStaticReaction(s) {
+    const offset=mothOffset(s,getFlyPosition());
+    s.proximity=offset?flyAttention(offset.dx,offset.dy):0;
+    updateEmotion(s,performance.now(),true);
+    if(!s.nearMoth)paintMood(s,s.mouth.restBend);
+  }
   function updateLook(s, now, fly) {
     const dt = s.lastLook ? Math.min(.05, (now - s.lastLook) / 1000) : 0;
     s.lastLook = now;
     let attention = 0, target = s.idle;
-    if (fly) {
-      if (s.geometryVersion !== geometryVersion) {
-        const box = s.svg.viewBox.baseVal;
-        const tile = s.tile.getBoundingClientRect();
-        const world = grid.closest('#world') || grid.parentElement;
-        const origin = world.getBoundingClientRect();
-        const scale = tile.width / box.width;
-        s.center = { x: tile.left - origin.left + world.scrollLeft + tile.width / 2,
-          y: tile.top - origin.top + world.scrollTop + ((box.height - 100) / 2 + s.eyes[0].y) * scale };
-        s.geometryVersion = geometryVersion;
-      }
-      const dx = fly.x - s.center.x, dy = fly.y - s.center.y;
+    const offset=mothOffset(s,fly);
+    if (offset) {
+      const {dx,dy}=offset;
       attention = flyAttention(dx, dy);
       target = gazeOffset(Math.atan2(dy, dx), .88);
     }
+    s.proximity=attention;
     const response = attention > s.attention ? FLY_TRACKING.reactionTime : FLY_TRACKING.releaseTime;
     const ease = 1 - Math.exp(-dt / response);
     s.attention += (attention - s.attention) * ease;
@@ -215,7 +260,6 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if (onFrame) onFrame(now);
     const fly = getFlyPosition();
     for (const s of visible) {
-      updateMouth(s, now);
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
         const progress = Math.min(1, (now - s.gaze.start) / s.gaze.duration);
@@ -224,6 +268,8 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         if (progress === 1) s.gaze = null;
       }
       updateLook(s, now, fly);
+      updateEmotion(s,now);
+      updateMouth(s,now);
       if (!s.blink && now >= s.nextBlink) s.blink = now;
       if (s.blink !== null) {
         const progress = (now - s.blink) / s.profile.blink;
@@ -253,12 +299,16 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     cancelAnimationFrame(frame);
     frame = 0;
     for (const s of states.values()) { restore(s); schedule(s, performance.now()); }
+    if(reduced.matches&&!document.hidden)for(const s of visible)refreshStaticReaction(s);
     wake();
   }
   reduced.addEventListener('change', resetActivity);
   // Some browser/media-emulation paths update matches without firing change.
   // One lightweight watchdog also resumes a grid that started in reduced motion.
-  setInterval(() => { if (reduced.matches !== motionPaused) resetActivity(); }, 500);
+  setInterval(() => {
+    if (reduced.matches !== motionPaused) resetActivity();
+    else if(reduced.matches&&!document.hidden)for(const s of visible)refreshStaticReaction(s);
+  }, 500);
   document.addEventListener('visibilitychange', resetActivity);
   return {
     setSingingMouth(tile, opening) {
@@ -268,9 +318,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       mouth.singing = opening !== null;
       mouth.motion = null;
       if (opening === null || reduced.matches || opening <= 0) {
-        mouth.element.setAttribute('d', mouth.original);
-        mouth.element.setAttribute('fill', 'none');
-        mouth.current = { bend: mouth.restBend, corner: 0 };
+        paintMood(s,s.nearMoth?s.smileBend*s.warmth:mouth.restBend);
         if (opening === null) s.nextMouth = performance.now() + mouthPause(s.profile.name, mouth.restBend === 0);
         return;
       }
@@ -284,7 +332,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         const box = s.tile.getBoundingClientRect();
         if (box.bottom <= 0 || box.top >= innerHeight || box.right <= 0 || box.left >= innerWidth) continue;
         const mouth = s.mouth;
-        if (mouth.singing) continue;
+        if (mouth.singing||s.nearMoth) continue;
         // Read the displayed curve, including any in-progress ambient transition.
         const coordinates = mouth.element.getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);
         const displayedBend = coordinates[3] - (coordinates[1] + coordinates[5]) / 2;
@@ -326,6 +374,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
+      s.cheeks=svg.querySelector('[data-feature=cheeks]');
+      s.warmth=0;s.proximity=0;s.nearMoth=false;s.lastEmotion=0;
+      s.smileBend=10+randomFrom(`${seed}:${index}:${revision}:moth-smile`)()*6;
       const eye = eyes[0];
       s.restLook = [(+eye.originalX - eye.x) / eye.travel, (+eye.originalY - eye.y) / eye.travel];
       s.idle = [...s.restLook]; s.look = [...s.restLook]; s.flyLook = [...s.restLook]; s.attention = 0; s.lastLook = 0;

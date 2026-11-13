@@ -1,5 +1,14 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const stableContent=input=>{
+ const clean=node=>{const clone=node.cloneNode(true);clone.removeAttribute('data-moth-nearby');
+  clone.querySelectorAll('[data-moth-nearby]').forEach(e=>e.removeAttribute('data-moth-nearby'));
+  clone.querySelectorAll('[data-feature=mouth]').forEach(e=>{e.removeAttribute('d');e.removeAttribute('fill');});
+  clone.querySelectorAll('[data-feature=cheeks]').forEach(e=>e.setAttribute('opacity','0'));
+  return clone.innerHTML;
+ };return Array.isArray(input)?input.map(clean):clean(input);
+};
+
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'reduce' });
@@ -20,7 +29,7 @@ const assert = require('node:assert/strict');
   assert.ok(size.y>844 && size.worldHeight-size.y-844>844);
   assert.ok(size.tile===97.5 || size.tile===195, 'existing tile scale preserved');
   assert.equal(await page.locator('.face').count(),1152);
-  const before = await page.locator('.face').evaluateAll(ts => ts.map(t => t.innerHTML));
+  const before = await page.locator('.face').evaluateAll(stableContent);
   const url = page.url();
   // Actual browser touch input: horizontal and vertical swipes in both directions.
   const client = await page.context().newCDPSession(page);
@@ -53,14 +62,14 @@ const assert = require('node:assert/strict');
   const scale=await page.evaluate(()=>visualViewport.scale);
   assert.ok(scale>=.999 && scale<=1.001, 'zooming out stops at normal scale');
   assert.equal(page.url(),url, 'swiping must not regenerate a face');
-  assert.deepEqual(await page.locator('.face').evaluateAll(ts=>ts.map(t=>t.innerHTML)),before);
+  assert.deepEqual(await page.locator('.face').evaluateAll(stableContent),before);
   const index=await page.locator('.face').evaluateAll(ts=>ts.findIndex(t=>{
     const r=t.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<innerHeight-80;
   }));
   assert.ok(index>=0);await page.locator('.face').nth(index).tap();
-  assert.equal(await page.locator('.face').nth(index).innerHTML(),before[index]);
-  const state=await page.locator('#grid').innerHTML();await page.reload();await page.waitForSelector('.face');
-  assert.equal(await page.locator('#grid').innerHTML(),state, 'seed and tile revisions reproduce the larger world');
+  assert.equal(await page.locator('.face').nth(index).evaluate(stableContent),before[index]);
+  const state=await page.locator('#grid').evaluate(stableContent);await page.reload();await page.waitForSelector('.face');
+  assert.equal(await page.locator('#grid').evaluate(stableContent),state, 'seed and tile revisions reproduce the larger world');
   assert.deepEqual(errors,[]);
   console.log('PASS world browser: iPhone viewport stays 390x844; 4680x4680 square world starts centered; pinch-out restricted at 1x; four-direction touch scrolling; no tap regeneration on swipes; unchanged face scale; inert face taps; seeded reload.');
   await browser.close();

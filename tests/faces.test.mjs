@@ -110,3 +110,14 @@ test('eyelids are small circular caps with horizontal edges and visible pupils',
   }
   assert.equal(sides.size, 2);
 });
+
+
+test('resting faces never smile and start with invisible rosy cheeks',()=>{
+  for(let i=0;i<500;i++){
+    const svg=renderFace('resting-faces',i).svg;
+    const d=svg.match(/data-feature="mouth" d="([^"]+)"/)[1].match(/-?\d+(?:\.\d+)?/g).map(Number);
+    assert.ok(d[3]-(d[1]+d[5])/2<=0,'resting mouth is neutral or a frown');
+    assert.ok(svg.includes('data-feature="cheeks" fill="#D58C86" opacity="0"'));
+    assert.equal((svg.match(/<circle /g)||[]).length,4,'cheeks do not change eye-circle ordering');
+  }
+});

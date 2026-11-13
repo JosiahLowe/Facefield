@@ -6,6 +6,7 @@ export const PALETTE = {
   background: '#E7DECE',
   paper: '#F5F0E6',
   accent: '#A65E49',
+  blush: '#D58C86',
   // Reserved for future features; this theme introduces no new facial features.
   complements: { hair: '#494B3D', lips: '#8D574C', cheeks: '#BD8C77', accessories: '#65746B' },
   flowers: {

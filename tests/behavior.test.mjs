@@ -23,7 +23,7 @@ test('gaze targets remain safely within available pupil travel', () => {
   assert.deepEqual(gazeOffset(0, 0), [0, 0]);
 });
 
-test('mouth targets choose a different neutral, smiling, or frowning expression', async () => {
+test('idle mouth targets alternate only between neutral and frowning expressions', async () => {
   const { mouthTarget } = await import('../behavior.js');
   const { randomFrom } = await import('../faces.js');
   const random = randomFrom('mouth-check');
@@ -33,7 +33,7 @@ test('mouth targets choose a different neutral, smiling, or frowning expression'
     for (const rest of [-12, -7, 0, 9, 17]) {
       for (let i = 0; i < 500; i++) {
         const target = mouthTarget(rest, name, random);
-        assert.ok(target.bend === 0 || (Math.abs(target.bend) >= 8 && Math.abs(target.bend) <= 16));
+        assert.ok(target.bend === 0 || (target.bend <= -8 && target.bend >= -16));
         assert.ok(Math.abs(target.corner) <= .77);
         assert.notEqual(Math.sign(target.bend), Math.sign(rest));
         transitions.add(`${Math.sign(rest)}:${Math.sign(target.bend)}`);
@@ -43,7 +43,7 @@ test('mouth targets choose a different neutral, smiling, or frowning expression'
     }
   }
   assert.ok(asymmetry > 0);
-  assert.equal(transitions.size, 6);
+  assert.equal(transitions.size, 4);
 });
 
 test('neutral is guaranteed within two expressive targets and has a distinct rest', async () => {
@@ -68,14 +68,14 @@ test('neutral is guaranteed within two expressive targets and has a distinct res
 
 test('fly attention fades smoothly at the configurable world-space radius', async () => {
   const {flyAttention}=await import('../behavior.js');
-  assert.equal(flyAttention(0,0,200),1);
-  assert.equal(flyAttention(200,0,200),0);
-  assert.equal(flyAttention(201,0,200),0);
-  assert.equal(flyAttention(160,0,200),.5);
-  assert.equal(flyAttention(120,0,200),1);
-  assert.equal(flyAttention(60,80,200),flyAttention(100,0,200));
-  assert.ok(flyAttention(199,0,200)<.001);
-  assert.ok(flyAttention(60,0,200)>flyAttention(160,0,200));
+  assert.equal(flyAttention(0,0,200,120),1);
+  assert.equal(flyAttention(200,0,200,120),0);
+  assert.equal(flyAttention(201,0,200,120),0);
+  assert.equal(flyAttention(160,0,200,120),.5);
+  assert.equal(flyAttention(120,0,200,120),1);
+  assert.equal(flyAttention(60,80,200,120),flyAttention(100,0,200,120));
+  assert.ok(flyAttention(199,0,200,120)<.001);
+  assert.ok(flyAttention(60,0,200,120)>flyAttention(160,0,200,120));
 });
 test('tracking offsets stay in the eye circle and keep pupils exposed under either lid', async () => {
   const {constrainGaze}=await import('../behavior.js');
@@ -84,4 +84,14 @@ test('tracking offsets stay in the eye circle and keep pupils exposed under eith
     assert.ok(Math.hypot(...offset)<=.880000001);
     assert.ok(offset[1]>=-.42&&offset[1]<=.53);
   }
+});
+
+
+test('moth looking range notices faces sooner and vanishes smoothly outside its bounds',async()=>{
+  const {FLY_TRACKING,flyAttention}=await import('../behavior.js');
+  assert.equal(FLY_TRACKING.detectionRadius,560);
+  assert.ok(flyAttention(450,0)>.15,'reacts where the old 320-pixel range did not');
+  assert.equal(flyAttention(200,0),1);
+  assert.equal(flyAttention(560,0),0);
+  assert.equal(flyAttention(1000,0),0);
 });
