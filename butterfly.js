@@ -137,6 +137,16 @@ export function mothShadowPose(heading,spread,height,rest,speed) {
     opacity:(.22-.07*height-.06*rest)*(.8+.2*spread)};
 }
 
+// Special story flight is deliberately direct. Normal wandering is unchanged.
+export function stepStoryFlight(state, dt, goal, speed = 8) {
+  const dx=goal.x-state.x,dy=goal.y-state.y,d=Math.hypot(dx,dy);
+  const travel=Math.min(d,Math.max(0,dt)*speed);
+  state.vx=d ? dx/d*speed : 0;state.vy=d ? dy/d*speed : 0;
+  if(d){state.x+=dx/d*travel;state.y+=dy/d*travel;}
+  if(d<=travel){state.x=goal.x;state.y=goal.y;state.vx=0;state.vy=0;return true;}
+  return false;
+}
+
 export function createButterfly(world,grid,flowers) {
   const element=document.createElement('div');
   element.className='butterfly';element.setAttribute('aria-hidden','true');
@@ -158,6 +168,7 @@ export function createButterfly(world,grid,flowers) {
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let flight=null,last=0,nextPatch=0,heading=0,lift=4,position=null,occupied=null;
   let shadowHeight=.5,shadowRest=0;
+  let story=null,storyLast=null;
   function occupancy() {
     const id=flight?.mode==='landed'?flight.target?.id:null;
     const next=id?`${flight.patchId}:${id}`:null;
@@ -166,20 +177,22 @@ export function createButterfly(world,grid,flowers) {
   function draw(dt) {
     if (!flight) return;
     const unit=grid.clientWidth/48,landed=flight.mode==='landed';
-    const altitude=landed?0:.5+.5*Math.sin(flight.time*1.4+flight.phase);
-    lift+=((landed?9:3+altitude*3)-lift)*(1-Math.exp(-dt*5));
+    const dead=story?.phase==='death'||story?.phase==='dead';
+    const altitude=dead||landed?0:.5+.5*Math.sin(flight.time*1.4+flight.phase);
+    lift+=((dead?0:landed?9:3+altitude*3)-lift)*(1-Math.exp(-dt*5));
     const x=flight.x*unit,y=flight.y*unit-lift;
     position={x,y};
     element.style.transform=`translate3d(${(x-18).toFixed(2)}px,${(y-18).toFixed(2)}px,0)`;
     const moving=Math.hypot(flight.vx,flight.vy)>.06;
-    const direction=landed?0:moving?Math.atan2(flight.vy,flight.vx)+Math.PI/2:heading;
+    const direction=dead?1.05:landed?0:moving?Math.atan2(flight.vy,flight.vx)+Math.PI/2:heading;
     heading+=Math.atan2(Math.sin(direction-heading),Math.cos(direction-heading))*(1-Math.exp(-dt*4));
     body.style.transform=`rotate(${heading.toFixed(3)}rad)`;
-    const spread=reduced.matches ? .65 : landed ? .47+.1*Math.sin(flight.time*3+flight.phase):.3+.7*(.5+.5*Math.sin(flight.time*21));
-    for (const w of wings) w.setAttribute('transform',`translate(20 0) scale(${spread.toFixed(3)} 1) translate(-20 0)`);
+    const spread=dead?.72:reduced.matches ? .65 : landed ? .47+.1*Math.sin(flight.time*3+flight.phase):.3+.7*(.5+.5*Math.sin(flight.time*21));
+    for (const w of wings) w.setAttribute('transform',`translate(20 0) scale(${spread.toFixed(3)} 1) ${dead?'rotate(-16) ':''}translate(-20 0)`);
+    body.style.opacity=dead?'.78':'1';
     const shadowEase=1-Math.exp(-dt*5);
-    shadowHeight+=((landed?0:altitude)-shadowHeight)*shadowEase;
-    shadowRest+=((landed?1:0)-shadowRest)*shadowEase;
+    shadowHeight+=((landed||dead?0:altitude)-shadowHeight)*shadowEase;
+    shadowRest+=((landed||dead?1:0)-shadowRest)*shadowEase;
     const projection=mothShadowPose(heading,spread,shadowHeight,shadowRest,Math.hypot(flight.vx,flight.vy));
     // Projection stays down/right in world space; its footprint turns with the
     // moth and narrows with its wings. Only transform and opacity animate.
@@ -202,10 +215,52 @@ export function createButterfly(world,grid,flowers) {
   document.addEventListener('visibilitychange',()=>{last=0;});
   return {
     followSinger,
+    beginStory() {
+      const patch=flowers.patch();
+      if(!flight||!patch)return;
+      adoptPatch(flight,patch);flowers.setOccupant(null);occupied=null;
+      story={goal:{x:patch.center.x,y:patch.center.y-.32},rest:{x:patch.center.x+.12,y:patch.center.y+.08},arrived:false,phase:'travel'};
+      flight.target=null;flight.mode='story-travel';storyLast=null;draw(0);
+    },
+    storyArrived:()=>!!story?.arrived,
+    fall(){
+      if(!story)return;
+      story.phase='death';story.fallAt=null;story.from={x:flight.x,y:flight.y};
+    },
+    endStory(){
+      if(!flight)return;
+      const {x,y}=flight;
+      story=null;storyLast=null;last=0;nextPatch=0;occupied=null;
+      flowers.setOccupant(null);
+      // A fresh living creature starts at the scene, never at the camera.
+      flight=createButterflyFlight(x,y);heading=0;lift=4;draw(0);
+    },
+    updateStory(now) {
+      if(!story||!flight)return;
+      const dt=storyLast===null?0:Math.min(.1,(now-storyLast)/1000);storyLast=now;
+      flight.time+=dt;
+      if(story.phase==='dead'){
+        // Dead geometry is static; only a resize needs a new pixel projection.
+        const unit=grid.clientWidth/48;
+        if(story.unit!==unit){story.unit=unit;draw(0);}return;
+      }
+      if(story.phase==='death'){
+        if(story.fallAt===null)story.fallAt=now;
+        const t=reduced.matches?1:clamp((now-story.fallAt)/900,0,1),ease=t*t;
+        flight.x=story.from.x+(story.rest.x-story.from.x)*ease;
+        flight.y=story.from.y+(story.rest.y-story.from.y)*ease;
+        flight.vx=0;flight.vy=0;flight.mode='dead';
+        if(t===1){story.phase='dead';heading=1.05;lift=0;shadowHeight=0;shadowRest=1;}
+      }else{
+        story.arrived=stepStoryFlight(flight,dt,story.goal);
+        flight.mode=story.arrived?'story-hover':'story-travel';
+      }
+      draw(dt);
+    },
     place(){draw(0);},
     position:()=>position,
     update(now) {
-      if (!flight||document.hidden||reduced.matches) return;
+      if (story||!flight||document.hidden||reduced.matches) return;
       const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
       if (now>=nextPatch) {retargetButterfly(flight,flowers.patch(now));nextPatch=now+450;}
       stepButterfly(flight,dt,{width:48,height:grid.clientHeight/(grid.clientWidth/48)},(id,patchId)=>flowers.flowerHead(id,now,patchId));

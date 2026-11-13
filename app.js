@@ -1,11 +1,12 @@
-import { createButterfly } from './butterfly.js?v=body-aligned-shadow-15';
-import { createSinger } from './singing.js?v=white-rounded-3';
-import { createFlowers } from './flowers.js?v=uniform-petals-soft-blush-16';
+import { createButterfly } from './butterfly.js?v=moth-story-17';
+import { createSinger } from './singing.js?v=moth-story-17';
+import { createFlowers } from './flowers.js?v=moth-story-17';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
+import { createMothStory } from './story.js?v=moth-story-17';
 applyPalette();
-import { renderFace } from './faces.js?v=uniform-petals-soft-blush-16';
-import { animateFaces } from './behavior.js?v=uniform-petals-soft-blush-16';
+import { renderFace } from './faces.js?v=moth-story-17';
+import { animateFaces } from './behavior.js?v=moth-story-17';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
@@ -22,6 +23,7 @@ const animation = animateFaces(grid, now => { flowers.update(now); butterfly.upd
 const status = document.querySelector('#status');
 const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world,
   onSingerChange: tile => { flowers.changeSinger(tile); butterfly.followSinger(flowers.patch()); }, onMusic: flowers.music });
+const story = createMothStory({ button: document.querySelector('#kill-moth'), singer, butterfly, animation, world, candidates: offscreenCandidates });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);
 const seed = url.searchParams.get('seed') || freshSeed();
@@ -73,7 +75,9 @@ function populate() {
 }
 grid.addEventListener('click', event => {
   const tile = event.target.closest('.face');
-  if (tile?.dataset.singer === 'true') advanceSinger();
+  if (tile?.dataset.singer !== 'true') return;
+  if(story.state==='discovered')story.resume();
+  else if(story.state==='idle')advanceSinger();
 });
 syncURL();
 populate();

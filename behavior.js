@@ -92,6 +92,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
   }
   function restore(s) {
+    if(s.story){paintStory(s,performance.now());return;}
     for (const eye of s.eyes) {
       eye.pupil.setAttribute('cx', eye.originalX);
       eye.pupil.setAttribute('cy', eye.originalY);
@@ -220,6 +221,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     return {dx:moth.x-s.center.x,dy:moth.y-s.center.y};
   }
   function refreshStaticReaction(s) {
+    if(s.story){paintStory(s,performance.now());return;}
     const offset=mothOffset(s,getFlyPosition());
     s.proximity=offset?flyAttention(offset.dx,offset.dy):0;
     s.blushProximity=offset?flyAttention(offset.dx,offset.dy,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius):0;
@@ -265,6 +267,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if (onFrame) onFrame(now);
     const fly = getFlyPosition();
     for (const s of visible) {
+      if(s.story){paintStory(s,now);continue;}
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
         const progress = Math.min(1, (now - s.gaze.start) / s.gaze.duration);
@@ -315,10 +318,42 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     else if(reduced.matches&&!document.hidden)for(const s of visible)refreshStaticReaction(s);
   }, 500);
   document.addEventListener('visibilitychange', resetActivity);
+  function paintStory(s,now){
+    const m=s.mouth,crying=s.story.mode==='crying';
+    s.cheeks.setAttribute('opacity','0');
+    s.tile.dataset.mothNearby='false';
+    blink(s,crying?.52:.2);
+    if(crying){
+      paintMood(s,-13);
+      for(const [i,tear] of [...s.story.tears.children].entries()){
+        const t=reduced.matches?.35:((now-s.story.at)/3300+i*.43)%1;
+        const eye=s.eyes[i];
+        tear.setAttribute('cy',String(eye.y+eye.r+3+t*16));
+        tear.setAttribute('opacity',String(.62*(1-t*.65)));
+      }
+    }else{
+      m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);
+      m.element.setAttribute('fill',m.element.getAttribute('stroke'));
+    }
+  }
   return {
+    setStoryExpression(tile,mode){
+      const s=states.get(tile);if(!s)return;
+      if(s.story){s.story.tears?.remove();s.story=null;restore(s);}
+      if(!mode){delete tile.dataset.storyExpression;schedule(s,performance.now());return;}
+      restore(s);
+      const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
+      if(mode==='crying')for(const eye of s.eyes){
+        const tear=document.createElementNS(NS,'ellipse');
+        tear.setAttribute('cx',String(eye.x));tear.setAttribute('rx','1.6');tear.setAttribute('ry','2.8');tears.append(tear);
+      }
+      s.svg.querySelector('[data-features]').append(tears);
+      s.story={mode,tears,at:performance.now()};s.mouth.singing=false;
+      tile.dataset.storyExpression=mode;paintStory(s,performance.now());
+    },
     setSingingMouth(tile, opening) {
       const s = states.get(tile);
-      if (!s) return;
+      if (!s || s.story) return;
       const mouth = s.mouth;
       mouth.singing = opening !== null;
       mouth.motion = null;

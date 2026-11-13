@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
     await page.waitForFunction(()=>document.querySelector('#world').scrollTop>0);
-    assert.equal(await page.locator('button:not(.face)').count(),1,'sound is the only control');
+    assert.equal(await page.locator('button:not(.face)').count(),2,'sound and the explicitly requested story button are the only controls');
     assert.equal(await page.locator('#seed,#shuffle,#test-mouths,#change-singer,.instructions').count(),0);
     assert.equal(await page.locator('#enable-sound').innerText(),'Enable Sound');
     for (const width of [320,390,768,1440]) {
@@ -40,6 +40,6 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('.face').count(),1152);
     assert.deepEqual(errors,[]);
     await page.screenshot({path:'/tmp/facefield-square-minimal.png'});
-    console.log('PASS minimal controls: square faces cover viewport, only sound control, mute/unmute and tap-to-advance at mobile/desktop widths.');
+    console.log('PASS controls: square faces cover viewport, sound and story controls, mute/unmute and tap-to-advance at mobile/desktop widths.');
   } finally { await browser.close(); }
 })();

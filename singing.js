@@ -89,6 +89,40 @@ export function playNote(context, output, midi, start, duration, wave = null) {
   return { oscillator, gain, vibrato, vibratoGain, start, end };
 }
 
+// Quiet synthetic vocal gestures, routed through the song's existing spatial
+// master. No samples, extra AudioContext, or full-volume connection to speakers.
+export function playStorySound(context, output, kind, start, softened = false) {
+  const sources=[],envelopes=[];
+  const scream=kind==='scream',end=start+(scream?.74:1.25);
+  const pulses=scream?[[0,.72,560,1180,310,.19]]
+    :[[0,.29,240,350,170,.20],[.39,.27,210,310,155,.16],[.78,.45,230,290,140,.18]];
+  for(const [offset,duration,from,peak,to,level] of pulses){
+    const at=start+offset,until=at+duration;
+    const voice=context.createOscillator(),gain=context.createGain();
+    const tremble=context.createOscillator(),depth=context.createGain();
+    voice.type='triangle';voice.frequency.setValueAtTime(from,at);
+    voice.frequency.exponentialRampToValueAtTime(peak,at+duration*.23);
+    voice.frequency.exponentialRampToValueAtTime(to,until);
+    tremble.frequency.value=scream?27:7.5;depth.gain.value=scream?75:58;
+    tremble.connect(depth);depth.connect(voice.detune);
+    gain.gain.setValueAtTime(0,at);
+    gain.gain.linearRampToValueAtTime(level*(softened?.28:1),at+.025);
+    gain.gain.exponentialRampToValueAtTime(.001,until-.02);
+    gain.gain.linearRampToValueAtTime(0,until);
+    voice.connect(gain);gain.connect(output);
+    voice.start(at);voice.stop(until);tremble.start(at);tremble.stop(until);
+    voice.onended=()=>{voice.disconnect();gain.disconnect();tremble.disconnect();depth.disconnect();};
+    sources.push(voice,tremble);envelopes.push(gain.gain);
+  }
+  return {end,stop(){
+    const now=context.currentTime;
+    for(const envelope of envelopes){
+      envelope.cancelScheduledValues(now);envelope.setValueAtTime(0,now);
+    }
+    for(const source of sources)try{source.stop(now);}catch{/* already ended */}
+  }};
+}
+
 export function createSinger({ button, status, animation, world, onSingerChange = () => {}, onMusic = () => {} }) {
   let context, output, panner, wave, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
@@ -97,6 +131,37 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   const phraseEnds = [];
   let song = { root: 60, progressionIndex: 0, chordName: 'I', chordRoot: 60, pattern: 0, octave: 0, voice: {sine:.92,triangle:.055,square:.025}, melody: MELODY }, hasSinger = false;
   let lastVolume = null, lastPan = null;
+  let scene='song',nextEffect=0;
+  const effects=new Set();
+  function stopEffects(){for(const effect of effects)effect.stop();effects.clear();}
+  function silenceMelody(){
+    if(context){
+      const now=context.currentTime;
+      for(const voice of voices){
+        const gain=voice.gain.gain;
+        if(gain.cancelAndHoldAtTime)gain.cancelAndHoldAtTime(now);
+        else{gain.cancelScheduledValues(now);gain.setValueAtTime(gain.value,now);}
+        gain.linearRampToValueAtTime(0,now+.025);
+        try{voice.oscillator.stop(now+.035);voice.vibrato.stop(now+.035);}catch{/* already ended */}
+      }
+    }
+    notes.length=0;phraseEnds.length=0;handoff=null;onMusic(0);
+    if(target)animation.setSingingMouth(target,null);
+  }
+  function setScene(next){
+    if(next===scene)return;
+    silenceMelody();stopEffects();scene=next;
+    if(target)target.dataset.audioScene=scene;
+    nextEffect=(context?.currentTime||0)+.05;
+    cursor=0;nextTime=nextEffect;
+  }
+  function scheduleEffects(now){
+    for(const effect of effects)if(effect.end<=now)effects.delete(effect);
+    if(!['scream','crying','discovered'].includes(scene)||now<nextEffect)return;
+    const start=now+.01;
+    effects.add(playStorySound(context,output,scene==='scream'?'scream':'sob',start,scene==='discovered'));
+    nextEffect=scene==='scream'?Infinity:start+2.8+Math.random()*2;
+  }
   function updateVolume() {
     if (!enabled || !target || !output || context.state !== 'running') return;
     // Both rectangles use viewport coordinates, so scrolling is already applied.
@@ -140,6 +205,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       delete target.dataset.chordRoot;
       delete target.dataset.octave;
       delete target.dataset.melody;
+      delete target.dataset.audioScene;
       target.removeAttribute('aria-description');
     }
     target = tile;
@@ -164,6 +230,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       }
       hasSinger = true;
       target.dataset.singer = 'true';
+      target.dataset.audioScene=scene;
       target.tabIndex = 0;
       target.setAttribute('aria-label', 'Current singer: advance to the next singer');
       target.dataset.songKey = String(song.root);
@@ -179,13 +246,15 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   function changeFace(candidates) {
     const available = candidates.filter(face => face !== previousSinger);
     const next = chooseSinger(available, target);
-    if (!next || next === target) { status.textContent = 'No other offscreen face is available.'; return; }
+    if (!next || next === target) { status.textContent = 'No other offscreen face is available.'; return null; }
     setFace(next);
     status.textContent = enabled ? 'A different face elsewhere in the world is singing.' : 'New singer selected. Tap Enable Sound to hear it.';
+    return target;
   }
   function schedule() {
     if (!enabled || context.state !== 'running') return;
     const now = context.currentTime;
+    if(scene!=='song'){scheduleEffects(now);return;}
     if (handoff && handoff.end !== null && now >= handoff.end) {
       const candidates = handoff.candidates;
       handoff = null;
@@ -223,8 +292,8 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       const release = Math.min(1, (note.end - now) / .075);
       opening = Math.max(0, Math.min(attack, release));
     }
-    if (target) animation.setSingingMouth(target, opening);
-    onMusic(context.state === 'running' ? opening : 0, note ? note.end-note.start : 0);
+    if (target && scene==='song') animation.setSingingMouth(target, opening);
+    onMusic(context.state === 'running' && scene==='song' ? opening : 0, note ? note.end-note.start : 0);
     frame = requestAnimationFrame(mouthFrame);
   }
   function stop() {
@@ -238,6 +307,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       try { voice.oscillator.stop(); voice.vibrato.stop(); } catch { /* already ended */ }
     }
     notes.length = 0;
+    stopEffects();
     onMusic(0);
     if (target) animation.setSingingMouth(target, null);
     if (context?.state === 'running') context.suspend().catch(() => {});
@@ -270,6 +340,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       }
       if (context.state !== 'running') throw new Error('Audio is not running');
       enabled = true; lastVolume = null; lastPan = null; updateVolume(); cursor = 0; nextTime = context.currentTime + .06;
+      nextEffect=context.currentTime+.06;
       button.textContent = 'Mute Sound'; button.setAttribute('aria-pressed', 'true');
       status.textContent = 'Sound enabled. One face is singing.';
       schedule(); timer = setInterval(schedule, 25); mouthFrame();
@@ -283,6 +354,8 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   window.addEventListener('pagehide', stop);
   return {
     setFace,
+    setScene,
+    advanceNow: changeFace,
     advanceAfterPhrase(candidates) {
       if (handoff) return;
       if (!enabled) { changeFace(candidates()); return; }
