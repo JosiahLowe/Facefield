@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { personality, gazeOffset } from '../behavior.js';
+import { tearProfile } from '../behavior.js';
+
+test('tear quantities, rates and phases vary between faces and reproduce from their seed',()=>{
+  const counts=new Set(),rates=new Set(),phases=new Set();
+  for(let i=0;i<200;i++){
+    const drops=tearProfile('mourning',i);
+    assert.deepEqual(drops,tearProfile('mourning',i));
+    assert.notDeepEqual(drops,tearProfile('mourning',i,1));
+    for(let eye=0;eye<2;eye++){
+      const stream=drops.filter(d=>d.eye===eye);assert.ok(stream.length>=1&&stream.length<=4);
+      counts.add(stream.length);rates.add(stream.length/stream[0].period);
+    }
+    for(const drop of drops){assert.ok(drop.period>=2400&&drop.period<=4800&&drop.phase>=0&&drop.phase<1);phases.add(drop.phase);}
+  }
+  assert.equal(counts.size,4);assert.ok(rates.size>300&&phases.size>500);
+});
 import { cryingTearPose } from '../behavior.js';
 
 test('tears emerge directly from the visible lower eyelid before rolling down',()=>{

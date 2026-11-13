@@ -23,6 +23,10 @@ const assert=require('node:assert/strict');
     assert.deepEqual(anatomy.spots,[['circle','#BC8F3C',2.1],['circle','#BC8F3C',2.1]]);
     assert.equal(anatomy.head,'circle');assert.ok(anatomy.round&&anatomy.slender);
     assert.equal(anatomy.outlines,0);assert.equal(anatomy.antennae,2);assert.ok(anatomy.roundedTips);assert.equal(anatomy.images,0);
+    assert.ok(await page.locator('.butterfly-body').evaluate(svg=>{
+      const abdomen=svg.querySelector('.moth-abdomen');
+      return [...svg.querySelectorAll('.butterfly-wing')].every(w=>!!(abdomen.compareDocumentPosition(w)&Node.DOCUMENT_POSITION_FOLLOWING));
+    }),'both wings are painted above the abdomen');
     const spreads=new Set(),shadowShapes=new Set(),shadowAngles=new Set();
     for(let i=0;i<12;i++){
       const result=await page.locator('.butterfly-body').evaluate(svg=>{

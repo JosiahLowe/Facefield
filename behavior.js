@@ -13,6 +13,14 @@ export function personality(seed, index, revision = 0) {
   const name = Object.keys(PROFILES)[Math.floor(r() * 5)];
   return { name, ...PROFILES[name], pace: .85 + r() * .3 };
 }
+export function tearProfile(seed,index,revision=0){
+  const r=randomFrom(`${seed}:${index}:${revision}:tears`),drops=[];
+  for(let eye=0;eye<2;eye++){
+    const count=1+Math.floor(r()*4),period=2400+r()*2400,phase=r();
+    for(let i=0;i<count;i++)drops.push({eye,period,phase:(phase+i/count+r()*.08)%1});
+  }
+  return drops;
+}
 export function gazeOffset(angle, distance) {
   const magnitude = Math.max(0, Math.min(.88, distance));
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
@@ -244,15 +252,16 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     }
   }
   function refreshStaticReaction(s) {
-    syncMourning(s,getFlyPosition());
-    if(s.story){paintStory(s,performance.now());return;}
+    const moth=getFlyPosition();
+    syncMourning(s,moth);
+    if(s.story){if(moth?.dead)updateLook(s,performance.now(),moth,true);paintStory(s,performance.now());return;}
     const offset=mothOffset(s,getFlyPosition());
     s.proximity=offset?flyAttention(offset.dx,offset.dy):0;
     s.blushProximity=offset?flyAttention(offset.dx,offset.dy,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius):0;
     updateEmotion(s,performance.now(),true);
     if(!s.nearMoth)paintMood(s,s.mouth.restBend);
   }
-  function updateLook(s, now, fly) {
+  function updateLook(s, now, fly, instant=false) {
     const dt = s.lastLook ? Math.min(.05, (now - s.lastLook) / 1000) : 0;
     s.lastLook = now;
     let attention = 0, target = s.idle;
@@ -265,7 +274,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.proximity=attention;
     s.blushProximity=offset?flyAttention(offset.dx,offset.dy,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius):0;
     const response = attention > s.attention ? FLY_TRACKING.reactionTime : FLY_TRACKING.releaseTime;
-    const ease = 1 - Math.exp(-dt / response);
+    const ease = instant?1:1 - Math.exp(-dt / response);
     s.attention += (attention - s.attention) * ease;
     if (s.attention > .0001) {
       const desired = constrainGaze(target, s.minLookY, s.maxLookY);
@@ -292,7 +301,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const fly = getFlyPosition();
     for (const s of visible) {
       syncMourning(s,fly);
-      if(s.story){paintStory(s,now);continue;}
+      if(s.story){if(fly?.dead)updateLook(s,now,fly);paintStory(s,now);continue;}
       if (now >= s.nextGaze) startGaze(s, now);
       if (s.gaze) {
         const progress = Math.min(1, (now - s.gaze.start) / s.gaze.duration);
@@ -361,9 +370,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       // the eye caps and first become visible down on the cheeks.
       if(s.story.tears.nextSibling)s.story.tears.parentNode.append(s.story.tears);
       for(const [i,tear] of [...s.story.tears.children].entries()){
-        const eyeIndex=Math.floor(i/3),drop=i%3;
-        const t=reduced.matches?.16+drop*.28:((now-s.story.at)/3000+drop/3+eyeIndex*.17)%1;
-        const pose=cryingTearPose(s.eyes[eyeIndex],t);
+        const drop=s.tearProfile[i];
+        const t=reduced.matches?.12+drop.phase*.72:((now-s.story.at)/drop.period+drop.phase)%1;
+        const pose=cryingTearPose(s.eyes[drop.eye],t);
         tear.setAttribute('transform',`translate(${pose.x} ${pose.y}) scale(${pose.size})`);
       }
     }else{
@@ -377,7 +386,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if(!mode){delete tile.dataset.storyExpression;delete tile.dataset.sobOpening;schedule(s,performance.now());return;}
     restore(s);
     const tears=document.createElementNS(NS,'g');tears.dataset.feature='tears';tears.setAttribute('fill','#BED2CE');
-    if(mode==='crying'||mode==='mourning')for(let i=0;i<6;i++){
+    if(mode==='crying'||mode==='mourning')for(const drop of s.tearProfile){
       const tear=document.createElementNS(NS,'path');
       tear.setAttribute('d','M0 0 C-1.2 2.8-3.3 4.6-3.3 6.6 A3.3 3.3 0 0 0 3.3 6.6 C3.3 4.6 1.2 2.8 0 0Z');tears.append(tear);
     }
@@ -457,6 +466,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
+      s.tearProfile=tearProfile(seed,index,revision);
       s.cheeks=svg.querySelector('[data-feature=cheeks]');
       s.warmth=0;s.proximity=0;s.blushProximity=0;s.blushStrength=0;s.nearMoth=false;s.lastEmotion=0;
       s.smileBend=10+randomFrom(`${seed}:${index}:${revision}:moth-smile`)()*6;

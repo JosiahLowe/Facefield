@@ -1,12 +1,12 @@
-import { createButterfly } from './butterfly.js?v=mourning-garden-24';
-import { createSinger } from './singing.js?v=mourning-garden-24';
-import { createFlowers } from './flowers.js?v=mourning-garden-24';
+import { createButterfly } from './butterfly.js?v=mourning-gaze-tears-25';
+import { createSinger } from './singing.js?v=mourning-gaze-tears-25';
+import { createFlowers } from './flowers.js?v=mourning-gaze-tears-25';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
-import { createMothStory } from './story.js?v=mourning-garden-24';
+import { createMothStory } from './story.js?v=mourning-gaze-tears-25';
 applyPalette();
-import { renderFace } from './faces.js?v=mourning-garden-24';
-import { animateFaces } from './behavior.js?v=mourning-garden-24';
+import { renderFace } from './faces.js?v=mourning-gaze-tears-25';
+import { animateFaces } from './behavior.js?v=mourning-gaze-tears-25';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
