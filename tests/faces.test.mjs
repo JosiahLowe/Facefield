@@ -118,6 +118,10 @@ test('resting faces never smile and start with invisible rosy cheeks',()=>{
     const d=svg.match(/data-feature="mouth" d="([^"]+)"/)[1].match(/-?\d+(?:\.\d+)?/g).map(Number);
     assert.ok(d[3]-(d[1]+d[5])/2<=0,'resting mouth is neutral or a frown');
     assert.ok(svg.includes('data-feature="cheeks" fill="#D58C86" opacity="0"'));
-    assert.equal((svg.match(/<circle /g)||[]).length,4,'cheeks do not change eye-circle ordering');
+    assert.equal((svg.match(/<circle /g)||[]).length,6,'four eye circles and two cheek circles');
+    const cheeks=[...svg.matchAll(/<circle data-feature="cheek" cx="([\d.]+)" cy="55" r="([\d.]+)"/g)];
+    assert.equal(cheeks.length,2);
+    for(const [,x,r] of cheeks)assert.ok(+x-+r>=0&&+x+ +r<=100,'cheeks stay inside the face');
+    assert.deepEqual(cheeks.map(m=>+m[1]),[16,84],'cheeks sit farther apart');
   }
 });

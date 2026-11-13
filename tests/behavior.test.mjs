@@ -87,11 +87,14 @@ test('tracking offsets stay in the eye circle and keep pupils exposed under eith
 });
 
 
-test('moth looking range notices faces sooner and vanishes smoothly outside its bounds',async()=>{
-  const {FLY_TRACKING,flyAttention}=await import('../behavior.js');
-  assert.equal(FLY_TRACKING.detectionRadius,560);
-  assert.ok(flyAttention(450,0)>.15,'reacts where the old 320-pixel range did not');
-  assert.equal(flyAttention(200,0),1);
-  assert.equal(flyAttention(560,0),0);
-  assert.equal(flyAttention(1000,0),0);
+test('looking range returns to 320 pixels and blush has a separate smaller radius',async()=>{
+  const {FLY_TRACKING,MOTH_BLUSH,flyAttention}=await import('../behavior.js');
+  assert.equal(FLY_TRACKING.detectionRadius,320);
+  assert.equal(FLY_TRACKING.fullAttentionRadius,120);
+  assert.equal(flyAttention(450,0),0);
+  assert.ok(flyAttention(240,0)>0);
+  assert.equal(MOTH_BLUSH.radius,160);
+  assert.ok(MOTH_BLUSH.opacity<.72);
+  assert.equal(flyAttention(240,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius),0);
+  assert.ok(flyAttention(100,0,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius)>0);
 });

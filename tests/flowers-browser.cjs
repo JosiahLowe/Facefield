@@ -43,7 +43,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     async function clearance() {
       return page.evaluate(()=>{
         const flowers=[...document.querySelectorAll('.flower')].map(f=>({id:f.dataset.site,box:f.getBoundingClientRect()}));
-        const features=[...document.querySelectorAll('.face circle,.face [data-feature=nose],.face [data-feature=mouth]')]
+        const features=[...document.querySelectorAll('.face circle:not([data-feature=cheek]),.face [data-feature=nose],.face [data-feature=mouth]')]
           .map(e=>e.getBoundingClientRect()).filter(b=>b.right>0&&b.left<innerWidth&&b.bottom>0&&b.top<innerHeight);
         return flowers.filter(({box:a})=>features.some(b=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)).map(f=>f.id);
       });

@@ -18,7 +18,8 @@ export function gazeOffset(angle, distance) {
   return [Math.cos(angle) * magnitude, Math.sin(angle) * magnitude];
 }
 // World-pixel radius and response times in seconds; tune without touching flight.
-export const FLY_TRACKING = { detectionRadius: 560, fullAttentionRadius: 200, reactionTime: .16, releaseTime: .55 };
+export const FLY_TRACKING = { detectionRadius: 320, fullAttentionRadius: 120, reactionTime: .18, releaseTime: .55 };
+export const MOTH_BLUSH = { radius: 160, fullRadius: 60, opacity: .45 };
 export function flyAttention(dx, dy, radius = FLY_TRACKING.detectionRadius, innerRadius = FLY_TRACKING.fullAttentionRadius) {
   const inner = Math.max(0, Math.min(radius - 1, innerRadius));
   const near = Math.max(0, Math.min(1, (radius - Math.hypot(dx, dy)) / Math.max(1, radius - inner)));
@@ -107,7 +108,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.mouth.motion = null;
     s.mouth.manual = false;
     s.mouth.sinceNeutral = 0;
-    s.warmth=0;s.proximity=0;s.nearMoth=false;s.lastEmotion=0;
+    s.warmth=0;s.proximity=0;s.blushProximity=0;s.blushStrength=0;s.nearMoth=false;s.lastEmotion=0;
     s.cheeks.setAttribute('opacity','0');
     s.tile.dataset.mothNearby='false';
   }
@@ -190,7 +191,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const leaving=s.nearMoth&&!near;
     s.nearMoth=near;
     s.warmth=near?(instant?target:s.warmth+(target-s.warmth)*(1-Math.exp(-dt/.24))):0;
-    s.cheeks.setAttribute('opacity',(s.warmth*.72).toFixed(3));
+    const blushTarget=Math.sqrt(s.blushProximity);
+    s.blushStrength=s.blushProximity>0?(instant?blushTarget:s.blushStrength+(blushTarget-s.blushStrength)*(1-Math.exp(-dt/.24))):0;
+    s.cheeks.setAttribute('opacity',(s.blushStrength*MOTH_BLUSH.opacity).toFixed(3));
     s.tile.dataset.mothNearby=String(near);
     if(near){
       s.mouth.motion=null;
@@ -219,6 +222,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
   function refreshStaticReaction(s) {
     const offset=mothOffset(s,getFlyPosition());
     s.proximity=offset?flyAttention(offset.dx,offset.dy):0;
+    s.blushProximity=offset?flyAttention(offset.dx,offset.dy,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius):0;
     updateEmotion(s,performance.now(),true);
     if(!s.nearMoth)paintMood(s,s.mouth.restBend);
   }
@@ -233,6 +237,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       target = gazeOffset(Math.atan2(dy, dx), .88);
     }
     s.proximity=attention;
+    s.blushProximity=offset?flyAttention(offset.dx,offset.dy,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius):0;
     const response = attention > s.attention ? FLY_TRACKING.reactionTime : FLY_TRACKING.releaseTime;
     const ease = 1 - Math.exp(-dt / response);
     s.attention += (attention - s.attention) * ease;
@@ -356,7 +361,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const previous = states.get(tile);
       if (previous) { visible.delete(previous); observer.unobserve(tile); }
       const svg = tile.querySelector('svg');
-      const circles = [...svg.querySelectorAll('circle')];
+      const circles = [...svg.querySelectorAll('circle:not([data-feature=cheek])')];
       const lids = [...svg.querySelectorAll('[data-feature="eyelid"]')];
       const color = svg.dataset.skin;
       const lidColor = eyelidColor(color);
@@ -375,7 +380,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
       s.cheeks=svg.querySelector('[data-feature=cheeks]');
-      s.warmth=0;s.proximity=0;s.nearMoth=false;s.lastEmotion=0;
+      s.warmth=0;s.proximity=0;s.blushProximity=0;s.blushStrength=0;s.nearMoth=false;s.lastEmotion=0;
       s.smileBend=10+randomFrom(`${seed}:${index}:${revision}:moth-smile`)()*6;
       const eye = eyes[0];
       s.restLook = [(+eye.originalX - eye.x) / eye.travel, (+eye.originalY - eye.y) / eye.travel];
