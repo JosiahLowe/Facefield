@@ -99,7 +99,7 @@ export function renderFace(seed, index, revision = 0, geometry = { width: 1, hei
   const skin = `<rect data-feature="skin" width="${width}" height="${height}" rx="0" fill="url(#${gradientId})"/>`;
   const top = mixColor(color, PALETTE.ink, PALETTE.gradient.top);
   const bottom = mixColor(color, PALETTE.paper, PALETTE.gradient.bottom);
-  const cheeks = `<g data-feature="cheeks" fill="${PALETTE.blush}" opacity="0"><circle data-feature="cheek" cx="16" cy="55" r="5.5"/><circle data-feature="cheek" cx="84" cy="55" r="5.5"/></g>`;
+  const cheeks = `<g data-feature="cheeks" fill="${PALETTE.blush}" opacity="0"><circle data-feature="cheek" cx="16" cy="55" r="7.5"/><circle data-feature="cheek" cx="84" cy="55" r="7.5"/></g>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" data-skin="${color}" data-base-color="${baseColor}" data-shape="${shape}" aria-hidden="true" focusable="false"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/></linearGradient></defs>${skin}<g data-features transform="translate(${(width-100)/2} ${(height-100)/2})">${eyes(stream('eyes'), stream('eyelids'), color)}${cheeks}${nose(stream('nose'), stream('nose-bridge'))}${mouth(stream('mouth'))}</g></svg>`;
   return { color, baseColor, backingColor: color, shape, svg };
 }

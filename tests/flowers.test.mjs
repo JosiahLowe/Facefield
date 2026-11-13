@@ -154,7 +154,8 @@ test('flower appearance has stable varied greens, leaves, and circular/oval peta
   const leaves=appearances.flatMap(a=>a.leaves),petals=appearances.flatMap(a=>a.petals);
   assert.ok(new Set(leaves.map(l=>l.y)).size>100 && new Set(leaves.map(l=>l.rx)).size>100);
   assert.ok(leaves.some(l=>l.x<0)&&leaves.some(l=>l.x>0));
-  assert.ok(new Set(petals.map(p=>p.radius)).size>100);
+  assert.ok(new Set(appearances.map(a=>a.petals[0].radius)).size>90,'petal sizes vary between flowers');
+  for(const a of appearances)assert.ok(a.petals.every(p=>JSON.stringify(p)===JSON.stringify(a.petals[0])),'petals within a flower are identical');
   assert.ok(petals.every(p=>p.offset+Math.max(p.radius,p.ry)<=.31));
 });
 

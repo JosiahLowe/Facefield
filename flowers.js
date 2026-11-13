@@ -27,6 +27,8 @@ export function flowerAppearance(seed, id) {
   // Dimensions stay within the original animated clearance envelope.
   const petals = Array.from({length:9},()=>({ radius: .085+r()*.045,
     rx: .075+r()*.04, ry: .11+r()*.04, offset: .14+r()*.02 }));
+  // One template per flower; preserve seeded variety between different flowers.
+  petals.fill(petals[0]);
   return {stemColor,leaves,count,shape:r()<.5 ? 'circle' : 'oval',petals};
 }
 
@@ -280,7 +282,7 @@ function geometry(f, style) {
     <g class="flower-head" transform="translate(0 -.70)">
     <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
     <g class="flower-petals" fill="${color}"><g class="flower-spin">${petals}</g></g>
-    <circle class="flower-center" r=".08" fill="${PALETTE.flowers.center}" stroke="${PALETTE.ink}" stroke-width=".012"/></g>`;
+    <circle class="flower-center" r=".08" fill="${PALETTE.flowers.center}"/></g>`;
 }
 
 // Shares the face loop. Only culling/lifecycle reconciliation runs at 8 Hz;

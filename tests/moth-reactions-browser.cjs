@@ -44,7 +44,7 @@ const assert=require('node:assert/strict');
     assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0),'no smile or rosy cheeks linger beyond looking proximity');
     for(let i=0;i<12;i++){await page.waitForTimeout(100);assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0));}
     await page.evaluate(c=>{window.mothPoint=c;},center);await page.waitForTimeout(750);
-    faces=await read();assert.ok(faces[0].bend>8&&faces[0].blush>.35&&faces[0].blush<=.45);
+    faces=await read();assert.ok(faces[0].bend>8&&faces[0].blush>.24&&faces[0].blush<=.30);
     await page.evaluate(()=>reactions.setSingingMouth(document.querySelector('.face'),.9));
     assert.equal((await read())[0].open,true,'singing mouth animation takes priority');
     await page.evaluate(()=>reactions.setSingingMouth(document.querySelector('.face'),0));
@@ -53,7 +53,7 @@ const assert=require('node:assert/strict');
     await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(150);
     const still=await page.locator('#grid').innerHTML();await page.waitForTimeout(600);
     assert.equal(await page.locator('#grid').innerHTML(),still,'reduced motion keeps a static proximity reaction');
-    assert.ok((await read())[0].bend>0&&(await read())[0].blush>.35&&(await read())[0].blush<=.45);
+    assert.ok((await read())[0].bend>0&&(await read())[0].blush>.24&&(await read())[0].blush<=.30);
     await page.evaluate(c=>{window.mothPoint={x:c.x-450,y:c.y};},center);await page.waitForTimeout(600);
     assert.ok((await read()).every(f=>f.bend<=0&&f.blush===0));
     assert.equal(await page.locator('[data-feature=cheek]').count(),6);

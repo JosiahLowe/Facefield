@@ -1,11 +1,11 @@
 import { createButterfly } from './butterfly.js?v=body-aligned-shadow-15';
 import { createSinger } from './singing.js?v=white-rounded-3';
-import { createFlowers } from './flowers.js?v=curious-gardens-10';
+import { createFlowers } from './flowers.js?v=uniform-petals-soft-blush-16';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 applyPalette();
-import { renderFace } from './faces.js?v=gentle-cheeks-13';
-import { animateFaces } from './behavior.js?v=gentle-cheeks-13';
+import { renderFace } from './faces.js?v=uniform-petals-soft-blush-16';
+import { animateFaces } from './behavior.js?v=uniform-petals-soft-blush-16';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
