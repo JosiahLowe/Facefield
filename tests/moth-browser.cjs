@@ -23,20 +23,30 @@ const assert=require('node:assert/strict');
     assert.deepEqual(anatomy.spots,[['circle','#BC8F3C',2.1],['circle','#BC8F3C',2.1]]);
     assert.equal(anatomy.head,'circle');assert.ok(anatomy.round&&anatomy.slender);
     assert.equal(anatomy.outlines,0);assert.equal(anatomy.antennae,2);assert.ok(anatomy.roundedTips);assert.equal(anatomy.images,0);
-    const spreads=new Set();
+    const spreads=new Set(),shadowShapes=new Set(),shadowAngles=new Set();
     for(let i=0;i<12;i++){
       const result=await page.locator('.butterfly-body').evaluate(svg=>{
         const hinge=new DOMPoint(20,14.5).matrixTransform(svg.getScreenCTM());
         const wings=[...svg.querySelectorAll('.butterfly-wing')];
         const roots=wings.map(w=>{const p=new DOMPoint(20,14.5).matrixTransform(w.getScreenCTM());return Math.hypot(p.x-hinge.x,p.y-hinge.y);});
         const spots=[...svg.querySelectorAll('.moth-eyespot')].map(s=>new DOMPoint(+s.getAttribute('cx'),+s.getAttribute('cy')).matrixTransform(s.getScreenCTM()).matrixTransform(svg.getScreenCTM().inverse()));
-        return {roots,symmetry:Math.abs(spots[0].x+spots[1].x-40)+Math.abs(spots[0].y-spots[1].y),spread:wings[0].getAttribute('transform')};
+        const shadow=svg.closest('.butterfly').querySelector('.butterfly-shadow');
+        const angle=el=>+el.style.transform.match(/rotate\(([-\d.]+)rad\)/)[1];
+        return {shadowAngle:angle(shadow),bodyAngle:angle(svg),shadowScale:shadow.style.transform.match(/scale\(([^)]+)\)/)[1],roots,symmetry:Math.abs(spots[0].x+spots[1].x-40)+Math.abs(spots[0].y-spots[1].y),spread:wings[0].getAttribute('transform')};
       });
       assert.ok(result.roots.every(d=>d<.05),'wings remain attached at their body hinges');
       assert.ok(result.symmetry<.01,'wings and eyespots remain symmetrical during flutter');
+      assert.equal(result.shadowAngle,result.bodyAngle,'shadow turns with the actual moth heading');
+      shadowShapes.add(result.shadowScale);shadowAngles.add(result.shadowAngle);
       spreads.add(result.spread);await page.waitForTimeout(90);
     }
     assert.ok(spreads.size>5,'multiple visible flutter positions');
+    assert.ok(shadowShapes.size>5&&shadowAngles.size>1,'shadow changes shape and rotates as the moth moves');
+    await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(180);
+    const frozenShadow=await page.locator('.butterfly-shadow').getAttribute('style');
+    await page.waitForTimeout(400);
+    assert.equal(await page.locator('.butterfly-shadow').getAttribute('style'),frozenShadow,'reduced motion freezes the changing shadow');
+    await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForTimeout(120);
     await page.screenshot({path:'/tmp/facefield-moth-6a.png'});
     const panels=await page.locator('.butterfly-body').evaluate(svg=>[1,.65,.3].map(spread=>{
       const clone=svg.cloneNode(true);clone.removeAttribute('style');clone.removeAttribute('class');

@@ -129,6 +129,14 @@ export function stepButterfly(state,dt,bounds,flowerHead=()=>null,random=Math.ra
   return state;
 }
 
+export function mothShadowPose(heading,spread,height,rest,speed) {
+  height=clamp(height,0,1);rest=clamp(rest,0,1);spread=clamp(spread,0,1);
+  const size=.9+.1*height-.15*rest;
+  return {rotation:heading,offset:4+height*3,
+    scaleX:size*(.6+.4*spread),scaleY:size*(.85+.1*clamp(speed/1.8,0,1)),
+    opacity:(.22-.07*height-.06*rest)*(.8+.2*spread)};
+}
+
 export function createButterfly(world,grid,flowers) {
   const element=document.createElement('div');
   element.className='butterfly';element.setAttribute('aria-hidden','true');
@@ -149,6 +157,7 @@ export function createButterfly(world,grid,flowers) {
   const wings=[...element.querySelectorAll('.butterfly-wing')];
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let flight=null,last=0,nextPatch=0,heading=0,lift=4,position=null,occupied=null;
+  let shadowHeight=.5,shadowRest=0;
   function occupancy() {
     const id=flight?.mode==='landed'?flight.target?.id:null;
     const next=id?`${flight.patchId}:${id}`:null;
@@ -168,8 +177,14 @@ export function createButterfly(world,grid,flowers) {
     body.style.transform=`rotate(${heading.toFixed(3)}rad)`;
     const spread=reduced.matches ? .65 : landed ? .47+.1*Math.sin(flight.time*3+flight.phase):.3+.7*(.5+.5*Math.sin(flight.time*21));
     for (const w of wings) w.setAttribute('transform',`translate(20 0) scale(${spread.toFixed(3)} 1) translate(-20 0)`);
-    shadow.style.transform=`translate(${(4+altitude*3).toFixed(2)}px,${(4+altitude*3).toFixed(2)}px) scale(${(landed ? .7 : .9).toFixed(2)})`;
-    shadow.style.opacity=(landed ? .14 : .21).toFixed(2);
+    const shadowEase=1-Math.exp(-dt*5);
+    shadowHeight+=((landed?0:altitude)-shadowHeight)*shadowEase;
+    shadowRest+=((landed?1:0)-shadowRest)*shadowEase;
+    const projection=mothShadowPose(heading,spread,shadowHeight,shadowRest,Math.hypot(flight.vx,flight.vy));
+    // Projection stays down/right in world space; its footprint turns with the
+    // moth and narrows with its wings. Only transform and opacity animate.
+    shadow.style.transform=`translate(${projection.offset.toFixed(2)}px,${projection.offset.toFixed(2)}px) rotate(${projection.rotation.toFixed(3)}rad) scale(${projection.scaleX.toFixed(3)}, ${projection.scaleY.toFixed(3)})`;
+    shadow.style.opacity=projection.opacity.toFixed(3);
     element.dataset.mode=flight.mode;element.dataset.singerIndex=flight.center?String(flight.singer):'';
     element.dataset.flower=flight.target?.id||'';element.dataset.patch=flight.patchId??'';
     element.dataset.pendingSinger=flight.pending?String(flight.pending.patch.singer):'';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createButterflyFlight,retargetButterfly,stepButterfly} from '../butterfly.js';
+import {createButterflyFlight,retargetButterfly,stepButterfly,mothShadowPose} from '../butterfly.js';
 import {randomFrom} from '../faces.js';
 
 const bounds={width:48,height:48};
@@ -105,4 +105,16 @@ test('garden visits sometimes change their mind, while still landing regularly',
   const latest={...patch,id:3,singer:45};
   retargetButterfly(b,{...patch,id:2},r);retargetButterfly(b,latest,r);
   assert.equal(b.pending.patch.id,latest.id,'rapid song changes select the latest singer');
+});
+
+
+test('moth shadow turns with heading and changes footprint with wings, height and landing',()=>{
+  for(const heading of [-Math.PI,-1,0,.8,Math.PI])assert.equal(mothShadowPose(heading,.8,.5,0,1).rotation,heading);
+  const open=mothShadowPose(.8,1,.5,0,1),folded=mothShadowPose(.8,.3,.5,0,1);
+  assert.ok(open.scaleX>folded.scaleX,'folding wings narrows the shadow');
+  assert.equal(open.scaleY,folded.scaleY,'wing flutter does not bounce the shadow length');
+  const high=mothShadowPose(0,1,1,0,1),low=mothShadowPose(0,1,0,0,1);
+  assert.ok(high.offset>low.offset&&high.scaleX>low.scaleX&&high.opacity<low.opacity,'height changes projection and softness');
+  const resting=mothShadowPose(0,.5,0,1,0);
+  assert.ok(resting.scaleX<low.scaleX&&resting.opacity<low.opacity,'landing makes the shadow smaller and subtler');
 });
