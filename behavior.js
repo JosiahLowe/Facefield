@@ -333,9 +333,11 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     if(crying){
       paintCryingMouth(s);
       for(const [i,tear] of [...s.story.tears.children].entries()){
-        const t=reduced.matches?.35:((now-s.story.at)/3300+i*.43)%1;
+        const t=reduced.matches?.35:((now-s.story.at)/2400+i*.43)%1;
+        const shrink=smooth(Math.max(0,Math.min(1,(t-.5)/.5)));
+        const size=Math.min(1,t/.08)*(1-shrink);
         const eye=s.eyes[i];
-        tear.setAttribute('transform',`translate(${eye.x} ${eye.y+eye.r+1+t*18})`);
+        tear.setAttribute('transform',`translate(${eye.x} ${eye.y+eye.r+1+t*18}) scale(${size})`);
       }
     }else{
       m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);

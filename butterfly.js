@@ -156,7 +156,7 @@ export function createButterfly(world,grid,flowers) {
     <path class="moth-wing-shape" d="M20 14.5 L3.8 27 C1.2 29 1 30.8 3.6 31.4 C5.9 32 9 32.4 11.6 32.3 C15.8 32 18.1 23.3 20 17Z" fill="${PALETTE.moth.wing}"/>
     <circle class="moth-eyespot" cx="10.2" cy="27" r="2.1" fill="${PALETTE.moth.eyespot}"/>
   </g>`;
-  element.innerHTML=`<span class="butterfly-shadow"></span><svg class="moth-remnant" style="display:none" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M5 23 C3 18 10 16 16 18 C21 13 30 17 29 21 C37 22 35 29 29 30 C24 35 18 31 14 32 C7 33 3 29 5 23Z" fill="#B7463D"/></svg><svg class="butterfly-body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  element.innerHTML=`<span class="butterfly-shadow"></span><svg class="moth-remnant" style="display:none" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><g fill="#B7463D"><path transform="translate(20 25) scale(1.12) translate(-20 -25)" d="M5 23 C3 18 10 16 16 18 C21 13 30 17 29 21 C37 22 35 29 29 30 C24 35 18 31 14 32 C7 33 3 29 5 23Z"/><circle cx="3" cy="15" r="1.4"/><circle cx="36" cy="15" r="1.8"/><circle cx="37" cy="34" r="1.2"/><circle cx="8" cy="36" r=".9"/></g></svg><svg class="butterfly-body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
     ${wing('left')}<g transform="translate(40 0) scale(-1 1)">${wing('right')}</g>
     <path class="moth-antenna" d="M18.8 12.2 C17.8 8.8 14.8 6.1 11.9 7.8 M21.2 12.2 C22.2 8.8 25.2 6.1 28.1 7.8" fill="none" stroke="${PALETTE.moth.antenna}" stroke-width=".75" stroke-linecap="round"/>
     <path class="moth-abdomen" d="M20 15.5 C17.5 15.5 17 20.6 17.3 25 C17.6 29.3 19.1 33.2 20 33.2 C20.9 33.2 22.4 29.3 22.7 25 C23 20.6 22.5 15.5 20 15.5Z" fill="${PALETTE.moth.body}"/>

@@ -47,6 +47,7 @@ const assert=require('node:assert/strict');
       'large solid teardrops do not fade');
     assert.notEqual(await page.locator('[data-singer] [data-feature=mouth]').getAttribute('fill'),'none','crying mouth remains open even while muted');
     assert.equal(await page.locator('.moth-remnant').evaluate(e=>getComputedStyle(e).display),'block');
+    assert.equal(await page.locator('.moth-remnant circle').count(),4,'small splats surround the enlarged blob');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-story-expression'),'crying');
     assert.equal(await page.locator('[data-singer]').getAttribute('data-audio-scene'),'crying');
     const dead=await point(),wingDead=await page.locator('.butterfly-wing').evaluateAll(ws=>ws.map(w=>w.getAttribute('transform')));
@@ -75,7 +76,7 @@ const assert=require('node:assert/strict');
     const clear=await page.evaluate(()=>{
       const s=document.querySelector('[data-singer]'),b=document.querySelector('.butterfly');
       const frame=s.getBoundingClientRect(),x=+b.dataset.worldX-s.offsetLeft,y=+b.dataset.worldY-s.offsetTop;
-      const moth=[...b.querySelectorAll('.moth-wing-shape,.moth-head,.moth-abdomen,.moth-remnant path')].map(e=>e.getBoundingClientRect());
+      const moth=[...b.querySelectorAll('.moth-wing-shape,.moth-head,.moth-abdomen,.moth-remnant path,.moth-remnant circle')].map(e=>e.getBoundingClientRect());
       const features=[...s.querySelectorAll('circle:not([data-feature=cheek]),[data-feature=nose],[data-feature=mouth]')].map(e=>e.getBoundingClientRect());
       const overlaps=moth.some(a=>features.some(c=>a.left<c.right&&a.right>c.left&&a.top<c.bottom&&a.bottom>c.top));
       return {corner:x>frame.width*.8&&y>frame.height*.8,overlaps};
@@ -84,6 +85,14 @@ const assert=require('node:assert/strict');
     const tear=await page.locator('[data-singer] [data-feature=tears]').innerHTML();
     await page.clock.runFor(500);
     assert.notEqual(await page.locator('[data-singer] [data-feature=tears]').innerHTML(),tear,'tears move once visible');
+    const scales=[];
+    for(let i=0;i<26;i++){
+      await page.clock.runFor(100);
+      scales.push(await page.locator('[data-singer] [data-feature=tears] path').first().evaluate(t=>{
+        return +t.getAttribute('transform').match(/scale\(([^)]+)\)/)[1];
+      }));
+    }
+    assert.ok(Math.min(...scales)<.025&&Math.max(...scales)>.95,'opaque tears shrink away and renew within 2.6 seconds');
     await page.screenshot({path:'/tmp/facefield-moth-story.png'});
     await page.emulateMedia({reducedMotion:'reduce'});await page.clock.runFor(600);
     const staticFace=await page.locator('[data-singer]').innerHTML();await page.clock.runFor(500);
