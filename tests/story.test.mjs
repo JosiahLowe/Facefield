@@ -1,90 +1,42 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createStorySequence, STORY_TIMING, inDiscoveryArea, outsideViewport } from '../story.js';
-import { stepStoryFlight } from '../butterfly.js';
-const step=(s,dt,input={})=>s.step(dt,{offscreen:true,...input});
-
-test('short event timings reach crying promptly and a pursued scene can redirect without unlocking',()=>{
-  const s=createStorySequence();s.start();step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);
-  assert.equal(s.state,'scream');assert.equal(s.redirect(),true);assert.equal(s.state,'traveling');
-  assert.equal(s.start(),false,'redirect keeps the event locked');
-  step(s,.2);assert.equal(s.state,'traveling','redirect still requires actual arrival');
-  step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);step(s,STORY_TIMING.scream);step(s,STORY_TIMING.death);
-  assert.equal(s.state,'crying');assert.equal(s.redirect(),false,'completed scene remains fixed');
-  assert.ok(.7+STORY_TIMING.introduction+STORY_TIMING.scream+STORY_TIMING.death<3,'normal travel and narrative complete within three seconds');
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createStorySequence,STORY_TIMING,inDiscoveryArea,outsideViewport} from '../story.js';
+const ready={voices:3,arrived:true,investigated:true,offscreen:true,playing:true};
+function active(s){s.start();s.step(0,{voices:3});assert.equal(s.state,'chorus_active');}
+test('chorus starts gradually; time alone, arrival alone and scrolling alone never kill the moth',()=>{
+ const s=createStorySequence();s.start();assert.equal(s.start(),false);
+ s.step(10000,{...ready,voices:2});assert.equal(s.state,'chorus_starting');
+ s.step(0,{voices:3});
+ for(const missing of ['arrived','investigated','offscreen','playing']){s.step(10000,{...ready,[missing]:false});assert.equal(s.state,'chorus_active');assert.equal(s.offscreenTime,0);}
 });
-
-test('death is gated by fresh offscreen geometry, even after the introduction or scream',()=>{
-  const s=createStorySequence();s.start();s.step(0,{arrived:true});
-  s.step(100,{offscreen:false});assert.equal(s.state,'singing');
-  s.step(0,{offscreen:true});assert.equal(s.state,'scream');
-  s.step(STORY_TIMING.scream,{offscreen:false});assert.equal(s.state,'singing','arrival on the last scream frame cancels death');
-  for(let i=0;i<500;i++)s.step(.016,{offscreen:i%2===0});
-  assert.notEqual(s.state,'death','rapid visibility changes cannot kill the moth');
-  s.step(STORY_TIMING.introduction,{offscreen:true});assert.equal(s.state,'scream');
-  s.step(STORY_TIMING.scream,{offscreen:true});assert.equal(s.state,'death');
+test('two continuous offscreen seconds plus brief chorus tail precede a single scream',()=>{
+ const history=[],s=createStorySequence(state=>history.push(state));active(s);
+ s.step(1.9,ready);assert.equal(s.state,'chorus_active');
+ s.step(.1,{...ready,offscreen:false});assert.equal(s.offscreenTime,0);
+ s.step(1.9,ready);assert.equal(s.state,'chorus_active');s.step(.11,ready);assert.equal(s.state,'death_pending');
+ s.step(STORY_TIMING.chorusTail-.01,ready);assert.equal(s.state,'death_pending');s.step(.02,ready);assert.equal(s.state,'scream');
+ s.step(STORY_TIMING.scream,{offscreen:false});assert.equal(s.state,'scream','returning during scream prevents onscreen death');
+ s.step(1.9,{offscreen:true});assert.equal(s.state,'scream');s.step(.11,{offscreen:true});assert.equal(s.state,'death');
+ s.step(STORY_TIMING.death);assert.equal(s.state,'crying');s.step(1000);assert.equal(s.state,'crying');
+ s.step(0,{discovered:true});assert.equal(s.state,'discovered');assert.equal(s.resume(),true);
+ assert.equal(history.filter(s=>s==='scream').length,1);assert.equal(s.state,'idle');
 });
-
-test('viewport guard counts partial visibility, zoom offsets and a safety margin',()=>{
-  const view={left:100,top:50,right:490,bottom:894};
-  assert.equal(outsideViewport({left:480,top:100,right:600,bottom:220},view),false);
-  assert.equal(outsideViewport({left:500,top:100,right:620,bottom:220},view,64),false);
-  assert.equal(outsideViewport({left:560,top:100,right:680,bottom:220},view,64),true);
-  assert.equal(outsideViewport({left:100,top:-100,right:220,bottom:49},view),true);
+test('watching, muting or focus loss cancels pending death and resets continuous offscreen time',()=>{
+ for(const pause of [false,true]){
+  const s=createStorySequence();active(s);s.step(2.01,ready);assert.equal(s.state,'death_pending');
+  if(pause)s.pause();else s.step(.1,{...ready,playing:false});
+  assert.equal(s.state,'chorus_active');assert.equal(s.offscreenTime,0);
+  s.step(.1,ready);assert.equal(s.state,'chorus_active');
+ }
 });
-
-test('stage 1: repeated presses cannot interrupt; introduction waits for actual arrival',()=>{
-  const history=[],s=createStorySequence(state=>history.push(state));
-  assert.equal(s.start(),true);
-  for(let i=0;i<100;i++){step(s,1);assert.equal(s.start(),false);}
-  assert.equal(s.state,'traveling','offscreen journeys have no timeout');
-  step(s,.05,{arrived:true});assert.equal(s.state,'singing');
-  step(s,STORY_TIMING.introduction-.1);assert.equal(s.state,'singing');
-  step(s,.11);assert.equal(s.state,'scream');
-  assert.deepEqual(history,['traveling','singing','scream']);
+test('world viewport guards include face/moth bounds, zoom offsets and safety margins',()=>{
+ const view={left:100,top:50,right:490,bottom:894};
+ assert.equal(outsideViewport({left:480,top:100,right:600,bottom:220},view),false);
+ assert.equal(outsideViewport({left:500,top:100,right:620,bottom:220},view,96),false);
+ assert.equal(outsideViewport({left:600,top:100,right:720,bottom:220},view,96),true);
 });
-
-test('stage 1: direct world flight is continuous, bounded and reaches a distant singer',()=>{
-  const state={x:.4,y:.4},goal={x:47,y:47};let arrived=false;
-  for(let i=0;i<1000&&!arrived;i++){
-    const before={...state};arrived=stepStoryFlight(state,.05,goal);
-    assert.ok(Math.hypot(state.x-before.x,state.y-before.y)<=.400001);
-    assert.ok(state.x<=goal.x&&state.y<=goal.y);
-  }
-  assert.equal(arrived,true);assert.equal(state.x,goal.x);assert.equal(state.y,goal.y);
-});
-
-test('stage 2: scream, silent fall and crying occur in order without skipping stages',()=>{
-  const events=[],s=createStorySequence(state=>events.push(state));s.start();
-  step(s,0,{arrived:true});step(s,STORY_TIMING.introduction);
-  assert.equal(s.state,'scream');step(s,STORY_TIMING.scream-.01);assert.equal(s.state,'scream');
-  step(s,.02);assert.equal(s.state,'death');step(s,STORY_TIMING.death);assert.equal(s.state,'crying');
-  step(s,3600);assert.equal(s.state,'crying','scene remains until discovery');
-  assert.deepEqual(events,['traveling','singing','scream','death','crying']);
-});
-
-test('stage 3: only discovery unlocks resolution; the complete event can run again',()=>{
-  const s=createStorySequence();
-  for(let cycle=0;cycle<12;cycle++){
-    assert.equal(s.state,'idle');assert.equal(s.start(),true);
-    assert.equal(s.resume(),false);
-    step(s,0,{arrived:true,discovered:true});step(s,STORY_TIMING.introduction);
-    step(s,STORY_TIMING.scream);step(s,STORY_TIMING.death);
-    assert.equal(s.state,'crying');assert.equal(s.resume(),false);
-    step(s,1,{discovered:true});assert.equal(s.state,'discovered');
-    step(s,100);assert.equal(s.state,'discovered');assert.equal(s.start(),false);
-    assert.equal(s.resume(),true);
-  }
-});
-
-test('stage 3: discovery uses world coordinates and the existing close-listening radius',()=>{
-  const view={x:2400,y:1800,width:390,height:844},center={x:2595,y:2222};
-  assert.equal(inDiscoveryArea(center,view),true);
-  assert.equal(inDiscoveryArea({...center,x:center.x+100},view),true);
-  assert.equal(inDiscoveryArea({...center,x:center.x+130},view),false);
-  assert.equal(inDiscoveryArea(center,{...view,x:0,y:0}),false);
-  const extent={width:5000,height:5000};
-  assert.equal(inDiscoveryArea({x:50,y:50},{x:0,y:0,width:390,height:844},extent),true,'corner singers remain reachable');
-  assert.equal(inDiscoveryArea({x:4950,y:4950},{x:4610,y:4156,width:390,height:844},extent),true);
-  assert.equal(inDiscoveryArea({x:50,y:50},view,extent),false,'a distant edge scene stays undiscovered');
+test('discovery retains the existing central area and reachable world-edge behavior',()=>{
+ const view={x:2400,y:1800,width:390,height:844},center={x:2595,y:2222};
+ assert.equal(inDiscoveryArea(center,view),true);assert.equal(inDiscoveryArea({...center,x:center.x+130},view),false);
+ assert.equal(inDiscoveryArea(center,{...view,x:0,y:0}),false);
+ assert.equal(inDiscoveryArea({x:50,y:50},{x:0,y:0,width:390,height:844},{width:5000,height:5000}),true);
 });

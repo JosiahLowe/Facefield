@@ -180,7 +180,7 @@ export function createFlowerField(seed, layout) {
     if (!bins.has(key)) bins.set(key, []);
     bins.get(key).push(f);
   }
-  let active = null, retiring = [], remnants = [], serial = 0;
+  let active = null, companions = [], retiring = [], remnants = [], serial = 0;
   function near(view) {
     const result = [];
     for (let y=Math.floor(view.top/4);y<=Math.floor(view.bottom/4);y++) {
@@ -203,12 +203,29 @@ export function createFlowerField(seed, layout) {
       settle(patch); return false;
     });
   }
+  function makePatch(index,now){
+    const cell = layout[index];
+    if (!cell) return null;
+    const center = { x: cell.column-1+cell.width/2, y: cell.row-1+cell.height/2 };
+    const style = singerStyle(seed,index), flowers = new Map();
+    for (const site of sites) {
+      const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
+      const density = singerDensity(site.x,site.y,center,style.color);
+      if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38, appearance: flowerAppearance(seed,site.id),
+        distance: Math.hypot(site.x-center.x,site.y-center.y), remnant: false });
+    }
+    // Prevent multiple old visits to one singer from accumulating decoration.
+    retiring = retiring.filter(patch => patch.singer !== index);
+    remnants = remnants.filter(f => f.singer !== index);
+    return { id: ++serial, singer: index, center, style, flowers, born: now, retired: null };
+  }
   return {
     sites,
     get active() { return active; },
     get retiring() { return retiring; },
+    get companions() { return companions; },
     get remnants() { return remnants; },
-    clear() { active=null;retiring=[];remnants=[]; },
+    clear() { active=null;companions=[];retiring=[];remnants=[]; },
     changeSinger(index, now) {
       if (active?.singer === index) return;
       prune(now);
@@ -221,20 +238,16 @@ export function createFlowerField(seed, layout) {
         retiring.push(active);
         if (retiring.length > FLOWER_LIMITS.retiring) settle(retiring.shift());
       }
-      const cell = layout[index];
-      if (!cell) { active = null; return; }
-      const center = { x: cell.column-1+cell.width/2, y: cell.row-1+cell.height/2 };
-      const style = singerStyle(seed,index), flowers = new Map();
-      for (const site of sites) {
-        const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
-        const density = singerDensity(site.x,site.y,center,style.color);
-        if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38, appearance: flowerAppearance(seed,site.id),
-          distance: Math.hypot(site.x-center.x,site.y-center.y), remnant: false });
-      }
-      // Prevent multiple old visits to one singer from accumulating decoration.
-      retiring = retiring.filter(patch => patch.singer !== index);
-      remnants = remnants.filter(f => f.singer !== index);
-      active = { id: ++serial, singer: index, center, style, flowers, born: now, retired: null };
+      for(const patch of companions){patch.retired=now;for(const f of patch.flowers.values())f.retiredAt=now;retiring.push(patch);}
+      companions=[];
+      while(retiring.length>FLOWER_LIMITS.retiring)settle(retiring.shift());
+      active=makePatch(index,now);
+    },
+    addSinger(index,now){
+      if(active?.singer===index)return active;
+      const existing=companions.find(p=>p.singer===index);if(existing)return existing;
+      if(!active||companions.length>=2)return null;
+      const patch=makePatch(index,now);if(patch)companions.push(patch);return patch;
     },
     visible(view, now) {
       prune(now);
@@ -244,9 +257,9 @@ export function createFlowerField(seed, layout) {
         if (life.opacity > .015) result.push({ f, patch, key, style, life });
       };
       // Current cues have priority under the DOM budget.
-      if (active) for (const site of local) {
-        const f = active.flowers.get(site.id);
-        if (f) append(f,active,`${active.id}:${f.id}`,active.style);
+      for(const patch of [active,...companions].filter(Boolean))for(const site of local){
+        const f=patch.flowers.get(site.id);
+        if(f)append(f,patch,`${patch.id}:${f.id}`,patch.style);
       }
       for (const f of remnants) {
         if (f.x>=view.left && f.x<=view.right && f.y>=view.top && f.y<=view.bottom) {
@@ -305,7 +318,7 @@ export function createFlowers(world, grid) {
     return value;
   }
   function patchFor(id) {
-    return field?.active?.id===id?field.active:field?.retiring.find(p=>p.id===id);
+    return field?.active?.id===id?field.active:field?.companions.find(p=>p.id===id)||field?.retiring.find(p=>p.id===id);
   }
   function setOccupant(id,patchId=field?.active?.id) {
     id=reduced.matches?null:id;
@@ -363,7 +376,7 @@ export function createFlowers(world, grid) {
     for (const item of visible) {
       const {f,patch} = item, node = nodes.get(item.key);
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
-      const response = life.responsive && patch === field.active ? music/(1+(f.distance/4)**2) : 0;
+      const response = life.responsive && (patch === field.active||field.companions.includes(patch)) ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
       const pose = flowerPose(f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
       const motion = pose.motion;
@@ -410,6 +423,7 @@ export function createFlowers(world, grid) {
     reset(seed,layout) { field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
     clear() { field?.clear();nodes.clear();loads.clear();occupant=null;layer.replaceChildren();visible=[];music=0;dirty=true; },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
+    addSinger(tile){field?.addSinger(Number(tile.dataset.index),performance.now()/1000);dirty=true;update(performance.now(),true);},
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
     update,
     setOccupant,

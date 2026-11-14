@@ -217,3 +217,16 @@ test('seeded flower postures follow 40/30/30 distribution and retain their bow w
     if(kind==='right')assert.ok(wilted.x>f.x,'right bows wilt toward their resting side');
   }
 });
+
+test('chorus adds two active gardens without retargeting the primary garden',()=>{
+  const field=createFlowerField(seed,layout);field.changeSinger(500,0);const primary=field.active;
+  const second=field.addSinger(10,4),third=field.addSinger(1100,8);
+  assert.equal(field.active,primary);assert.equal(field.companions.length,2);
+  assert.equal(field.addSinger(10,10),second);assert.equal(field.addSinger(900,10),null);
+  for(const patch of [primary,second,third]){
+    assert.ok(patch.flowers.size>0);assert.ok(field.visible({left:patch.center.x-2,top:patch.center.y-2,right:patch.center.x+2,bottom:patch.center.y+2},15).some(v=>v.patch===patch));
+  }
+  field.changeSinger(750,20);assert.equal(field.companions.length,0);
+  assert.ok(field.retiring.includes(second)&&field.retiring.includes(third));
+  field.clear();assert.equal(field.companions.length,0);
+});

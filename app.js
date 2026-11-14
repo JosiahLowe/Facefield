@@ -1,12 +1,12 @@
-import { createButterfly } from './butterfly.js?v=mourning-gaze-tears-25';
-import { createSinger } from './singing.js?v=mourning-gaze-tears-25';
-import { createFlowers } from './flowers.js?v=mourning-gaze-tears-25';
+import { createButterfly } from './butterfly.js?v=chorus-26';
+import { createSinger } from './singing.js?v=chorus-26';
+import { createFlowers } from './flowers.js?v=chorus-26';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
-import { createMothStory } from './story.js?v=mourning-gaze-tears-25';
+import { createMothStory } from './story.js?v=chorus-26';
 applyPalette();
-import { renderFace } from './faces.js?v=mourning-gaze-tears-25';
-import { animateFaces } from './behavior.js?v=mourning-gaze-tears-25';
+import { renderFace } from './faces.js?v=chorus-26';
+import { animateFaces } from './behavior.js?v=chorus-26';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
@@ -22,7 +22,7 @@ const butterfly = createButterfly(world, grid, flowers);
 const animation = animateFaces(grid, now => { flowers.update(now); butterfly.update(now); }, butterfly.position);
 const status = document.querySelector('#status');
 const singer = createSinger({ button: document.querySelector('#enable-sound'), status, animation, world,
-  onSingerChange: tile => { flowers.changeSinger(tile); butterfly.followSinger(flowers.patch()); }, onMusic: flowers.music });
+  onSingerChange: tile => { flowers.changeSinger(tile); butterfly.followSinger(flowers.patch()); }, onMusic: flowers.music, onChorusJoin:tile=>flowers.addSinger(tile) });
 const story = createMothStory({ button: document.querySelector('#kill-moth'), singer, butterfly, flowers, animation, world, candidates: offscreenCandidates });
 const freshSeed = () => Array.from(crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('-');
 const url = new URL(location.href);

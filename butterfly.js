@@ -137,16 +137,6 @@ export function mothShadowPose(heading,spread,height,rest,speed) {
     opacity:(.22-.07*height-.06*rest)*(.8+.2*spread)};
 }
 
-// Special story flight is deliberately direct. Normal wandering is unchanged.
-export function stepStoryFlight(state, dt, goal, speed = 8) {
-  const dx=goal.x-state.x,dy=goal.y-state.y,d=Math.hypot(dx,dy);
-  const travel=Math.min(d,Math.max(0,dt)*speed);
-  state.vx=d ? dx/d*speed : 0;state.vy=d ? dy/d*speed : 0;
-  if(d){state.x+=dx/d*travel;state.y+=dy/d*travel;}
-  if(d<=travel){state.x=goal.x;state.y=goal.y;state.vx=0;state.vy=0;return true;}
-  return false;
-}
-
 export function createButterfly(world,grid,flowers) {
   const element=document.createElement('div');
   element.className='butterfly';element.setAttribute('aria-hidden','true');
@@ -215,21 +205,25 @@ export function createButterfly(world,grid,flowers) {
   }
   reduced.addEventListener('change',()=>{last=0;if(reduced.matches){flowers.setOccupant(null);occupied=null;}draw(0);});
   document.addEventListener('visibilitychange',()=>{last=0;});
+  function updateFlight(now){
+    if(story?.paused||story&&story.phase!=='living'||!flight||document.hidden||reduced.matches&&story?.phase!=='living')return;
+    const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
+    if(now>=nextPatch){retargetButterfly(flight,flowers.patch(now));nextPatch=now+450;}
+    stepButterfly(flight,dt,{width:48,height:grid.clientHeight/(grid.clientWidth/48)},(id,patchId)=>flowers.flowerHead(id,now,patchId));
+    if(story?.phase==='living'&&flight.singer===story.singer&&!flight.pending&&!flight.migrating)story.arrived=true;
+    occupancy();draw(dt);
+  }
   return {
     followSinger,
-    beginStory(tile) {
-      const patch=flowers.patch();
-      if(!flight||!patch)return;
-      adoptPatch(flight,patch);flowers.setOccupant(null);occupied=null;
+    beginChorus(tile){
+      const patch=flowers.patch();if(!flight||!patch)return;
       const unit=grid.clientWidth/48;
-      const rest={x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12};
-      story={goal:{x:patch.center.x,y:patch.center.y-.32},rest,arrived:false,phase:'travel'};
-      // Bound travel to 0.7 seconds across this world, keeping continuous
-      // world-space flight while making the departure an unmistakable dart.
-      story.speed=Math.max(32,distance(flight,story.goal)/.7);
-      flight.target=null;flight.mode='story-travel';storyLast=null;draw(0);
+      story={phase:'living',singer:patch.singer,arrived:false,
+        rest:{x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12}};
     },
     storyArrived:()=>!!story?.arrived,
+    bounds:()=>element.getBoundingClientRect(),
+    pauseChorus(value){if(story)story.paused=value;last=0;},
     fall({immediate=false}={}){
       if(!story)return;
       story.phase='death';story.fallAt=null;story.from={x:flight.x,y:flight.y};
@@ -248,6 +242,7 @@ export function createButterfly(world,grid,flowers) {
     },
     updateStory(now) {
       if(!story||!flight)return;
+      if(story.phase==='living'){if(reduced.matches)updateFlight(now);return;}
       const dt=storyLast===null?0:Math.min(.1,(now-storyLast)/1000);storyLast=now;
       flight.time+=dt;
       if(story.phase==='dead'){
@@ -262,25 +257,11 @@ export function createButterfly(world,grid,flowers) {
         flight.y=story.from.y+(story.rest.y-story.from.y)*ease;
         flight.vx=0;flight.vy=0;flight.mode='dead';
         if(t===1){story.phase='dead';heading=1.05;lift=0;shadowHeight=0;shadowRest=1;}
-      }else{
-        if(!story.arrived)story.arrived=stepStoryFlight(flight,dt,story.goal,story.speed);
-        else{
-          const hover={x:story.goal.x+Math.sin(flight.time*1.8)*.20,
-            y:story.goal.y+Math.sin(flight.time*2.4+flight.phase)*.10};
-          if(!reduced.matches)stepStoryFlight(flight,dt,hover,.5);
-        }
-        flight.mode=story.arrived?'story-hover':'story-travel';
       }
       draw(dt);
     },
     place(){draw(0);},
     position:()=>position,
-    update(now) {
-      if (story||!flight||document.hidden||reduced.matches) return;
-      const dt=last?Math.min(.05,(now-last)/1000):0;last=now;
-      if (now>=nextPatch) {retargetButterfly(flight,flowers.patch(now));nextPatch=now+450;}
-      stepButterfly(flight,dt,{width:48,height:grid.clientHeight/(grid.clientWidth/48)},(id,patchId)=>flowers.flowerHead(id,now,patchId));
-      occupancy();draw(dt);
-    },
+    update:updateFlight,
   };
 }

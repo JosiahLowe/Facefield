@@ -1,3 +1,6 @@
+import {playVocalNote as playNote, vocalWave, createVocalSpace} from './vocal.js?v=chorus-26';
+import {chorusEntrances, synchronizedParts, melodyPosition} from './chorus.js?v=chorus-26';
+export {playNote};
 // 92 BPM: quarter/eighth-note arpeggios, breaths and sustained phrase endings.
 export const QUARTER = .65;
 export const SONG_PATTERNS = [
@@ -68,27 +71,6 @@ export function horizontalPan(offset, viewportWidth) {
   return .65 * Math.tanh(offset / Math.max(1, viewportWidth * .65));
 }
 export const frequencyFor = midi => 440 * 2 ** ((midi - 69) / 12);
-export function playNote(context, output, midi, start, duration, wave = null) {
-  const oscillator = context.createOscillator(), gain = context.createGain();
-  const end = start + duration;
-  if (wave) oscillator.setPeriodicWave(wave); else oscillator.type = 'sine';
-  oscillator.frequency.setValueAtTime(frequencyFor(midi), start);
-  const vibrato = context.createOscillator(), vibratoGain = context.createGain();
-  vibrato.frequency.value = VIBRATO.rate;
-  vibratoGain.gain.setValueAtTime(0, start);
-  vibratoGain.gain.linearRampToValueAtTime(VIBRATO.depth, start + Math.min(.18, duration * .4));
-  vibrato.connect(vibratoGain); vibratoGain.connect(oscillator.detune);
-  gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(.25, start + Math.min(.025, duration / 4));
-  gain.gain.linearRampToValueAtTime(.18, end - Math.min(.12, duration / 3));
-  gain.gain.exponentialRampToValueAtTime(.001, end - .015);
-  gain.gain.linearRampToValueAtTime(0, end);
-  oscillator.connect(gain); gain.connect(output);
-  oscillator.start(start); oscillator.stop(end);
-  vibrato.start(start); vibrato.stop(end);
-  return { oscillator, gain, vibrato, vibratoGain, start, end };
-}
-
 // Quiet synthetic vocal gestures, routed through the song's existing spatial
 // master. No samples, extra AudioContext, or full-volume connection to speakers.
 export const SOB_PULSES=[[0,.29,240,350,170,.20],[.39,.27,210,310,155,.16],[.78,.45,230,290,140,.18]];
@@ -139,7 +121,7 @@ export function playStorySound(context, output, kind, start, softened = false) {
   }};
 }
 
-export function createSinger({ button, status, animation, world, onSingerChange = () => {}, onMusic = () => {} }) {
+export function createSinger({ button, status, animation, world, onSingerChange = () => {}, onMusic = () => {}, onChorusJoin = () => {} }) {
   let context, output, panner, wave, target = null, enabled = false, pending = false;
   let timer = 0, frame = 0, nextTime = 0, cursor = 0, generation = 0;
   const notes = [], voices = new Set();
@@ -147,7 +129,9 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   const phraseEnds = [];
   let song = { root: 60, progressionIndex: 0, chordName: 'I', chordRoot: 60, pattern: 0, octave: 0, voice: {sine:.92,triangle:.055,square:.025}, melody: MELODY }, hasSinger = false;
   let lastVolume = null, lastPan = null;
-  let scene='song',nextEffect=0;
+  let scene='song',nextEffect=0,space=null,chorus=null,origin=0;
+  let eventActive=false,resumeOnFocus=false,screamPlayed=false;
+  let lanes=[];
   const effects=new Set();
   function stopEffects(){
     for(const effect of effects)effect.stop();effects.clear();
@@ -161,7 +145,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
         if(gain.cancelAndHoldAtTime)gain.cancelAndHoldAtTime(now);
         else{gain.cancelScheduledValues(now);gain.setValueAtTime(gain.value,now);}
         gain.linearRampToValueAtTime(0,now+.025);
-        try{voice.oscillator.stop(now+.035);voice.vibrato.stop(now+.035);}catch{/* already ended */}
+        try{voice.stop(now+.035);}catch{/* already ended */}
       }
     }
     notes.length=0;phraseEnds.length=0;handoff=null;onMusic(0);
@@ -169,16 +153,19 @@ export function createSinger({ button, status, animation, world, onSingerChange 
   }
   function setScene(next){
     if(next===scene)return;
-    silenceMelody();stopEffects();scene=next;
+    if(next!=='song')endChorus();
+    space?.singing(next==='song');
+    silenceMelody();stopEffects();scene=next;if(next==='scream')screamPlayed=false;
     if(target)target.dataset.audioScene=scene;
     nextEffect=(context?.currentTime||0)+.05;
     cursor=0;nextTime=nextEffect;
   }
   function scheduleEffects(now){
     for(const effect of effects)if(effect.end<=now)effects.delete(effect);
-    if(!['scream','crying','discovered'].includes(scene)||now<nextEffect)return;
+    if(!['scream','crying','discovered'].includes(scene)||now<nextEffect||scene==='scream'&&screamPlayed)return;
     const start=now+.01;
     effects.add(playStorySound(context,output,scene==='scream'?'scream':'sob',start,scene==='discovered'));
+    if(scene==='scream')screamPlayed=true;
     nextEffect=scene==='scream'?Infinity:start+2.8+Math.random()*2;
   }
   function updateVolume() {
@@ -205,12 +192,53 @@ export function createSinger({ button, status, animation, world, onSingerChange 
       lastVolume = volume;
     }
   }
+  function updateLane(lane){
+    if(!lane.output||!enabled||context.state!=='running')return;
+    const face=lane.tile.getBoundingClientRect(),bounds=world.getBoundingClientRect(),view=window.visualViewport;
+    const left=Math.max(bounds.left,view?.offsetLeft||0),top=Math.max(bounds.top,view?.offsetTop||0);
+    const width=Math.max(1,Math.min(bounds.right,(view?.offsetLeft||0)+(view?.width||innerWidth))-left);
+    const height=Math.max(1,Math.min(bounds.bottom,(view?.offsetTop||0)+(view?.height||innerHeight))-top);
+    const dx=face.left+face.width/2-left-width/2,dy=face.top+face.height/2-top-height/2;
+    const volume=distanceVolume(Math.hypot(dx,dy),Math.hypot(width,height)),pan=horizontalPan(dx,width);
+    if(lane.volume!==volume){lane.output.gain.setTargetAtTime(volume,context.currentTime,.18);lane.volume=volume;}
+    if(lane.pan!==pan){lane.panner.pan.setTargetAtTime(pan,context.currentTime,.18);lane.pan=pan;}
+  }
+  function attachLanes(){
+    if(!context||!chorus)return;
+    lanes[0].output=output;lanes[0].panner=panner;
+    for(const lane of lanes.slice(1))if(!lane.output){
+      lane.output=context.createGain();lane.output.gain.value=0;lane.panner=context.createStereoPanner();
+      lane.output.connect(lane.panner);space.connect(lane.panner);updateLane(lane);
+    }
+    space.chorus(true);
+  }
+  function endChorus(){
+    if(!chorus)return;
+    for(const lane of lanes){
+      animation.setSingingMouth(lane.tile,null);delete lane.tile.dataset.chorusVoice;delete lane.tile.dataset.chorusJoined;
+      if(lane.output&&lane.output!==output){const old=lane;setTimeout(()=>{old.output.disconnect();old.panner.disconnect();},80);}
+    }
+    lanes=[];chorus=null;space?.chorus(false);
+  }
+  function startChorus(tiles){
+    endChorus();eventActive=true;
+    const joins=chorusEntrances(song.melody);
+    chorus={joins,elapsed:0,playing:enabled};
+    lanes=[{tile:target,output,panner,joined:true,offset:0},...tiles.map((tile,i)=>({tile,joined:false,offset:i===0?12:-12}))];
+    target.dataset.chorusVoice='0';target.dataset.chorusJoined='true';
+    if(enabled){silenceMelody();cursor=0;origin=context.currentTime+.12;nextTime=origin;attachLanes();}
+    return joins;
+  }
+  function chorusStatus(){
+    const elapsed=chorus?(enabled?Math.max(0,context.currentTime-origin):chorus.elapsed):0;
+    return {elapsed,playing:!!chorus&&enabled&&context?.state==='running',joined:lanes.filter(l=>l.joined).map(l=>l.tile)};
+  }
   function updateVoice() {
     if (!context) return;
-    const {real,imag} = voiceHarmonics(song.voice);
-    wave = context.createPeriodicWave(real,imag,{disableNormalization:true});
+    wave = vocalWave(context,0);
   }
   function setFace(tile) {
+    endChorus();
     handoff = null;
     phraseEnds.length = 0;
     if (target && tile) previousSinger = target;
@@ -242,9 +270,9 @@ export function createSinger({ button, status, animation, world, onSingerChange 
               envelope.cancelScheduledValues(now); envelope.setValueAtTime(level, now);
             }
             envelope.linearRampToValueAtTime(0, now + .08);
-            voice.oscillator.stop(now + .09); voice.vibrato.stop(now + .09);
+            voice.stop(now+.09);
           }
-          notes.length = 0; cursor = 0; nextTime = now + .12;
+          notes.length = 0; cursor = 0; nextTime = now + .12;origin=nextTime;
         }
       }
       hasSinger = true;
@@ -287,12 +315,17 @@ export function createSinger({ button, status, animation, world, onSingerChange 
         phraseEnds.push(nextTime);
         if (handoff && handoff.end === null) { handoff.end = nextTime; break; }
       }
-      if (note.midi !== null) {
-        const voice = playNote(context, output, note.midi, nextTime, note.duration * .94, wave);
-        voices.add(voice); notes.push(voice);
-        voice.oscillator.onended = () => {
-          voice.oscillator.disconnect(); voice.gain.disconnect(); voice.vibrato.disconnect(); voice.vibratoGain.disconnect(); voices.delete(voice);
-        };
+      if(note.midi!==null){
+        const elapsed=nextTime-origin;
+        const parts=chorus?synchronizedParts(note,elapsed,chorus.joins):[{lane:0,midi:note.midi,duration:note.duration}];
+        for(const part of parts){
+          const lane=chorus?lanes[part.lane]:{tile:target,output};
+          const start=Math.max(nextTime,context.currentTime+.005),end=nextTime+note.duration*.94;
+          if(end<=start)continue;
+          const voice=playNote(context,lane.output,part.midi,start,end-start,part.lane?vocalWave(context,part.lane):wave,part.lane);
+          voice.tile=lane.tile;voice.lane=part.lane;voices.add(voice);notes.push(voice);
+          voice.oscillator.onended=()=>{voice.dispose();voices.delete(voice);};
+        }
       }
       nextTime += note.duration;
       cursor = (cursor + 1) % song.melody.length;
@@ -304,20 +337,32 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     updateVolume();
     const now = context.currentTime;
     while (notes.length && notes[0].end < now - .2) notes.shift();
-    const note = notes.find(note => note.start <= now && note.end > now);
-    let opening = 0;
-    if (note) {
-      const attack = Math.min(1, (now - note.start) / .04);
-      const release = Math.min(1, (note.end - now) / .075);
-      opening = Math.max(0, Math.min(attack, release));
-    }
-    if (target && scene==='song') animation.setSingingMouth(target, opening);
+    const openingFor=tile=>{
+      const note=notes.find(note=>note.tile===tile&&note.start<=now&&note.end>now);
+      const opening=note?Math.max(0,Math.min(1,(now-note.start)/.045,(note.end-now)/.075)):0;
+      return {opening,note};
+    };
+    if(chorus&&scene==='song'){
+      const elapsed=Math.max(0,now-origin);
+      for(const [i,lane] of lanes.entries()){
+        if(!lane.joined&&elapsed>=chorus.joins[i]){
+          lane.joined=true;lane.tile.dataset.chorusVoice=String(i);lane.tile.dataset.chorusJoined='true';
+          onChorusJoin(lane.tile,i);
+        }
+        if(i)updateLane(lane);
+        if(lane.joined)animation.setSingingMouth(lane.tile,openingFor(lane.tile).opening);
+      }
+    }else if(target&&scene==='song')animation.setSingingMouth(target,openingFor(target).opening);
+    const {opening,note}=openingFor(target);
     if(target&&(scene==='crying'||scene==='discovered'))animation.setCryingMouth(target,
       context.state==='running'?sobOpening(effects,now):0);
     onMusic(context.state === 'running' && scene==='song' ? opening : 0, note ? note.end-note.start : 0);
     frame = requestAnimationFrame(mouthFrame);
   }
   function stop() {
+    if(chorus&&enabled)chorus.elapsed=Math.max(0,context.currentTime-origin);
+    space?.singing(false);
+    if(chorus)for(const lane of lanes)animation.setSingingMouth(lane.tile,null);
     generation++;
     handoff = null;
     phraseEnds.length = 0;
@@ -325,7 +370,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     clearInterval(timer); cancelAnimationFrame(frame);
     timer = 0; frame = 0;
     for (const voice of voices) {
-      try { voice.oscillator.stop(); voice.vibrato.stop(); } catch { /* already ended */ }
+      try { voice.stop(); } catch { /* already ended */ }
     }
     notes.length = 0;
     stopEffects();
@@ -335,7 +380,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     button.textContent = 'Enable Sound';
     button.setAttribute('aria-pressed', 'false');
   }
-  button.addEventListener('click', async () => {
+  async function toggleSound(){
     if (enabled) { stop(); status.textContent = 'Sound muted.'; return; }
     if (pending) return;
     pending = true; button.disabled = true;
@@ -348,7 +393,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
         context = new Audio();
         output = context.createGain(); output.gain.value = 0;
         panner = context.createStereoPanner();
-        output.connect(panner); panner.connect(context.destination);
+        space=createVocalSpace(context);output.connect(panner);space.connect(panner);
         context.addEventListener('statechange', () => {
           if (enabled && context.state !== 'running') stop();
         });
@@ -360,23 +405,35 @@ export function createSinger({ button, status, animation, world, onSingerChange 
         return;
       }
       if (context.state !== 'running') throw new Error('Audio is not running');
-      enabled = true; lastVolume = null; lastPan = null; updateVolume(); cursor = 0; nextTime = context.currentTime + .06;
+      enabled = true; lastVolume = null; lastPan = null; updateVolume();
+      space.flush();space.singing(scene==='song');
+      if(chorus){
+        const position=melodyPosition(song.melody,chorus.elapsed);cursor=position.cursor;
+        origin=context.currentTime+.06-chorus.elapsed;nextTime=origin+position.at;attachLanes();
+      }else{cursor=0;nextTime=context.currentTime+.06;origin=nextTime;}
       nextEffect=context.currentTime+.06;
       button.textContent = 'Mute Sound'; button.setAttribute('aria-pressed', 'true');
-      status.textContent = 'Sound enabled. One face is singing.';
+      status.textContent = scene==='song'?'Sound enabled.':'Sound enabled for the current scene.';
       schedule(); timer = setInterval(schedule, 25); mouthFrame();
     } catch {
       stop(); status.textContent = 'Sound could not start. Tap Enable Sound to try again.';
     } finally {
       pending = false; button.disabled = false;
     }
-  });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
-  window.addEventListener('pagehide', stop);
+  }
+  function pauseForFocus(){resumeOnFocus=resumeOnFocus||(eventActive&&enabled);stop();}
+  function restoreFocus(){if(!document.hidden&&resumeOnFocus){resumeOnFocus=false;toggleSound();}}
+  button.addEventListener('click',()=>{resumeOnFocus=false;toggleSound();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseForFocus();else restoreFocus();});
+  window.addEventListener('blur',()=>{if(eventActive)pauseForFocus();});
+  window.addEventListener('focus',restoreFocus);
+  window.addEventListener('pagehide',()=>{resumeOnFocus=false;stop();});
   return {
     setFace,
     setScene,
     advanceNow: changeFace,
+    startChorus,endChorus,chorusStatus,
+    setEventActive(value){eventActive=value;if(!value)resumeOnFocus=false;},
     advanceAfterPhrase(candidates) {
       if (handoff) return;
       if (!enabled) { changeFace(candidates()); return; }
