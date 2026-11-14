@@ -1,5 +1,5 @@
-import {playVocalNote as playNote, vocalWave, createVocalSpace} from './vocal.js?v=chorus-26';
-import {chorusEntrances, synchronizedParts, melodyPosition} from './chorus.js?v=chorus-26';
+import {playVocalNote as playNote, vocalWave, createVocalSpace} from './vocal.js?v=nearby-chorus-27';
+import {chorusEntrances, synchronizedParts, melodyPosition} from './chorus.js?v=nearby-chorus-27';
 export {playNote};
 // 92 BPM: quarter/eighth-note arpeggios, breaths and sustained phrase endings.
 export const QUARTER = .65;
@@ -62,10 +62,12 @@ export function chooseSinger(candidates, current, random = Math.random) {
   return alternatives.length ? alternatives[Math.floor(random() * alternatives.length)] : current;
 }
 // Existing master gain is .25 nearby, with an audible 8% floor in the distance.
-export function distanceVolume(distance, diagonal) {
+export function distanceVolume(distance, diagonal, floor = .08) {
   const normalized = Math.max(0, distance - diagonal * .12) / Math.max(1, diagonal * .6);
-  return .25 * (.08 + .92 / (1 + normalized * normalized));
+  return .25 * (floor + (1-floor) / (1 + normalized * normalized));
 }
+export const chorusVolume=(distance,diagonal)=>distanceVolume(distance,diagonal,.24);
+export const screamVolume=(distance,diagonal)=>distanceVolume(distance,diagonal,.72);
 // Soft saturation leaves sound in the opposite ear, even very far offscreen.
 export function horizontalPan(offset, viewportWidth) {
   return .65 * Math.tanh(offset / Math.max(1, viewportWidth * .65));
@@ -156,6 +158,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     if(next!=='song')endChorus();
     space?.singing(next==='song');
     silenceMelody();stopEffects();scene=next;if(next==='scream')screamPlayed=false;
+    if(next==='scream')updateVolume();
     if(target)target.dataset.audioScene=scene;
     nextEffect=(context?.currentTime||0)+.05;
     cursor=0;nextTime=nextEffect;
@@ -180,7 +183,8 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     const width = Math.max(1, right - left), height = Math.max(1, bottom - top);
     const distance = Math.hypot(face.left + face.width / 2 - left - width / 2,
       face.top + face.height / 2 - top - height / 2);
-    const volume = distanceVolume(distance, Math.hypot(width, height));
+    const volumeFor=scene==='scream'?screamVolume:chorus?chorusVolume:distanceVolume;
+    const volume = volumeFor(distance, Math.hypot(width, height));
     const pan = horizontalPan(face.left + face.width / 2 - left - width / 2, width);
     if (lastPan === null || Math.abs(pan - lastPan) > .00001) {
       panner.pan.setTargetAtTime(pan, context.currentTime, .18);
@@ -188,7 +192,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     }
     if (lastVolume === null || Math.abs(volume - lastVolume) > .00001) {
       // AudioParam smoothing is continuous, including rapid scroll reversals.
-      output.gain.setTargetAtTime(volume, context.currentTime, .18);
+      output.gain.setTargetAtTime(volume, context.currentTime, scene==='scream'?.025:.18);
       lastVolume = volume;
     }
   }
@@ -199,7 +203,7 @@ export function createSinger({ button, status, animation, world, onSingerChange 
     const width=Math.max(1,Math.min(bounds.right,(view?.offsetLeft||0)+(view?.width||innerWidth))-left);
     const height=Math.max(1,Math.min(bounds.bottom,(view?.offsetTop||0)+(view?.height||innerHeight))-top);
     const dx=face.left+face.width/2-left-width/2,dy=face.top+face.height/2-top-height/2;
-    const volume=distanceVolume(Math.hypot(dx,dy),Math.hypot(width,height)),pan=horizontalPan(dx,width);
+    const volume=chorusVolume(Math.hypot(dx,dy),Math.hypot(width,height)),pan=horizontalPan(dx,width);
     if(lane.volume!==volume){lane.output.gain.setTargetAtTime(volume,context.currentTime,.18);lane.volume=volume;}
     if(lane.pan!==pan){lane.panner.pan.setTargetAtTime(pan,context.currentTime,.18);lane.pan=pan;}
   }

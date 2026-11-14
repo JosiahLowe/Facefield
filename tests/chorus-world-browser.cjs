@@ -15,7 +15,9 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),audi
   await page.clock.runFor(11000);assert.equal(await page.locator('[data-chorus-voice]').count(),3);
   const singers=await page.locator('[data-chorus-voice]').evaluateAll(ts=>ts.map(t=>({index:t.dataset.index,voice:t.dataset.chorusVoice,x:t.offsetLeft+t.offsetWidth/2,y:t.offsetTop+t.offsetHeight/2})));
   assert.equal(new Set(singers.map(s=>s.index)).size,3);
-  for(let i=0;i<3;i++)for(let j=0;j<i;j++)assert.ok(Math.abs(singers[i].x-singers[j].x)>=390*1.6||Math.abs(singers[i].y-singers[j].y)>=844*1.6,'singers occupy distant world positions');
+  const original=singers.find(s=>s.index===initial.singer);
+  assert.ok(singers.every(s=>Math.hypot((s.x-original.x)/390,(s.y-original.y)/844)<=2.1),'chorus stays in the original singer’s neighborhood');
+  for(let i=0;i<3;i++)for(let j=0;j<i;j++)assert.ok(Math.abs(singers[i].x-singers[j].x)>=390*1.05||Math.abs(singers[i].y-singers[j].y)>=844*1.05,'singers occupy distinct neighboring world positions');
   for(const singer of singers.slice().sort((a,b)=>+b.voice-+a.voice)){
    await page.evaluate(p=>{const w=document.querySelector('#world');w.scrollTo(p.x-w.clientWidth/2,p.y-w.clientHeight/2);},singer);await page.clock.runFor(250);
    assert.ok(await page.locator('.flower').count()>0,'each singer has visible songflowers');

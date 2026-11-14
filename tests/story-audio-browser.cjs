@@ -12,8 +12,11 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),h=re
   const separation=await page.evaluate(()=>{
    const scream=audioRecords.find(n=>n.kind==='oscillator'&&n.frequency.value===560);
    const songs=audioRecords.filter(n=>n.kind==='oscillator'&&n.wave);
-   return {start:scream?.startAt,end:Math.max(...songs.map(n=>n.endAt)),wet:audioNodes.filter(n=>n.kind==='convolver'&&n.outputs.length).length};
+   const primary=audioNodes.find(n=>n.kind==='gain'&&n.outputs.some(o=>o.kind==='panner'));
+   return {start:scream?.startAt,end:Math.max(...songs.map(n=>n.endAt)),gain:primary.gain.value,
+     fastAttack:primary.gain.events.some(e=>e.v>=.18&&e.constant===.025),wet:audioNodes.filter(n=>n.kind==='convolver'&&n.outputs.length).length};
   });assert.ok(separation.start>0&&separation.end<=separation.start,'all three voices stop before the scream');
+  assert.ok(separation.gain>=.18&&separation.gain<=.25&&separation.fastAttack,'offscreen scream keeps a strong bounded level');
   await h.until(page,()=>document.querySelector('#world').dataset.mothStory==='crying',100,50);await page.clock.runFor(1400);
   assert.equal(await page.locator('[data-chorus-voice]').count(),0);
   assert.equal(await page.evaluate(()=>audioNodes.filter(n=>n.kind==='panner'&&n.outputs.length).length),1,'extra spatial channels cleaned up');

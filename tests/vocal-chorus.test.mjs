@@ -19,11 +19,12 @@ test('chorus joins near 4/8 seconds on real note boundaries and uses exact octav
   }
 });
 
-test('three singers can be selected with large pairwise world separation',async()=>{
+test('three singers can be selected with nearby distinct world locations',async()=>{
   const {selectChorusCompanions}=await import('../chorus.js');
   const faces=Array.from({length:100},(_,i)=>({x:(i%10)*600,y:Math.floor(i/10)*600}));
   for(const view of [{width:390,height:844},{width:1440,height:900}])for(let i=0;i<50;i++){
     const group=[faces[55],...selectChorusCompanions(faces,faces[55],view,()=>i/50)];assert.equal(group.length,3);
-    for(let a=0;a<3;a++)for(let b=0;b<a;b++)assert.ok(Math.abs(group[a].x-group[b].x)>=view.width*1.6||Math.abs(group[a].y-group[b].y)>=view.height*1.6);
+    for(const c of group.slice(1))assert.ok(Math.hypot((c.x-group[0].x)/view.width,(c.y-group[0].y)/view.height)<=2.1);
+    for(let a=0;a<3;a++)for(let b=0;b<a;b++)assert.ok(Math.abs(group[a].x-group[b].x)>=view.width*1.05||Math.abs(group[a].y-group[b].y)>=view.height*1.05);
   }
 });

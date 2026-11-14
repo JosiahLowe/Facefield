@@ -1,4 +1,4 @@
-import {selectChorusCompanions} from './chorus.js?v=chorus-26';
+import {selectChorusCompanions} from './chorus.js?v=nearby-chorus-27';
 
 export const STORY_TIMING={offscreen:2,chorusTail:.65,scream:.85,death:.2};
 export const STORY_STATES=['idle','chorus_starting','chorus_active','death_pending','scream','death','crying','discovered'];

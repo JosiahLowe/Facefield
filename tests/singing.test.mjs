@@ -2,6 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MELODY, frequencyFor, VIBRATO, chooseSinger, chooseSong } from '../singing.js';
 import { sobOpening, SOB_PULSES } from '../singing.js';
+import { distanceVolume,chorusVolume,screamVolume } from '../singing.js';
+
+test('chorus and scream keep stronger distant floors without increasing nearby peaks',()=>{
+  for(const diagonal of [500,930,1800]){
+    assert.equal(chorusVolume(0,diagonal),.25);assert.equal(screamVolume(0,diagonal),.25);
+    for(const d of [1,2,5,10,100]){
+      const ordinary=distanceVolume(d*diagonal,diagonal),chorus=chorusVolume(d*diagonal,diagonal),scream=screamVolume(d*diagonal,diagonal);
+      assert.ok(ordinary<chorus&&chorus<scream&&scream<=.25);
+      assert.ok(chorus>=.06&&scream>=.18);
+    }
+  }
+});
 
 test('crying mouth uses the three synthesized sob envelopes and rests in the gaps',()=>{
   const sob={kind:'sob',start:10},scream={kind:'scream',start:10};

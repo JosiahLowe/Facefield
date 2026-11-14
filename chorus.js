@@ -29,9 +29,13 @@ export function melodyPosition(melody,elapsed){
 // and viewport sizes without touching the camera or generating new faces.
 export function selectChorusCompanions(candidates,original,view,random=Math.random){
   const selected=[original],result=[];
+  const reach=c=>Math.hypot((c.x-original.x)/view.width,(c.y-original.y)/view.height);
   for(let i=0;i<2;i++){
-    const pool=candidates.filter(c=>!selected.includes(c)&&selected.every(other=>
-      Math.abs(c.x-other.x)>=view.width*1.6||Math.abs(c.y-other.y)>=view.height*1.6));
+    // Keep the chorus in the same neighborhood, just beyond a shared viewport,
+    // rather than choosing arbitrary far corners of the world.
+    const pool=candidates.filter(c=>reach(c)<=2.1&&!selected.includes(c)&&selected.every(other=>
+      Math.abs(c.x-other.x)>=view.width*1.05||Math.abs(c.y-other.y)>=view.height*1.05))
+      .sort((a,b)=>reach(a)-reach(b)).slice(0,8);
     if(!pool.length)return [];
     const next=pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];selected.push(next);result.push(next);
   }

@@ -4,7 +4,7 @@ module.exports=function installAudioSpy(){
   window.audioRecords=[];window.audioNodes=[];window.audioContexts=[];
   const param=value=>({value,events:[],setValueAtTime(v,t){this.value=v;this.events.push({v,t});},
     linearRampToValueAtTime(v,t){this.events.push({v,t});},exponentialRampToValueAtTime(v,t){this.events.push({v,t});},
-    setTargetAtTime(v,t){this.value=v;this.events.push({v,t});},cancelScheduledValues(){},cancelAndHoldAtTime(){}});
+    setTargetAtTime(v,t,constant){this.value=v;this.events.push({v,t,constant});},cancelScheduledValues(){},cancelAndHoldAtTime(){}});
   class Node{
     constructor(kind){this.kind=kind;this.outputs=[];window.audioNodes.push(this);}
     connect(n){if(!n)throw Error('missing audio destination');this.outputs.push(n);this.output=n;return n;}
