@@ -135,3 +135,8 @@ and coordinates are preserved. Extra flowers taper out within 3.8 world cells;
 farther vegetation and the render budget stay unchanged. Five sampled singer
 cores increased from 133 to 267 flowers in total. Validation: 63 unit tests pass.
 Browser/device visual validation remains unavailable.
+
+Bell flowers now hang from arched stems attached to the top of each bell. The
+attachment follows head tilt, lazy rotation and note-driven expansion; leaves
+follow the same curved stem. Together with the density update, 64 unit tests pass.
+Browser/device visual validation remains unavailable.

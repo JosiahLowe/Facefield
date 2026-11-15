@@ -1,4 +1,4 @@
-import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix} from './individual-flowers.js?v=rooted-sticker-shadows-15';
+import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix,bellStemGeometry} from './individual-flowers.js?v=hooked-bells-18';
 import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
@@ -441,13 +441,17 @@ export function createFlowers(world, grid) {
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
       const pose = flowerPose(presentation?placement(f,patch).flower:f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
       const motion = pose.motion;
+      const petalScale = number(.18+life.bloom*.82+motion.expansion);
+      const turnTime=life.dry?(f.retiredAt??0):now/1000;
+      const turn = reduced.matches ? 0 : node.individual&&['bell','cone'].includes(node.individual.form)?Math.sin(turnTime*.18+f.phase)*7:flowerHeadTurn(f,turnTime);
+      const bell=node.individual?.form==='bell'?bellStemGeometry(pose,turn,+petalScale,f.rotation<0?-1:1,f.appearance.leaves):null;
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.dataset.load=number(pose.weight);
       node.root.setAttribute('opacity',number(life.opacity));
       const growthTransform=`rotate(${number(pose.angle)}) scale(${number(pose.growthScale)})`;
       node.growth.setAttribute('transform',growthTransform);
       if(node.frontRoot){node.frontRoot.setAttribute('opacity',number(life.opacity));node.frontGrowth.setAttribute('transform',growthTransform);}
-      node.stemPath?.setAttribute('d',`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
+      node.stemPath?.setAttribute('d',bell?.path||`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
       node.leaves.forEach((leaf,i)=>{
         const l=f.appearance.leaves[i],t=-l.y/.70;
         const x=l.x+pose.headX*t*t,y=l.y+(pose.headOffset+.70)*t*t;
@@ -456,19 +460,17 @@ export function createFlowers(world, grid) {
         leaf.setAttribute('transform',`rotate(${number(l.angle+tilt)} ${number(x)} ${number(y)})`);
       });
       node.leafGroups.forEach((leaf,i)=>{
+        if(bell){const p=bell.anchors[i];leaf.setAttribute('transform',`translate(${number(p.x)} ${number(p.y)}) rotate(${number(p.angle)})`);return;}
         const l=f.appearance.leaves[i],t=-l.y/.70,x=l.x+pose.headX*t*t,y=l.y+(pose.headOffset+.70)*t*t;
         const tilt=Math.atan2(2*pose.headX*t,.70-2*(pose.headOffset+.70)*t)*180/Math.PI;
         leaf.setAttribute('transform',`translate(${number(x)} ${number(y)}) rotate(${number(l.angle+tilt)})`);
       });
       node.head.setAttribute('transform',`translate(${number(pose.headX)} ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
-      const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
       if(node.stickerShadow){
         const shadow=stickerShadowMatrix(pose.angle);node.stickerShadow.setAttribute('transform',`matrix(${number(shadow.a)} ${number(shadow.b)} ${number(shadow.c)} ${number(shadow.d)} 0 0)`);
         node.stickerHead.setAttribute('transform',node.head.getAttribute('transform'));node.stickerPetals.setAttribute('transform',`scale(${petalScale})`);
       }
-      const turnTime=life.dry?(f.retiredAt??0):now/1000;
-      const turn = reduced.matches ? 0 : node.individual&&['bell','cone'].includes(node.individual.form)?Math.sin(turnTime*.18+f.phase)*7:flowerHeadTurn(f,turnTime);
       node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
       // Cancel the parent stem/head tilt so the shadow stays at 4:30 in world
       // coordinates, even as petals spin, stems sway and retired heads droop.
