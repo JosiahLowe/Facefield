@@ -127,6 +127,7 @@ const assert=require('node:assert/strict');
  assert.equal(page.url(),url);
  assert.deepEqual(await page.locator('#world').evaluate(w=>[w.scrollWidth,w.scrollHeight,w.scrollLeft,w.scrollTop]),world);
  await page.waitForFunction(()=>document.querySelector('[data-singer] [data-feature=mouth]').getAttribute('fill')!=='none');
+ assert.equal(await page.locator('[data-singer] [data-original-tongue]').getAttribute('display'),'inline','Original singing shows a clipped tongue');
  assert.equal(await page.locator('[data-singer]').count(),1);assert.equal(await page.evaluate(()=>__contexts.length),1);
  await page.waitForFunction(()=>document.querySelector('[data-singer] [data-feature=mouth]').getAttribute('fill')!=='none');
  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(600);

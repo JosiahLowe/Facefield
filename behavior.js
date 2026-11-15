@@ -152,6 +152,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.blink = null;
     s.mouth.element.setAttribute('d', s.mouth.original);
     s.mouth.element.setAttribute('fill', 'none');
+    s.singingTongue?.setAttribute('display','none');
     s.mouth.current = { bend: s.mouth.restBend, corner: 0 };
     s.mouth.motion = null;
     s.mouth.manual = false;
@@ -227,6 +228,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     }
   }
   function visualPose(s){
+    const m0=s.mouth,showTongue=!s.visual&&!s.story&&m0.singing&&m0.element.getAttribute('fill')!=='none';
+    s.singingTongue.setAttribute('display',showTongue?'inline':'none');
+    if(showTongue){const a=Math.max(0,Math.min(1,m0.opening||0));s.singingTongue.setAttribute('cx',m0.center);s.singingTongue.setAttribute('cy',m0.y+a*8);s.singingTongue.setAttribute('rx',(m0.right-m0.left)*.22);s.singingTongue.setAttribute('ry',a*4);}
     const v=s.visual;if(!v)return;
     const attr=(el,name,value)=>{if(el.getAttribute(name)!==value)el.setAttribute(name,value);};
     for(let i=0;i<s.eyes.length;i++)for(const lid of s.eyes[i].blinkLids){attr(lid,'transform',v.eyes[i].transform);attr(lid,'fill',v.skin);}
@@ -493,7 +497,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         return;
       }
       const amount = Math.max(0, Math.min(1, opening));
-      mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y - amount * 8} ${mouth.right} ${mouth.y} Q ${mouth.center} ${mouth.y + amount * 12} ${mouth.left} ${mouth.y} Z`);
+      mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y - amount * (s.visual?8:12)} ${mouth.right} ${mouth.y} Q ${mouth.center} ${mouth.y + amount * (s.visual?12:18)} ${mouth.left} ${mouth.y} Z`);
       mouth.element.setAttribute('fill', mouth.element.getAttribute('stroke'));visualPose(s);
     },
     changeMouths() {
@@ -544,6 +548,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
+      const mouthId=`original-mouth-${index}-${revision}`;mouthElement.id=mouthId;
+      const clip=document.createElementNS(NS,'clipPath'),use=document.createElementNS(NS,'use');clip.id=`${mouthId}-clip`;use.setAttribute('href',`#${mouthId}`);clip.append(use);svg.querySelector('defs').append(clip);
+      s.singingTongue=document.createElementNS(NS,'ellipse');s.singingTongue.dataset.originalTongue='';s.singingTongue.setAttribute('fill','#E58E9E');s.singingTongue.setAttribute('clip-path',`url(#${clip.id})`);s.singingTongue.setAttribute('display','none');svg.querySelector('[data-features]').append(s.singingTongue);
       s.tearProfile=tearProfile(seed,index,revision);s.originalLidColor=lidColor;s.features=svg.querySelector('[data-features]');
       s.cheeks=svg.querySelector('[data-feature=cheeks]');
       s.warmth=0;s.proximity=0;s.blushProximity=0;s.blushStrength=0;s.nearMoth=false;s.lastEmotion=0;

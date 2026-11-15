@@ -7,9 +7,9 @@ const assert=require('node:assert/strict');
   try {
     const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
     await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield');
-    await page.waitForSelector('.flower[data-stage=bloom]');
+    await page.waitForSelector('.flower[data-stage=bloom][data-group=single]');
     const result=await page.evaluate(async()=>{
-      const flowers=[...document.querySelectorAll('.flower[data-stage=bloom]')];
+      const flowers=[...document.querySelectorAll('.flower[data-stage=bloom][data-group=single]')];
       const original=flowers.sort((a,b)=>+b.getAttribute('transform').match(/scale\(([\d.]+)/)[1]-+a.getAttribute('transform').match(/scale\(([\d.]+)/)[1])[0];
       const ns='http://www.w3.org/2000/svg';
       const green=original.querySelector('.flower-stem').getAttribute('fill').slice(1).match(/../g).map(c=>parseInt(c,16));

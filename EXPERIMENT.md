@@ -90,3 +90,14 @@ Validation: 58 unit tests pass. Browser/device validation remains unavailable.
 Pigment now shares the smile radius and distance falloff (320 px, full strength
 within 120 px). White Original faces have a thin black outline that fades as
 pigment builds and returns as faces fade to white.
+
+Original-only flower grouping pass: selected singer sites display seven-bloom leafy
+mounds or four upright lavender-like spikes, inspired by references 1 and 2.
+Other sites retain the existing small flowers. Groupings enlarge only within
+existing facial-feature clearance limits, share the same lifecycle/music/sway,
+and keep a central bloom/floret as a moth landing target. Group heads stay upright
+rather than spinning as a whole. Crowd flowers retain their previous rendering.
+Original singing mouths are 50% taller and show a pink tongue clipped to the
+animated opening. Tongues hide for closed, silent and story-specific mouths.
+Validation: 59 unit tests pass; browser assertions were updated but could not be
+executed because browser preview infrastructure is unavailable in this environment.

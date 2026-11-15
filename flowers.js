@@ -1,3 +1,4 @@
+import {flowerGrouping,groupGeometry} from './flower-groups.js?v=original-groups-12';
 import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
@@ -285,7 +286,9 @@ function geometry(f, style, crowd=false) {
   const a = f.appearance;
   const shape = f.rank < .35 ? (style.shape ? 'circle' : 'oval') : a.shape;
   const count = f.rank < .35 ? style.petals : a.count;
-  const color = crowd?crowdFlowerColor(f):PALETTE.flowers.petals[0];
+  const kind=crowd?'single':flowerGrouping(f);
+  const color = crowd||kind!=='single'?crowdFlowerColor(f):PALETTE.flowers.petals[0];
+  const grouping=crowd?null:groupGeometry(f,kind==='spikes'?'#A776C0':color,a.stemColor);
   let petals = '';
   for (let i=0;i<count;i++) {
     const p = a.petals[i];
@@ -297,9 +300,10 @@ function geometry(f, style, crowd=false) {
   return `<g class="flower-stem" ${crowd?'mask="url(#crowd-stem-fade)"':''} fill="${a.stemColor}"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/>
     <g class="flower-leaves">${leaves}</g></g>
     <g class="flower-head" transform="translate(0 -.70)">
+    ${grouping?.foliage||''}
     <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
-    <g class="flower-petals" fill="${color}"><g class="flower-spin">${petals}</g></g>
-    <circle class="flower-center" r=".08" fill="${PALETTE.flowers.center}"/></g>`;
+    <g class="flower-petals" fill="${color}"><g class="flower-spin">${grouping?.petals||petals}</g></g>
+    <circle class="flower-center" r="${grouping?.center??.08}" fill="${PALETTE.flowers.center}"/></g>`;
 }
 
 // Shares the face loop. Only culling/lifecycle reconciliation runs at 8 Hz;
@@ -312,7 +316,7 @@ export function createFlowers(world, grid) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const nodes = new Map();
   const loads = new Map();
-  const rows=new Map(),placements=new Map();
+  const rows=new Map(),placements=new Map(),groupSizes=new Map();
   function clearRows(){for(const row of rows.values())row.remove();rows.clear();placements.clear();}
   function rowLayer(depth){
     if(rows.has(depth))return rows.get(depth);
@@ -332,6 +336,15 @@ export function createFlowers(world, grid) {
       if(Math.abs(x-cx)<size*.31&&Math.abs(y-cy)<size*.39)return false;
     }
     return true;
+  }
+  function originalFlower(f){
+    if(flowerGrouping(f)==='single')return f;
+    if(!groupSizes.has(f.id)){
+      const nearby=modelLayout.filter(c=>c.column-1<f.x+1&&c.column-1+c.width>f.x-1&&c.row-1<f.y+1&&c.row-1+c.height>f.y-1);
+      const factor=[2.2,1.7,1.3,1].find(scale=>nearby.every(c=>safeFlower({...f,size:f.size*scale},c)))||1;
+      groupSizes.set(f.id,f.size*factor);if(groupSizes.size>512)groupSizes.delete(groupSizes.keys().next().value);
+    }
+    return {...f,size:groupSizes.get(f.id)};
   }
   function placement(f,patch){return crowdFlowerPlacement(f,offset(patch?.singer??f.singer),presentation);}
   function allowed(f,patch){
@@ -368,7 +381,7 @@ export function createFlowers(world, grid) {
   function headFor(f,patch,now) {
     const life=flowerLife(f,patch,now/1000),node=nodes.get(`${patch.id}:${f.id}`);
     const energy=node?.energy??(life.responsive?music/(1+(f.distance/4)**2):0);
-    return flowerPose(presentation?placement(f,patch).flower:f,life,now/1000,energy,duration,loadFor(`${patch.id}:${f.id}`,now/1000),reduced.matches);
+    return flowerPose(presentation?placement(f,patch).flower:originalFlower(f),life,now/1000,energy,duration,loadFor(`${patch.id}:${f.id}`,now/1000),reduced.matches);
   }
   function resize() {
     unit = grid.clientWidth/48 || 1;
@@ -391,9 +404,9 @@ export function createFlowers(world, grid) {
       if (nodes.has(item.key)) continue;
       const root = document.createElementNS(NS,'g');
       root.classList.add('flower'); root.dataset.flower = item.key;
-      const d=offset(item.patch?.singer??item.f.singer),display=presentation?placement(item.f,item.patch):null,draw=display?.flower||item.f,px=display?draw.x:item.f.x+d.x,py=display?draw.y:item.f.y+d.y;
+      const d=offset(item.patch?.singer??item.f.singer),display=presentation?placement(item.f,item.patch):null,draw=display?.flower||originalFlower(item.f),px=display?draw.x:item.f.x+d.x,py=display?draw.y:item.f.y+d.y;
       root.dataset.site = item.f.id; root.dataset.x = px; root.dataset.y = py;
-      root.dataset.posture=item.f.posture.kind;
+      root.dataset.posture=item.f.posture.kind;root.dataset.group=presentation?'single':flowerGrouping(item.f);
       root.setAttribute('transform',`translate(${number(px)} ${number(py)}) scale(${number(draw.size)})`);
       root.innerHTML = `<g class="flower-growth">${geometry(item.f,item.style,!!presentation)}</g>`;
       (display?rowLayer(display.depth):layer).append(root);
@@ -402,6 +415,7 @@ export function createFlowers(world, grid) {
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
         petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
         stemPath: root.querySelector('.flower-stem-path'), leaves:[...root.querySelectorAll('.flower-leaves ellipse')],
+        groupFoliage:root.querySelector('.flower-group-foliage'),groupBranches:root.querySelector('.flower-group-branches'),
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
       if(display){
         // Keep a single animated head, but paint it in the foreground SVG.
@@ -427,7 +441,7 @@ export function createFlowers(world, grid) {
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
       const response = life.responsive && (patch === field.active||field.companions.includes(patch)) ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
-      const pose = flowerPose(presentation?placement(f,patch).flower:f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
+      const pose = flowerPose(presentation?placement(f,patch).flower:originalFlower(f),life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
       const motion = pose.motion;
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.dataset.load=number(pose.weight);
@@ -446,7 +460,7 @@ export function createFlowers(world, grid) {
       node.head.setAttribute('transform',`translate(${number(pose.headX)} ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
-      const turn = reduced.matches ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
+      const turn = reduced.matches||node.root.dataset.group!=='single' ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
       node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
       // Cancel the parent stem/head tilt so the shadow stays at 4:30 in world
       // coordinates, even as petals spin, stems sway and retired heads droop.
@@ -458,7 +472,9 @@ export function createFlowers(world, grid) {
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.stemPath.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
-        node.petals.setAttribute('fill',presentation?crowdFlowerColor(f):PALETTE.flowers.petals[0]);
+        node.petals.setAttribute('fill',presentation||flowerGrouping(f)!=='single'?crowdFlowerColor(f):PALETTE.flowers.petals[0]);
+        node.groupFoliage?.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
+        node.groupBranches?.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.dryLevel = dryLevel;
       }
     }
@@ -472,7 +488,7 @@ export function createFlowers(world, grid) {
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
     setPresentation(layout) { clearRows();presentation=layout;headBins=new Map();for(const c of layout||[]){const key=`${Math.floor((c.column-1+c.width/2)/2)}:${Math.floor((c.row-1+c.height/2)/2)}`;if(!headBins.has(key))headBins.set(key,[]);headBins.get(key).push(c);}nodes.clear();layer.replaceChildren();visible=[];resize();update(performance.now(),true); },
-    reset(seed,layout) { clearRows();modelLayout=layout; field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
+    reset(seed,layout) { clearRows();groupSizes.clear();modelLayout=layout; field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
     clear() { clearRows();field?.clear();nodes.clear();loads.clear();occupant=null;layer.replaceChildren();visible=[];music=0;dirty=true; },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     addSinger(tile){field?.addSinger(Number(tile.dataset.index),performance.now()/1000);dirty=true;update(performance.now(),true);},
