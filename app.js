@@ -1,13 +1,13 @@
-import {createVisualModes} from './visual-modes.js?v=hooked-bells-18';
-import { createButterfly } from './butterfly.js?v=hooked-bells-18';
+import {createVisualModes} from './visual-modes.js?v=compact-gardens-19';
+import { createButterfly } from './butterfly.js?v=compact-gardens-19';
 import { createSinger } from './singing.js?v=nearby-chorus-27';
-import { createFlowers } from './flowers.js?v=hooked-bells-18';
+import { createFlowers } from './flowers.js?v=compact-gardens-19';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 import { createMothStory } from './story.js?v=nearby-chorus-27';
 applyPalette();
 import { renderFace } from './faces.js?v=nearby-chorus-27';
-import { animateFaces } from './behavior.js?v=hooked-bells-18';
+import { animateFaces } from './behavior.js?v=compact-gardens-19';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');

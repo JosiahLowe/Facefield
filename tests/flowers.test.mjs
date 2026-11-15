@@ -253,3 +253,15 @@ test('dense singer cores add safe seam flowers while retaining every original si
   }
   assert.ok(current>previous*1.8,`core populations ${previous} -> ${current}`);
 });
+
+test('compact gardens mix drifting individual plants, sizes, and growth stages near singers',()=>{
+  const field=createFlowerField(seed,layout);field.changeSinger(500,0);
+  const plants=[...field.active.flowers.values()],extra=plants.filter(f=>f.dense);
+  assert.ok(plants.every(f=>f.distance<FLOWER_RADIUS));assert.ok(extra.every(f=>f.distance<3));
+  assert.ok(extra.some(f=>!Number.isInteger(f.x)&&!Number.isInteger(f.y)),'small plants can drift off the seam');
+  for(const f of extra){assert.ok(Math.min(Math.abs(f.x-Math.round(f.x)),Math.abs(f.y-Math.round(f.y)))<=.081);for(const tile of f.tiles)assert.ok(safeFlower(f,layout[tile]));}
+  assert.ok(extra.some(f=>f.size<.13)&&extra.some(f=>f.size>.24),'cluster sizes vary');
+  const stages=extra.map(f=>flowerLife(f,field.active,15).bloom);
+  assert.ok(stages.some(b=>b===1)&&stages.some(b=>b<.5),'buds and open blooms coexist');
+  assert.equal(singerDensity(field.active.center.x+4.6,field.active.center.y,field.active.center),0);
+});

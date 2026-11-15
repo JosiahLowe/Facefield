@@ -12,5 +12,5 @@ export function crowdFlowerPlacement(f,offset,layout){
   flower:{...f,size,x:headX-(Math.cos(angle)*hx-Math.sin(angle)*hy)*scale,
    y:headY-(Math.sin(angle)*hx+Math.cos(angle)*hy)*scale}};
 }
-export const CROWD_FLOWER_COLORS=['#DC5B95','#A776C0','#6C91CE','#C93C52','#8A6BC4','#4B9EBE'];
+export const CROWD_FLOWER_COLORS=['#DC5B95','#A776C0','#C85B9F','#C93C52','#8A6BC4','#C04EC8'];
 export function crowdFlowerColor(f){return CROWD_FLOWER_COLORS[Math.floor(f.phase*997)%CROWD_FLOWER_COLORS.length];}

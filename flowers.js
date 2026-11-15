@@ -1,5 +1,5 @@
-import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix,bellStemGeometry} from './individual-flowers.js?v=hooked-bells-18';
-import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
+import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix,bellStemGeometry} from './individual-flowers.js?v=compact-gardens-19';
+import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=compact-gardens-19';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
 
@@ -116,13 +116,14 @@ export function generateFlowerSites(seed, layout, dense=false) {
     const local = [];
     function populate(r,limit,attempts,extra=false){
       for (let attempt=0;attempt<attempts && local.length<limit;attempt++) {
-        const offset = .12+r()*.76;
+        let offset = .12+r()*.76;
+        if(extra&&local.length){const anchor=local[Math.floor(r()*Math.min(2,local.length))];offset=Math.max(.06,Math.min(.94,(axis==='v'?anchor.y-y:anchor.x-x)+(r()-.5)*.44));}
         const f = { id: `${axis}-${x}-${y}-${extra?'dense-':''}${local.length}`,
           x: axis==='v' ? x : x+offset, y: axis==='h' ? y : y+offset,
-          size: .14+r()*(extra?.08:.20), phase: r()*Math.PI*2, rotation: (r()-.5)*12,
+          size: extra?.10+r()*.19:.14+r()*.20, phase: r()*Math.PI*2, rotation: (r()-.5)*12,
           petals: 4+Math.floor(r()*4), shape: Math.floor(r()*2), color: 0,
           rank: r(), delay: r()*5, duration: 10+r()*5 };
-        if(extra)f.dense=true;
+        if(extra){f.dense=true;const drift=(r()-.5)*.16;if(axis==='v')f.x+=drift;else f.y+=drift;f.delay=r()*12;f.duration=12+r()*18;}
         const bounds = flowerBounds(f), tiles = new Set();
         if (bounds.left<0 || bounds.top<0 || bounds.right>width || bounds.bottom>height) continue;
         for (let row=Math.floor(bounds.top);row<=Math.floor(bounds.bottom);row++) {
@@ -133,11 +134,11 @@ export function generateFlowerSites(seed, layout, dense=false) {
         }
         f.tiles = [...tiles];
         if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
-          && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*(extra?.52:.6))) local.push(f);
+          && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*(extra?.42:.6))) local.push(f);
       }
     }
     populate(r,2,16);
-    if(dense)populate(randomFrom(`${seed}:flower-dense-seam:${axis}:${x}:${y}`),5,48,true);
+    if(dense)populate(randomFrom(`${seed}:flower-dense-seam:${axis}:${x}:${y}`),8,88,true);
     for (const f of local) {
       f.motion = flowerMotionProfile(seed,f.id);
       f.posture = flowerPosture(seed,f.id);
@@ -160,14 +161,14 @@ export function singerStyle(seed, singer) {
 }
 // Compact, softly tapered patches grow only close to a singer. Overlapping
 // waves vary the reach so the edge does not form a perfect circle.
-export const FLOWER_RADIUS = 7;
+export const FLOWER_RADIUS = 4.6;
 export function singerDensity(x, y, singer, phase = 0) {
   const dx = x-singer.x, dy = y-singer.y;
   const distance = Math.hypot(dx,dy);
   const organic = .82 + .12*Math.sin(x*.79+phase)*Math.cos(y*.63-phase)
     + .06*Math.sin(x*1.71+y*.91+phase);
-  const base=.94 * organic * (1-smooth(distance/(5.5+organic)));
-  return base+(1-base)*.82*(1-smooth(distance/3.6));
+  const base=.94 * organic * (1-smooth(distance/(3.9+organic*.6)));
+  return base+(1-base)*.96*(1-smooth(Math.max(0,distance-.9)/2.7));
 }
 export function flowerLife(f, patch, now) {
   if (!patch) return { growth: 1, bloom: 1, opacity: .86, droop: 0, dry: false, dryProgress: 0, responsive: false };
@@ -219,7 +220,7 @@ export function createFlowerField(seed, layout) {
     for (const site of sites) {
       const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
       const distance=Math.hypot(site.x-center.x,site.y-center.y);
-      const density = site.dense ? .98*(1-smooth(Math.max(0,distance-1.4)/2.4)) : singerDensity(site.x,site.y,center,style.color);
+      const density = site.dense ? .98*(1-smooth(Math.max(0,distance-1.4)/1.6)) : singerDensity(site.x,site.y,center,style.color);
       if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38, appearance: flowerAppearance(seed,site.id),
         distance: Math.hypot(site.x-center.x,site.y-center.y), remnant: false });
     }

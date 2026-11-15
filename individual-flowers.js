@@ -2,9 +2,9 @@ import {randomFrom} from './faces.js';
 
 // Saturated cool blooms and emerald foliage stay apart from the muted earth
 // pigments of Original faces. Avoid cream/white, ochre, peach and orange.
-export const INDIVIDUAL_FLOWER_COLORS=['#D938AB','#9652D4','#3F76DF','#D92D57','#B64BC5','#229CD1'];
-export const INDIVIDUAL_FLOWER_CENTERS=['#51237A','#F187D4','#223E86','#6D2CA0'];
-export const INDIVIDUAL_FLOWER_DRIED='#315365';
+export const INDIVIDUAL_FLOWER_COLORS=['#D938AB','#9652D4','#C34BD1','#D92D57','#B64BC5','#D74D79'];
+export const INDIVIDUAL_FLOWER_CENTERS=['#51237A','#F187D4','#642668','#6D2CA0'];
+export const INDIVIDUAL_FLOWER_DRIED='#61386C';
 export const INDIVIDUAL_FLOWER_GREENS=['#196A3C','#238A4A','#28733F','#21865B','#1D754D','#398B49'];
 export function individualFlowerStyle(f){
   const r=randomFrom(`${f.id}:${f.phase}:individual-flower`);

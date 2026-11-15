@@ -231,7 +231,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
   function visualPose(s){
     const m0=s.mouth,showTongue=!s.visual&&!s.story&&m0.singing&&m0.element.getAttribute('fill')!=='none';
     s.singingTongue.setAttribute('display',showTongue?'inline':'none');
-    if(showTongue){const a=Math.max(0,Math.min(1,m0.opening||0));s.singingTongue.setAttribute('cx',m0.center);s.singingTongue.setAttribute('cy',m0.y+a*8);s.singingTongue.setAttribute('rx',(m0.right-m0.left)*.22);s.singingTongue.setAttribute('ry',a*4);}
+    if(showTongue){const a=Math.max(0,Math.min(1,m0.opening||0));s.singingTongue.setAttribute('cx',m0.center);s.singingTongue.setAttribute('cy',m0.y+a*8.5);s.singingTongue.setAttribute('rx',(m0.right-m0.left)*.22);s.singingTongue.setAttribute('ry',a*5);}
     const v=s.visual;if(!v)return;
     const attr=(el,name,value)=>{if(el.getAttribute(name)!==value)el.setAttribute(name,value);};
     for(let i=0;i<s.eyes.length;i++)for(const lid of s.eyes[i].blinkLids){attr(lid,'transform',v.eyes[i].transform);attr(lid,'fill',v.skin);}
@@ -498,7 +498,8 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         return;
       }
       const amount = Math.max(0, Math.min(1, opening));
-      mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y - amount * (s.visual?8:12)} ${mouth.right} ${mouth.y} Q ${mouth.center} ${mouth.y + amount * (s.visual?12:18)} ${mouth.left} ${mouth.y} Z`);
+      const singingY=mouth.y-(s.visual?0:amount*2.5);
+      mouth.element.setAttribute('d', `M ${mouth.left} ${singingY} Q ${mouth.center} ${singingY - amount * (s.visual?8:18)} ${mouth.right} ${singingY} Q ${mouth.center} ${singingY + amount * (s.visual?12:26)} ${mouth.left} ${singingY} Z`);
       mouth.element.setAttribute('fill', mouth.element.getAttribute('stroke'));visualPose(s);
     },
     changeMouths() {

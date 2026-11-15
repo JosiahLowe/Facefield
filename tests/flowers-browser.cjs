@@ -17,7 +17,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     }));
     assert.ok(initial.cues>5 && initial.buds>5,'immediate flowers give a cue while the remaining buds grow');
     await page.clock.fastForward(21000);
-    await page.waitForFunction(()=>!document.querySelector('.flower[data-stage=growing]'));
+    await page.waitForFunction(()=>document.querySelectorAll('.flower[data-stage=bloom]').length>5);
     const read = () => page.locator('.flower').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,f.getAttribute('transform')])));
     const position=await page.locator('#world').evaluate(w=>[w.scrollLeft,w.scrollTop]);
     const before=await read();
@@ -39,7 +39,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.ok(await page.locator('.flower-spin circle').count()>0 && await page.locator('.flower-spin ellipse').count()>0,'circular and oval petals both render');
     const sizes=await page.locator('.flower').evaluateAll(fs=>fs.map(f=>+f.getAttribute('transform').match(/scale\(([\d.]+)/)[1]));
     assert.ok(Math.max(...sizes)/Math.min(...sizes)>1.5,'flowers have noticeably varied sizes');
-    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>Number.isInteger(+f.dataset.x)||Number.isInteger(+f.dataset.y))),'all roots sit on seams');
+    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>Math.min(Math.abs(+f.dataset.x-Math.round(+f.dataset.x)),Math.abs(+f.dataset.y-Math.round(+f.dataset.y)))<=.081)),'roots stay on or just beside face seams');
 
     async function clearance() {
       return page.evaluate(()=>{

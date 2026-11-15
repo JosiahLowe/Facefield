@@ -140,3 +140,13 @@ Bell flowers now hang from arched stems attached to the top of each bell. The
 attachment follows head tilt, lazy rotation and note-driven expansion; leaves
 follow the same curved stem. Together with the density update, 64 unit tests pass.
 Browser/device visual validation remains unavailable.
+
+Compact garden pass: removed blue bloom/center colors, tightened the garden's
+maximum reach from roughly 6.5 to 4.6 cells, and concentrated more plants in the
+inner three cells. Extra small individual flowers cluster around existing seam
+plants, drift up to .08 cells off seams with full feature-clearance checks, vary
+from .10 to .29 cells in size, and grow on staggered 12–30 second schedules.
+The five sampled inner gardens increased from 267 to 472 plants. Original singing
+mouths open about 45% taller again, with a small upward shift to protect the lower
+face boundary and a synchronized clipped tongue. Validation: 65 unit tests pass.
+Browser/device visual validation remains unavailable.
