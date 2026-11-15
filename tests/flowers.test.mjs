@@ -2,6 +2,7 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mosaicLayout } from '../mosaic.js';
+import {randomFrom} from '../faces.js';
 import { createFlowerField, generateFlowerSites, safeFlower, flowerLife, singerStyle, singerDensity, FLOWER_LIMITS, FLOWER_RADIUS, flowerMotionProfile, flowerMotion, flowerHeadTurn, flowerAppearance, flowerWeight, flowerPose, flowerPosture } from '../flowers.js';
 
 const seed = 'flower-test', layout = mosaicLayout(seed,48,1152);
@@ -229,4 +230,26 @@ test('chorus adds two active gardens without retargeting the primary garden',()=
   field.changeSinger(750,20);assert.equal(field.companions.length,0);
   assert.ok(field.retiring.includes(second)&&field.retiring.includes(third));
   field.clear();assert.equal(field.companions.length,0);
+});
+
+test('dense singer cores add safe seam flowers while retaining every original site',()=>{
+  const field=createFlowerField(seed,layout);
+  assert.deepEqual(field.sites.filter(f=>!f.dense),generateFlowerSites(seed,layout));
+  const extra=field.sites.filter(f=>f.dense);assert.ok(extra.length>500);
+  for(const f of extra)for(const tile of f.tiles)assert.ok(safeFlower(f,layout[tile]),f.id);
+  let previous=0,current=0;
+  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+  for(const singer of [200,400,500,600,800]){
+    field.changeSinger(singer,0);const patch=field.active;
+    for(const f of patch.flowers.values())if(f.dense)assert.ok(f.distance<3.8,'extra density stays close to the singer');
+    for(const f of field.sites){
+      const distance=Math.hypot(f.x-patch.center.x,f.y-patch.center.y);if(distance>=2.5)continue;
+      if(patch.flowers.has(f.id))current++;
+      if(f.dense)continue;
+      const phase=patch.style.color,organic=.82+.12*Math.sin(f.x*.79+phase)*Math.cos(f.y*.63-phase)+.06*Math.sin(f.x*1.71+f.y*.91+phase);
+      const old=.94*organic*(1-smooth(distance/(5.5+organic)));
+      if(randomFrom(`${seed}:patch:${singer}:${f.id}`)()<old)previous++;
+    }
+  }
+  assert.ok(current>previous*1.8,`core populations ${previous} -> ${current}`);
 });

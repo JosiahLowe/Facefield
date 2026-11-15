@@ -1,13 +1,13 @@
-import {createVisualModes} from './visual-modes.js?v=white-eye-outlines-16';
-import { createButterfly } from './butterfly.js?v=white-eye-outlines-16';
+import {createVisualModes} from './visual-modes.js?v=dense-singer-flowers-17';
+import { createButterfly } from './butterfly.js?v=dense-singer-flowers-17';
 import { createSinger } from './singing.js?v=nearby-chorus-27';
-import { createFlowers } from './flowers.js?v=white-eye-outlines-16';
+import { createFlowers } from './flowers.js?v=dense-singer-flowers-17';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 import { createMothStory } from './story.js?v=nearby-chorus-27';
 applyPalette();
 import { renderFace } from './faces.js?v=nearby-chorus-27';
-import { animateFaces } from './behavior.js?v=white-eye-outlines-16';
+import { animateFaces } from './behavior.js?v=dense-singer-flowers-17';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');

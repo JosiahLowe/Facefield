@@ -101,7 +101,7 @@ const overlaps = (a,b) => a.left < b.right && a.right > b.left && a.top < b.bott
 export function safeFlower(f, cell) {
   return !featureBounds(cell).some(rect => overlaps(flowerBounds(f), rect));
 }
-export function generateFlowerSites(seed, layout) {
+export function generateFlowerSites(seed, layout, dense=false) {
   const sites = [], occupied = new Map();
   let width = 0, height = 0;
   layout.forEach((cell,tile) => {
@@ -114,25 +114,30 @@ export function generateFlowerSites(seed, layout) {
   function seam(axis,x,y) {
     const r = randomFrom(`${seed}:flower-seam:${axis}:${x}:${y}`);
     const local = [];
-    for (let attempt=0;attempt<16 && local.length<2;attempt++) {
-      const offset = .12+r()*.76;
-      const f = { id: `${axis}-${x}-${y}-${local.length}`,
-        x: axis==='v' ? x : x+offset, y: axis==='h' ? y : y+offset,
-        size: .14+r()*.20, phase: r()*Math.PI*2, rotation: (r()-.5)*12,
-        petals: 4+Math.floor(r()*4), shape: Math.floor(r()*2), color: 0,
-        rank: r(), delay: r()*5, duration: 10+r()*5 };
-      const bounds = flowerBounds(f), tiles = new Set();
-      if (bounds.left<0 || bounds.top<0 || bounds.right>width || bounds.bottom>height) continue;
-      for (let row=Math.floor(bounds.top);row<=Math.floor(bounds.bottom);row++) {
-        for (let col=Math.floor(bounds.left);col<=Math.floor(bounds.right);col++) {
-          const tile = occupied.get(`${col},${row}`);
-          if (tile!==undefined) tiles.add(tile);
+    function populate(r,limit,attempts,extra=false){
+      for (let attempt=0;attempt<attempts && local.length<limit;attempt++) {
+        const offset = .12+r()*.76;
+        const f = { id: `${axis}-${x}-${y}-${extra?'dense-':''}${local.length}`,
+          x: axis==='v' ? x : x+offset, y: axis==='h' ? y : y+offset,
+          size: .14+r()*(extra?.08:.20), phase: r()*Math.PI*2, rotation: (r()-.5)*12,
+          petals: 4+Math.floor(r()*4), shape: Math.floor(r()*2), color: 0,
+          rank: r(), delay: r()*5, duration: 10+r()*5 };
+        if(extra)f.dense=true;
+        const bounds = flowerBounds(f), tiles = new Set();
+        if (bounds.left<0 || bounds.top<0 || bounds.right>width || bounds.bottom>height) continue;
+        for (let row=Math.floor(bounds.top);row<=Math.floor(bounds.bottom);row++) {
+          for (let col=Math.floor(bounds.left);col<=Math.floor(bounds.right);col++) {
+            const tile = occupied.get(`${col},${row}`);
+            if (tile!==undefined) tiles.add(tile);
+          }
         }
+        f.tiles = [...tiles];
+        if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
+          && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*(extra?.52:.6))) local.push(f);
       }
-      f.tiles = [...tiles];
-      if (f.tiles.every(tile=>safeFlower(f,layout[tile]))
-        && local.every(other=>Math.hypot(f.x-other.x,f.y-other.y)>(f.size+other.size)*.6)) local.push(f);
     }
+    populate(r,2,16);
+    if(dense)populate(randomFrom(`${seed}:flower-dense-seam:${axis}:${x}:${y}`),5,48,true);
     for (const f of local) {
       f.motion = flowerMotionProfile(seed,f.id);
       f.posture = flowerPosture(seed,f.id);
@@ -161,7 +166,8 @@ export function singerDensity(x, y, singer, phase = 0) {
   const distance = Math.hypot(dx,dy);
   const organic = .82 + .12*Math.sin(x*.79+phase)*Math.cos(y*.63-phase)
     + .06*Math.sin(x*1.71+y*.91+phase);
-  return .94 * organic * (1-smooth(distance/(5.5+organic)));
+  const base=.94 * organic * (1-smooth(distance/(5.5+organic)));
+  return base+(1-base)*.82*(1-smooth(distance/3.6));
 }
 export function flowerLife(f, patch, now) {
   if (!patch) return { growth: 1, bloom: 1, opacity: .86, droop: 0, dry: false, dryProgress: 0, responsive: false };
@@ -176,7 +182,7 @@ export function flowerLife(f, patch, now) {
 }
 
 export function createFlowerField(seed, layout) {
-  const sites = generateFlowerSites(seed, layout), bins = new Map();
+  const sites = generateFlowerSites(seed, layout,true), bins = new Map();
   for (const f of sites) {
     const key = `${Math.floor(f.x/4)},${Math.floor(f.y/4)}`;
     if (!bins.has(key)) bins.set(key, []);
@@ -212,7 +218,8 @@ export function createFlowerField(seed, layout) {
     const style = singerStyle(seed,index), flowers = new Map();
     for (const site of sites) {
       const r = randomFrom(`${seed}:patch:${index}:${site.id}`);
-      const density = singerDensity(site.x,site.y,center,style.color);
+      const distance=Math.hypot(site.x-center.x,site.y-center.y);
+      const density = site.dense ? .98*(1-smooth(Math.max(0,distance-1.4)/2.4)) : singerDensity(site.x,site.y,center,style.color);
       if (r() < density) flowers.set(site.id, { ...site, cue: r() < .38, appearance: flowerAppearance(seed,site.id),
         distance: Math.hypot(site.x-center.x,site.y-center.y), remnant: false });
     }

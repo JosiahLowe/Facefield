@@ -128,3 +128,10 @@ Shadow grounding: Original flower silhouettes now project down-right from a fixe
 stem base, including during sway. The moth now casts a matching crisp silhouette
 that flutters and rotates with its geometry, using the same shadow color/opacity.
 Validation: 62 unit tests pass. Browser/device validation remains unavailable.
+
+Singer-density increase: additional seeded small flowers occupy safe shared face
+seams near singers, and the inner patch accepts more blooms. Original site IDs
+and coordinates are preserved. Extra flowers taper out within 3.8 world cells;
+farther vegetation and the render budget stay unchanged. Five sampled singer
+cores increased from 133 to 267 flowers in total. Validation: 63 unit tests pass.
+Browser/device visual validation remains unavailable.
