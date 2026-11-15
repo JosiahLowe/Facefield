@@ -123,3 +123,8 @@ The shadow direction stays fixed during swaying/wilting. Crowd mode is unchanged
 Validation: 62 unit tests pass; a standalone SVG gallery was rendered and inspected
 with librsvg, including colored shapes and full shadows. Browser regression scripts
 were updated, but live browser/mobile Safari validation remains unavailable here.
+
+Shadow grounding: Original flower silhouettes now project down-right from a fixed
+stem base, including during sway. The moth now casts a matching crisp silhouette
+that flutters and rotates with its geometry, using the same shadow color/opacity.
+Validation: 62 unit tests pass. Browser/device validation remains unavailable.

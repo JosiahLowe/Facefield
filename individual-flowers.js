@@ -14,10 +14,11 @@ export function individualFlowerStyle(f){
     green:INDIVIDUAL_FLOWER_GREENS[Math.floor(r()*INDIVIDUAL_FLOWER_GREENS.length)],
     count:form==='daisy'?5+Math.floor(r()*2):7+Math.floor(r()*3),round:r()<.35};
 }
-export function stickerShadowOffset(angle,distance=.08){
-  const radians=angle*Math.PI/180;
-  // Cancel stem sway so the cutout shadow always projects down and right.
-  return {x:distance*(Math.cos(radians)+Math.sin(radians)),y:distance*(Math.cos(radians)-Math.sin(radians))};
+export function stickerShadowMatrix(angle,shear=.12){
+  const r=angle*Math.PI/180,c=Math.cos(r),s=Math.sin(r);
+  // Project down/right in world space, conjugated into the swaying plant's
+  // local coordinates. No translation: the planted stem base remains fixed.
+  return {a:1-shear*s*(c+s),b:shear*s*(s-c),c:-shear*c*(c+s),d:1+shear*c*(s-c),e:0,f:0};
 }
 function petals(style){
   if(style.form==='bell')return '<path d="M-.13 -.07 C-.14 -.28 .14 -.28 .13 -.07 Q.13 .03 .22 .10 Q.13 .15 .08 .10 Q0 .21 -.08 .10 Q-.13 .15 -.22 .10 Q-.13 .03 -.13 -.07Z"/>';
@@ -40,7 +41,7 @@ export function individualFlowerGeometry(f,id){
     <g id="${id}-stem"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="inherit" stroke-width=".036" stroke-linecap="round"/><g class="flower-leaves">${leaves}</g></g>
     <g id="${id}-petals"><g class="flower-spin">${petals(style)}</g></g>${center}
   </defs>
-  <g class="flower-sticker-shadow" transform="translate(.08 .08)" opacity=".24" fill="#182038" stroke="#182038">
+  <g class="flower-sticker-shadow" transform="matrix(1 0 -.12 .88 0 0)" opacity=".24" fill="#182038" stroke="#182038">
     <use class="flower-sticker-stem-shadow" href="#${id}-stem"/>
     <g class="flower-sticker-head-shadow" transform="translate(0 -.70)"><g class="flower-sticker-petals-shadow"><use href="#${id}-petals" stroke="none"/></g><use href="#${id}-center" stroke="none"/></g>
   </g>

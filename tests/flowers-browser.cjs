@@ -59,9 +59,10 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     const headTurns=await page.locator('.flower-spin').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     async function shadowsAt430(){return page.locator('.flower').evaluateAll(fs=>fs.every(f=>{
-      const a=f.querySelector('.flower-head').getBoundingClientRect(),b=f.querySelector('.flower-sticker-head-shadow').getBoundingClientRect();
-      const dx=b.x+b.width/2-a.x-a.width/2,dy=b.y+b.height/2-a.y-a.height/2;
-      return dx>0 && dy>0 && Math.abs(dx-dy)<.02;
+      const growth=f.querySelector('.flower-growth'),shadow=f.querySelector('.flower-sticker-shadow');
+      const root=new DOMPoint(0,0).matrixTransform(growth.getScreenCTM()),shadowRoot=new DOMPoint(0,0).matrixTransform(shadow.getScreenCTM());
+      const top=new DOMPoint(0,-.7).matrixTransform(growth.getScreenCTM()),shadowTop=new DOMPoint(0,-.7).matrixTransform(shadow.getScreenCTM());
+      return Math.hypot(root.x-shadowRoot.x,root.y-shadowRoot.y)<.01&&shadowTop.x>top.x&&shadowTop.y>top.y;
     }));}
     assert.ok(await shadowsAt430(),'head shadows align at 4:30 in world coordinates');
     let blooms=0,resting=0;

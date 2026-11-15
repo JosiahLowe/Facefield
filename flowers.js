@@ -1,4 +1,4 @@
-import {individualFlowerGeometry,individualFlowerStyle,stickerShadowOffset} from './individual-flowers.js?v=individual-sticker-14';
+import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix} from './individual-flowers.js?v=rooted-sticker-shadows-15';
 import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
@@ -457,7 +457,7 @@ export function createFlowers(world, grid) {
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
       if(node.stickerShadow){
-        const shadow=stickerShadowOffset(pose.angle);node.stickerShadow.setAttribute('transform',`translate(${number(shadow.x)} ${number(shadow.y)})`);
+        const shadow=stickerShadowMatrix(pose.angle);node.stickerShadow.setAttribute('transform',`matrix(${number(shadow.a)} ${number(shadow.b)} ${number(shadow.c)} ${number(shadow.d)} 0 0)`);
         node.stickerHead.setAttribute('transform',node.head.getAttribute('transform'));node.stickerPetals.setAttribute('transform',`scale(${petalScale})`);
       }
       const turnTime=life.dry?(f.retiredAt??0):now/1000;

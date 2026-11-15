@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {flowerAppearance} from '../flowers.js';
 import {renderFace} from '../faces.js';
 import {mixColor} from '../palette.js';
-import {individualFlowerStyle,individualFlowerGeometry,stickerShadowOffset,INDIVIDUAL_FLOWER_COLORS,INDIVIDUAL_FLOWER_CENTERS,INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED} from '../individual-flowers.js';
+import {individualFlowerStyle,individualFlowerGeometry,stickerShadowMatrix,INDIVIDUAL_FLOWER_COLORS,INDIVIDUAL_FLOWER_CENTERS,INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED} from '../individual-flowers.js';
 const fixture=i=>({id:`single-${i}`,phase:i*.193,appearance:flowerAppearance('sticker',`single-${i}`)});
 test('individual flowers retain stable shapes and cool palettes without multi-bloom clusters',()=>{
  const forms=new Set();for(let i=0;i<160;i++){
@@ -24,11 +24,14 @@ test('every sticker shadow shares the live stem, leaves, petals and center geome
   assert.ok(svg.includes('class="flower-leaves"'));assert.ok(svg.includes('stroke="inherit"'),'stem takes color from its colored/shadow use');
  }
 });
-test('sticker offset stays down-right in world coordinates during sway and wilt',()=>{
+test('angled sticker shadows remain rooted during sway and wilt',()=>{
  for(const angle of [-55,-30,-8,0,8,30,55]){
-  const p=stickerShadowOffset(angle),r=angle*Math.PI/180;
-  assert.ok(Math.abs(Math.cos(r)*p.x-Math.sin(r)*p.y-.08)<1e-12);
-  assert.ok(Math.abs(Math.sin(r)*p.x+Math.cos(r)*p.y-.08)<1e-12);
+  const p=stickerShadowMatrix(angle),r=angle*Math.PI/180;
+  assert.equal(p.e,0);assert.equal(p.f,0,'stem and shadow share the same ground point');
+  const x=0,y=-1,worldX=Math.cos(r)*x-Math.sin(r)*y,worldY=Math.sin(r)*x+Math.cos(r)*y;
+  const sx=p.a*x+p.c*y,sy=p.b*x+p.d*y;
+  const dx=Math.cos(r)*sx-Math.sin(r)*sy-worldX,dy=Math.sin(r)*sx+Math.cos(r)*sy-worldY;
+  assert.ok(dx>0&&dy>0);assert.ok(Math.abs(dx-dy)<1e-12);
  }
 });
 test('flower paints remain distinct from sampled white-to-pigmented face colors',()=>{

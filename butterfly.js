@@ -153,9 +153,14 @@ export function createButterfly(world,grid,flowers) {
     <circle class="moth-head" cx="20" cy="14.1" r="2.6" fill="${PALETTE.moth.body}"/>
   </svg>`;
   world.append(element);
-  const body=element.querySelector('.butterfly-body'),shadow=element.querySelector('.butterfly-shadow');
+  const body=element.querySelector('.butterfly-body'),shadow=body.cloneNode(true);
+  shadow.setAttribute('class','butterfly-shadow');
+  for(const part of shadow.querySelectorAll('[class]')){if(part.classList.contains('butterfly-wing'))part.dataset.shadowWing='';part.removeAttribute('class');}
+  for(const shape of shadow.querySelectorAll('[fill]'))if(shape.getAttribute('fill')!=='none')shape.setAttribute('fill','#182038');
+  for(const shape of shadow.querySelectorAll('[stroke]'))if(shape.getAttribute('stroke')!=='none')shape.setAttribute('stroke','#182038');
+  element.querySelector('.butterfly-shadow').replaceWith(shadow);
   const remnant=element.querySelector('.moth-remnant');
-  const wings=[...element.querySelectorAll('.butterfly-wing')];
+  const wings=[...body.querySelectorAll('.butterfly-wing'),...shadow.querySelectorAll('[data-shadow-wing]')];
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let flight=null,last=0,nextPatch=0,heading=0,lift=4,position=null,occupied=null;
   let shadowHeight=.5,shadowRest=0;
@@ -186,10 +191,9 @@ export function createButterfly(world,grid,flowers) {
     shadowHeight+=((landed||dead?0:altitude)-shadowHeight)*shadowEase;
     shadowRest+=((landed||dead?1:0)-shadowRest)*shadowEase;
     const projection=mothShadowPose(heading,spread,shadowHeight,shadowRest,Math.hypot(flight.vx,flight.vy));
-    // Projection stays down/right in world space; its footprint turns with the
-    // moth and narrows with its wings. Only transform and opacity animate.
-    shadow.style.transform=`translate(${projection.offset.toFixed(2)}px,${projection.offset.toFixed(2)}px) rotate(${projection.rotation.toFixed(3)}rad) scale(${projection.scaleX.toFixed(3)}, ${projection.scaleY.toFixed(3)})`;
-    shadow.style.opacity=projection.opacity.toFixed(3);
+    // Match the flowers' crisp silhouette, including live wing flutter.
+    shadow.style.transform=`translate(${projection.offset.toFixed(2)}px,${projection.offset.toFixed(2)}px) rotate(${heading.toFixed(3)}rad)`;
+    shadow.style.opacity='.24';
     element.dataset.mode=flight.mode;element.dataset.singerIndex=flight.center?String(flight.singer):'';
     element.dataset.flower=flight.target?.id||'';element.dataset.patch=flight.patchId??'';
     element.dataset.pendingSinger=flight.pending?String(flight.pending.patch.singer):'';
