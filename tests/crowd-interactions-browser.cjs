@@ -3,6 +3,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto((process.env.FACEFIELD_URL||'http://127.0.0.1:8000/')+'?seed=facefield&style=crowd');await page.waitForSelector('#grid[data-visual-mode=crowd]');
  await page.locator('[data-singer]').evaluate(t=>{const w=document.querySelector('#world');w.scrollTo(t.offsetLeft+t.offsetWidth/2-w.clientWidth/2,t.offsetTop+t.offsetHeight/2-w.clientHeight/2);});
+ assert.equal(await page.locator('[data-crowd-hair]').count(),1152);
+ assert.ok(await page.locator('[data-singer]').evaluate(t=>{const eye=t.querySelector('[data-features] circle');return Math.abs(+eye.getAttribute('r')*+eye.getAttribute('transform').match(/scale\(([^)]+)/)[1]-4.8)<.001;}),'reference eye whites have a consistent larger radius');
  assert.equal(await page.locator('[data-crowd-base-cheek]').count(),0,'no permanent blush');
  assert.equal(await page.locator('[data-crowd-torso][fill="#FFFFFF"]').count(),1152);
  const lines=await page.locator('[data-singer]').evaluate(t=>['nose','mouth'].map(f=>{const p=t.querySelector(`[data-feature=${f}]`);return [p.getAttribute('stroke'),p.getAttribute('stroke-width'),p.getAttribute('vector-effect')];}));

@@ -60,3 +60,10 @@ long white oval torsos behind the next row. Blush now uses only the existing
 moth-proximity reaction, with no permanent decorative cheeks. Original mode is
 unchanged. Refinement validation: 54 unit tests plus Crowd interaction/story and
 Original animation/control browser regressions passed.
+
+Reference-image pass: replaced all rim-shaped hair and front caps with six complete
+rear silhouettes. Peach faces, near-flat shading, white background, consistently
+larger white eyes/smaller black pupils, wider oval singing mouths, and outlined
+white oval bodies now follow the supplied close-up reference. Normal expressions,
+proximity-only blush and story triggers remain unchanged. Validation: 55 unit tests,
+Crowd interaction regression, and Original animation regression passed.

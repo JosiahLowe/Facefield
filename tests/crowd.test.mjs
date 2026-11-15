@@ -23,3 +23,14 @@ test('refined crowd has narrower heads, larger eyes, varied facing and white ova
   const svg=crowdDecorations(t,`test-${i}`);assert.match(svg,/data-crowd-torso[^>]+ry="75" fill="#FFFFFF"/);assert.ok(!svg.includes('data-crowd-base-cheek'));
  }assert.equal(directions.size,3);
 });
+
+test('reference hairstyles are complete silhouettes behind the peach head',()=>{
+ for(let i=0;i<120;i++){
+  const svg=crowdDecorations(crowdTraits('hair-layers',i),`layer-${i}`);
+  const head=svg.slice(svg.indexOf('<g data-crowd-decoration data-crowd-head>'));
+  assert.equal([...head.matchAll(/<path /g)].length,1,'one rear silhouette, no front hair cap');
+  assert.ok(head.indexOf('data-crowd-hair')<head.indexOf('data-crowd-head-shape'));
+  const path=head.match(/data-crowd-hair d="([^"]+)"/)[1];
+  assert.equal([...path.matchAll(/M/g)].length,1);assert.ok(path.endsWith('Z'));
+ }
+});
