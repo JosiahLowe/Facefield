@@ -77,3 +77,12 @@ projection; no background flowers are introduced. Original rendering is retained
 Validation: 56 unit tests pass, including projected head-height/identity checks.
 Browser regressions were attempted but could not run because localhost:8000 was
 unavailable; no cloud browser tool is available for visual QA in this environment.
+
+Original-mode pigment experiment: geometric faces start white. The living moth
+adds their existing seeded pigment within the blush radius, including offscreen
+faces via a fixed spatial index. Pigment builds gently, holds 20 seconds after
+proximity ends, and fades over 30 seconds. Blush retains its shorter response.
+Crowd appearance is unchanged; mode switching retains pigment timestamps.
+A dead moth does not deposit new pigment. Reduced motion uses the existing
+watchdog; no new animation loop is introduced. Open `?style=original` to try it.
+Validation: 58 unit tests pass. Browser/device validation remains unavailable.

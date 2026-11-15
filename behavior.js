@@ -1,4 +1,5 @@
-import { eyelidColor } from './palette.js';
+import {pigmentLevel,depositPigment} from './pigment.js?v=moth-pigment-10';
+import { mixColor, eyelidColor } from './palette.js';
 import { randomFrom } from './faces.js';
 
 const PROFILES = {
@@ -81,7 +82,8 @@ const smooth = t => t * t * (3 - 2 * t);
 
 // A single frame loop serves visible faces. Sleeping and hidden faces do no work.
 export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) {
-  const states = new Map(), visible = new Set();
+  const states = new Map(), visible = new Set(), pigmentBins=new Map();
+  let lastPigment=0;
   let geometryVersion = 0, crowdMode=false, crowdFrameAt=-Infinity;
   new ResizeObserver(() => {
     geometryVersion++;
@@ -94,7 +96,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const state = states.get(entry.target);
       if (!state) continue;
       if (entry.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0) {
-        visible.add(state);
+        visible.add(state);paintPigment(state,performance.now());
         schedule(state, performance.now());
         if (reduced.matches) refreshStaticReaction(state);
       } else {
@@ -104,6 +106,29 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     }
     wake();
   }, { threshold: .001 });
+  function paintPigment(s,now,force=false){
+    if(s.visual)return;
+    const level=Math.round(pigmentLevel(s.pigment,now)*100)/100;
+    if(!force&&s.pigmentPaint===level)return;
+    s.pigmentPaint=level;s.tile.dataset.pigment=String(level);
+    for(const stop of s.pigmentStops)stop.element.setAttribute('stop-color',mixColor('#FFFFFF',stop.color,level));
+    s.tile.style.backgroundColor=mixColor('#FFFFFF',s.svg.dataset.skin,level);
+    s.lidColor=mixColor('#FFFFFF',s.originalLidColor,level);
+    for(const eye of s.eyes){if(eye.lid)eye.lid.setAttribute('fill',s.lidColor);for(const lid of eye.blinkLids)lid.setAttribute('fill',s.lidColor);}
+  }
+  function pigmentFrame(now){
+    if(crowdMode||document.hidden||now-lastPigment<100)return;
+    const elapsed=lastPigment?Math.min(500,now-lastPigment):100;lastPigment=now;
+    const moth=getFlyPosition(),unit=grid.clientWidth/48;
+    if(moth&&!moth.dead&&unit){
+      const x=moth.x/unit,y=moth.y/unit,r=MOTH_BLUSH.radius/unit;
+      for(let bx=Math.floor((x-r)/4);bx<=Math.floor((x+r)/4);bx++)for(let by=Math.floor((y-r)/4);by<=Math.floor((y+r)/4);by++)for(const s of pigmentBins.get(`${bx}:${by}`)||[]){
+        const attention=flyAttention((x-s.pigmentPoint.x)*unit,(y-s.pigmentPoint.y)*unit,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius);
+        if(attention>0)s.pigment=depositPigment(s.pigment,attention,now,elapsed);
+      }
+    }
+    for(const s of visible)paintPigment(s,now);
+  }
   function schedule(s, now) {
     s.nextGaze = now + between(...s.profile.gaze) * s.profile.pace;
     s.nextBlink = now + between(2000, 8000);
@@ -321,6 +346,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     frame = 0;
     if (reduced.matches || document.hidden) { resetActivity(); return; }
     if (onFrame) onFrame(now);
+    pigmentFrame(now);
     // The denser experimental crowd paints facial details at 30 Hz. World,
     // music and insect clocks keep their existing cadence.
     if(crowdMode&&now-crowdFrameAt<32){wake();return;}
@@ -375,6 +401,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
   // Some browser/media-emulation paths update matches without firing change.
   // One lightweight watchdog also resumes a grid that started in reduced motion.
   setInterval(() => {
+    if(reduced.matches)pigmentFrame(performance.now());
     if (reduced.matches !== motionPaused) resetActivity();
     else if(reduced.matches&&!document.hidden)for(const s of visible)refreshStaticReaction(s);
   }, 500);
@@ -435,6 +462,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         s.visual=poses.get(s.tile)||null;s.lidColor=s.visual?.skin||s.originalLidColor;s.geometryVersion=-1;
         if(!s.visual){
           s.mouth.element.removeAttribute('transform');
+          paintPigment(s,performance.now(),true);
           for(const eye of s.eyes)for(const cap of eye.blinkLids){cap.removeAttribute('transform');cap.setAttribute('fill',s.lidColor);}
         }
         if(s.story)paintStory(s,performance.now());else visualPose(s);
@@ -523,6 +551,13 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       s.geometryVersion = -1;
       s.minLookY = Math.max(-.88, ...eyes.filter(e => e.lidSide === 'top').map(e => (e.cut - e.y - e.pupilRadius * .5) / e.travel));
       s.maxLookY = Math.min(.88, ...eyes.filter(e => e.lidSide === 'bottom').map(e => (e.cut - e.y + e.pupilRadius * .5) / e.travel));
+      s.pigmentStops=[...svg.querySelectorAll('defs linearGradient stop')].map(element=>({element,color:element.getAttribute('stop-color')}));
+      const [row,column,height,width]=tile.style.gridArea.match(/[\d.]+/g).map(Number),u=Math.min(width,height);
+      s.pigmentPoint={x:column-1+width/2,y:row-1+(height-u)/2+eyes[0].y/100*u};
+      const bin=`${Math.floor(s.pigmentPoint.x/4)}:${Math.floor(s.pigmentPoint.y/4)}`;
+      if(previous){for(const bucket of pigmentBins.values())bucket.delete(previous);}
+      if(!pigmentBins.has(bin))pigmentBins.set(bin,new Set());pigmentBins.get(bin).add(s);
+      paintPigment(s,performance.now(),true);
       states.set(tile, s);
       schedule(s, performance.now());
       observer.observe(tile);
@@ -531,7 +566,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       observer.disconnect();
       cancelAnimationFrame(frame);
       frame = 0;
-      states.clear();
+      states.clear();pigmentBins.clear();lastPigment=0;
       visible.clear();
     },
   };

@@ -1,4 +1,4 @@
-import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=crowd-petal-colors-9';
+import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=moth-pigment-10';
 const NS='http://www.w3.org/2000/svg';
 export function createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector}){
  const originalLayout=layout,crowd=crowdLayout(layout),records=new Map();let mode='original';
@@ -90,7 +90,8 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
  }
  selector.addEventListener('change',()=>apply(selector.value));
  // The Original startup path leaves every original SVG and layout untouched.
- if(saved==='crowd'||saved!=='original'&&new URL(location.href).searchParams.get('style')==='crowd')apply('crowd');
+ const requested=new URL(location.href).searchParams.get('style');
+ if(requested!=='original'&&(saved==='crowd'||saved!=='original'&&requested==='crowd'))apply('crowd');
  return {get mode(){return mode;},get layout(){return mode==='crowd'?crowd:originalLayout;},set:apply,
   hitFace(event){
    const fallback=event.target.closest('.face');if(mode!=='crowd'||event.detail===0)return fallback;
