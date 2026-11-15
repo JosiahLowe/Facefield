@@ -67,3 +67,13 @@ larger white eyes/smaller black pupils, wider oval singing mouths, and outlined
 white oval bodies now follow the supplied close-up reference. Normal expressions,
 proximity-only blush and story triggers remain unchanged. Validation: 55 unit tests,
 Crowd interaction regression, and Original animation regression passed.
+
+Tall Crowd flowers: existing singer sites project deterministically into the gaps
+between people. One flower per patch/gap avoids stacked duplicates. Mature heads
+sit at head height; row-depth SVG layers let front people cover the stems, whose
+bases fade with a shared mask. The reference-inspired petal palette applies only
+to Crowd mode. Existing song lifecycles and moth landing poses share the same
+projection; no background flowers are introduced. Original rendering is retained.
+Validation: 56 unit tests pass, including projected head-height/identity checks.
+Browser regressions were attempted but could not run because localhost:8000 was
+unavailable; no cloud browser tool is available for visual QA in this environment.

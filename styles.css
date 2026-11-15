@@ -33,3 +33,5 @@ html[data-visual-mode=crowd] #world { background: #FFFFFF; }
 html[data-visual-mode=crowd] .sound-control { z-index: 2000; }
 html[data-visual-mode=crowd] .butterfly { z-index: 1500; }
 html[data-visual-mode=crowd] .flowers { z-index: 1200; }
+
+.crowd-flower-row { position:absolute; left:0; top:0; overflow:hidden; pointer-events:none; }

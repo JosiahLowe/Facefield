@@ -1,3 +1,4 @@
+import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-flowers-7';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
 
@@ -280,11 +281,11 @@ export function createFlowerField(seed, layout) {
 
 const NS = 'http://www.w3.org/2000/svg';
 const number = n => n.toFixed(4);
-function geometry(f, style) {
+function geometry(f, style, crowd=false) {
   const a = f.appearance;
   const shape = f.rank < .35 ? (style.shape ? 'circle' : 'oval') : a.shape;
   const count = f.rank < .35 ? style.petals : a.count;
-  const color = PALETTE.flowers.petals[0];
+  const color = crowd?crowdFlowerColor(f):PALETTE.flowers.petals[0];
   let petals = '';
   for (let i=0;i<count;i++) {
     const p = a.petals[i];
@@ -293,7 +294,7 @@ function geometry(f, style) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   const leaves = a.leaves.map(l=>`<ellipse cx="${l.x}" cy="${l.y}" rx="${l.rx}" ry="${l.ry}" transform="rotate(${l.angle} ${l.x} ${l.y})"/>`).join('');
-  return `<g class="flower-stem" fill="${a.stemColor}"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/>
+  return `<g class="flower-stem" ${crowd?'mask="url(#crowd-stem-fade)"':''} fill="${a.stemColor}"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/>
     <g class="flower-leaves">${leaves}</g></g>
     <g class="flower-head" transform="translate(0 -.70)">
     <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
@@ -311,6 +312,15 @@ export function createFlowers(world, grid) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const nodes = new Map();
   const loads = new Map();
+  const rows=new Map(),placements=new Map();
+  function clearRows(){for(const row of rows.values())row.remove();rows.clear();placements.clear();}
+  function rowLayer(depth){
+    if(rows.has(depth))return rows.get(depth);
+    if(!layer.querySelector('#crowd-stem-fade'))layer.innerHTML='<defs><linearGradient id="crowd-stem-alpha" gradientUnits="userSpaceOnUse" x1="0" y1="-.7" x2="0" y2="0"><stop stop-color="white"/><stop offset=".45" stop-color="white"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient><mask id="crowd-stem-fade" maskUnits="userSpaceOnUse" x="-2" y="-2" width="4" height="4"><rect x="-2" y="-2" width="4" height="4" fill="url(#crowd-stem-alpha)"/></mask></defs>';
+    const svg=document.createElementNS(NS,'svg');svg.classList.add('crowd-flower-row');svg.setAttribute('aria-hidden','true');svg.style.zIndex=depth;world.append(svg);rows.set(depth,svg);sizeRow(svg);return svg;
+  }
+  function sizeRow(svg){svg.setAttribute('width',grid.clientWidth);svg.setAttribute('height',grid.clientHeight);svg.setAttribute('viewBox',`0 0 48 ${grid.clientHeight/unit}`);}
+
   let occupant=null;
   let field, unit = 1, last = 0, reconciled = -Infinity, dirty = true, music = 0, duration = 0;
   let visible = [], modelLayout=[], presentation=null, headBins=new Map();
@@ -323,7 +333,20 @@ export function createFlowers(world, grid) {
     }
     return true;
   }
-  function projectedHead(f,patch,now){const p=headFor(f,patch,now),d=offset(patch.singer);return {...p,x:p.x+d.x,y:p.y+d.y};}
+  function placement(f,patch){return crowdFlowerPlacement(f,offset(patch?.singer??f.singer),presentation);}
+  function allowed(f,patch){
+    if(!presentation)return true;
+    if(!patch)return true;
+    if(!placements.has(patch.id)){
+      const chosen=new Set(),slots=new Set();
+      for(const site of [...patch.flowers.values()].sort((a,b)=>Number(b.cue)-Number(a.cue)||a.rank-b.rank)){
+        const p=placement(site,patch);if(!slots.has(p.slot)){slots.add(p.slot);chosen.add(site.id);}
+      }
+      placements.set(patch.id,chosen);
+    }
+    return placements.get(patch.id).has(f.id);
+  }
+  function projectedHead(f,patch,now){const p=headFor(f,patch,now),d=offset(patch.singer);return presentation?p:{...p,x:p.x+d.x,y:p.y+d.y};}
   function loadFor(id,seconds) {
     const load=loads.get(id),value=flowerWeight(load,seconds);
     if (load&&!load.target&&value<.001) loads.delete(id);
@@ -345,12 +368,13 @@ export function createFlowers(world, grid) {
   function headFor(f,patch,now) {
     const life=flowerLife(f,patch,now/1000),node=nodes.get(`${patch.id}:${f.id}`);
     const energy=node?.energy??(life.responsive?music/(1+(f.distance/4)**2):0);
-    return flowerPose(f,life,now/1000,energy,duration,loadFor(`${patch.id}:${f.id}`,now/1000),reduced.matches);
+    return flowerPose(presentation?placement(f,patch).flower:f,life,now/1000,energy,duration,loadFor(`${patch.id}:${f.id}`,now/1000),reduced.matches);
   }
   function resize() {
     unit = grid.clientWidth/48 || 1;
     layer.setAttribute('width',grid.clientWidth); layer.setAttribute('height',grid.clientHeight);
     layer.setAttribute('viewBox',`0 0 ${grid.clientWidth/unit} ${grid.clientHeight/unit}`);
+    for(const row of rows.values())sizeRow(row);
     dirty = true;
   }
   function reconcile(now) {
@@ -358,27 +382,30 @@ export function createFlowers(world, grid) {
     const view = window.visualViewport;
     const x = (world.scrollLeft+(view?.offsetLeft || 0))/unit;
     const y = (world.scrollTop+(view?.offsetTop || 0))/unit;
-    visible = field.visible({ left: x-.6, top: y-.6,
-      right: x+(view?.width || world.clientWidth)/unit+.6,
-      bottom: y+(view?.height || world.clientHeight)/unit+.6 },now/1000,offset).filter(({f,patch})=>{const d=offset(patch?.singer??f.singer);return clearHead(f.x+d.x,f.y+d.y-f.size*.7);});
+    visible = field.visible({ left: x-(presentation?2:.6), top: y-(presentation?2.5:.6),
+      right: x+(view?.width || world.clientWidth)/unit+(presentation?2:.6),
+      bottom: y+(view?.height || world.clientHeight)/unit+(presentation?2.5:.6) },now/1000,offset).filter(({f,patch})=>{const d=offset(patch?.singer??f.singer);return presentation?allowed(f,patch):clearHead(f.x+d.x,f.y+d.y-f.size*.7);});
     const keys = new Set(visible.map(item => item.key));
     for (const [key,node] of nodes) if (!keys.has(key)) { node.root.remove(); nodes.delete(key); }
     for (const item of visible) {
       if (nodes.has(item.key)) continue;
       const root = document.createElementNS(NS,'g');
       root.classList.add('flower'); root.dataset.flower = item.key;
-      const d=offset(item.patch?.singer??item.f.singer),px=item.f.x+d.x,py=item.f.y+d.y;
+      const d=offset(item.patch?.singer??item.f.singer),display=presentation?placement(item.f,item.patch):null,draw=display?.flower||item.f,px=display?draw.x:item.f.x+d.x,py=display?draw.y:item.f.y+d.y;
       root.dataset.site = item.f.id; root.dataset.x = px; root.dataset.y = py;
       root.dataset.posture=item.f.posture.kind;
-      root.setAttribute('transform',`translate(${number(px)} ${number(py)}) scale(${number(item.f.size)})`);
-      root.innerHTML = `<g class="flower-growth">${geometry(item.f,item.style)}</g>`;
-      layer.append(root);
+      root.setAttribute('transform',`translate(${number(px)} ${number(py)}) scale(${number(draw.size)})`);
+      root.innerHTML = `<g class="flower-growth">${geometry(item.f,item.style,!!presentation)}</g>`;
+      (display?rowLayer(display.depth):layer).append(root);
+      if(display)root.querySelector('.flower-head-shadow').setAttribute('display','none');
       nodes.set(item.key,{ root, growth: root.firstElementChild,
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
         petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
         stemPath: root.querySelector('.flower-stem-path'), leaves:[...root.querySelectorAll('.flower-leaves ellipse')],
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
     }
+    for(const [depth,row] of rows)if(!row.childElementCount){row.remove();rows.delete(depth);}
+    const live=new Set([field.active,...field.companions,...field.retiring].filter(Boolean).map(p=>p.id));for(const id of placements.keys())if(!live.has(id))placements.delete(id);
     reconciled = now; dirty = false;
   }
   function update(now, force = false) {
@@ -391,7 +418,7 @@ export function createFlowers(world, grid) {
       const life = patch ? flowerLife(f,patch,now/1000) : item.life;
       const response = life.responsive && (patch === field.active||field.companions.includes(patch)) ? music/(1+(f.distance/4)**2) : 0;
       node.energy += (response-node.energy)*(1-Math.exp(-dt*(4+f.phase)));
-      const pose = flowerPose(f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
+      const pose = flowerPose(presentation?placement(f,patch).flower:f,life,now/1000,node.energy,duration,loadFor(item.key,now/1000),reduced.matches);
       const motion = pose.motion;
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.dataset.load=number(pose.weight);
@@ -420,7 +447,7 @@ export function createFlowers(world, grid) {
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.stemPath.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
-        node.petals.setAttribute('fill',PALETTE.flowers.petals[0]);
+        node.petals.setAttribute('fill',presentation?crowdFlowerColor(f):PALETTE.flowers.petals[0]);
         node.dryLevel = dryLevel;
       }
     }
@@ -433,9 +460,9 @@ export function createFlowers(world, grid) {
   setInterval(() => { if (reduced.matches && !document.hidden) update(performance.now(),true); },250);
   document.addEventListener('visibilitychange',() => { last = 0; dirty = true; });
   return {
-    setPresentation(layout) { presentation=layout;headBins=new Map();for(const c of layout||[]){const key=`${Math.floor((c.column-1+c.width/2)/2)}:${Math.floor((c.row-1+c.height/2)/2)}`;if(!headBins.has(key))headBins.set(key,[]);headBins.get(key).push(c);}nodes.clear();layer.replaceChildren();visible=[];resize();update(performance.now(),true); },
-    reset(seed,layout) { modelLayout=layout; field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
-    clear() { field?.clear();nodes.clear();loads.clear();occupant=null;layer.replaceChildren();visible=[];music=0;dirty=true; },
+    setPresentation(layout) { clearRows();presentation=layout;headBins=new Map();for(const c of layout||[]){const key=`${Math.floor((c.column-1+c.width/2)/2)}:${Math.floor((c.row-1+c.height/2)/2)}`;if(!headBins.has(key))headBins.set(key,[]);headBins.get(key).push(c);}nodes.clear();layer.replaceChildren();visible=[];resize();update(performance.now(),true); },
+    reset(seed,layout) { clearRows();modelLayout=layout; field = createFlowerField(seed,layout); nodes.clear(); loads.clear(); occupant=null; layer.replaceChildren(); visible = []; music = 0; resize(); },
+    clear() { clearRows();field?.clear();nodes.clear();loads.clear();occupant=null;layer.replaceChildren();visible=[];music=0;dirty=true; },
     changeSinger(tile) { music = 0; field?.changeSinger(tile ? Number(tile.dataset.index) : null,performance.now()/1000); dirty = true; update(performance.now(),true); },
     addSinger(tile){field?.addSinger(Number(tile.dataset.index),performance.now()/1000);dirty=true;update(performance.now(),true);},
     music(opening,noteDuration = 0) { music = opening; duration = noteDuration; },
@@ -450,7 +477,7 @@ export function createFlowers(world, grid) {
           const head=projectedHead(f,patch,now);
           // Leave room for the butterfly at outer world edges; unreachable
           // edge blossoms must not trap a landing against the flight bounds.
-          if (clearHead(f.x+offset(patch.singer).x,f.y+offset(patch.singer).y-f.size*.7)&&head.x>.45&&head.x<48-.45&&head.y>.45&&head.y<grid.clientHeight/unit-.45) {
+          if (allowed(f,patch)&&(presentation||clearHead(f.x+offset(patch.singer).x,f.y+offset(patch.singer).y-f.size*.7))&&head.x>.45&&head.x<48-.45&&head.y>.45&&head.y<grid.clientHeight/unit-.45) {
             destinations.push({id:f.id,x:head.x,y:head.y});
           }
         }
@@ -459,7 +486,7 @@ export function createFlowers(world, grid) {
     },
     flowerHead(id,now=performance.now(),patchId=field?.active?.id) {
       const patch=patchFor(patchId),f=patch?.flowers.get(id);
-      if (!f||!clearHead(f.x+offset(patch.singer).x,f.y+offset(patch.singer).y-f.size*.7)||flowerLife(f,patch,now/1000).bloom<=(patch.retired===null ? .65 : .15)) return null;
+      if (!f||!allowed(f,patch)||(!presentation&&!clearHead(f.x+offset(patch.singer).x,f.y+offset(patch.singer).y-f.size*.7))||flowerLife(f,patch,now/1000).bloom<=(patch.retired===null ? .65 : .15)) return null;
       const pose=projectedHead(f,patch,now);
       return {id,x:pose.x,y:pose.y};
     },
