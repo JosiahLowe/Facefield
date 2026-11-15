@@ -114,6 +114,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     s.pigmentSkin.setAttribute('stroke','#000000');s.pigmentSkin.setAttribute('stroke-width','.8');
     s.pigmentSkin.setAttribute('vector-effect','non-scaling-stroke');
     s.pigmentSkin.setAttribute('stroke-opacity',String(1-level));
+    for(const eye of s.eyes){eye.white.setAttribute('stroke','#000000');eye.white.setAttribute('stroke-width','.7');eye.white.setAttribute('vector-effect','non-scaling-stroke');eye.white.setAttribute('stroke-opacity',String(1-level));}
     for(const stop of s.pigmentStops)stop.element.setAttribute('stop-color',mixColor('#FFFFFF',stop.color,level));
     s.tile.style.backgroundColor=mixColor('#FFFFFF',s.svg.dataset.skin,level);
     s.lidColor=mixColor('#FFFFFF',s.originalLidColor,level);
@@ -537,7 +538,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const eyes = [0, 2].map((i, eyeIndex) => {
         const white = circles[i], pupil = circles[i + 1], lid = lids[eyeIndex];
         const number = attr => +white.getAttribute(attr);
-        return { pupil, pupilRadius: +pupil.getAttribute('r'), x: number('cx'), y: number('cy'), r: number('r'),
+        return { white, pupil, pupilRadius: +pupil.getAttribute('r'), x: number('cx'), y: number('cy'), r: number('r'),
           travel: number('r') - +pupil.getAttribute('r'), originalX: pupil.getAttribute('cx'), originalY: pupil.getAttribute('cy'),
           lid, lidSide: lid?.dataset.side, cut: lid ? +lid.getAttribute('d').split(' ')[2] : 0, blinkLids: [] };
       });

@@ -1,4 +1,4 @@
-import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=rooted-sticker-shadows-15';
+import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=white-eye-outlines-16';
 const NS='http://www.w3.org/2000/svg';
 export function createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector}){
  const originalLayout=layout,crowd=crowdLayout(layout),records=new Map();let mode='original';
@@ -27,7 +27,7 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
   const svg=tile.querySelector('svg'),features=svg.querySelector('[data-features]'),mouth=svg.querySelector('[data-feature=mouth]');
   const eyes=[...svg.querySelectorAll('circle:not([data-feature=cheek])')];
   const all=[svg,features,mouth,svg.querySelector('[data-feature=skin]'),svg.querySelector('[data-feature=nose]'),svg.querySelector('[data-feature=cheeks]'),...eyes,...svg.querySelectorAll('[data-feature=eyelid]')];
-  const attrs=new Map(all.map(el=>[el,new Map(['transform','fill','stroke','stroke-width','viewBox','preserveAspectRatio','id','visibility','vector-effect','stroke-linecap','r'].map(a=>[a,el.getAttribute(a)]))]));
+  const attrs=new Map(all.map(el=>[el,new Map(['transform','fill','stroke','stroke-width','viewBox','preserveAspectRatio','id','visibility','vector-effect','stroke-linecap','r','stroke-opacity'].map(a=>[a,el.getAttribute(a)]))]));
   const nose=svg.querySelector('[data-feature=nose]');attrs.get(nose).set('d',nose.getAttribute('d'));
   const traits=crowdTraits(seed,i),id=`crowd-${i}`,holder=document.createElementNS(NS,'g');holder.innerHTML=crowdDecorations(traits,id);
   const decorations=[...holder.children];for(const el of decorations)svg.insertBefore(el,features);
@@ -58,7 +58,7 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
    const transform=`translate(${nx} ${ny}) scale(${eyeScale}) translate(${-x} ${-y})`;
    pupil.setAttribute('r',String(1.55/eyeScale));
    for(const el of [white,pupil])el.setAttribute('transform',transform);
-   white.setAttribute('fill',CROWD_PALETTE.eye);pupil.setAttribute('fill',CROWD_PALETTE.ink);
+   white.setAttribute('fill',CROWD_PALETTE.eye);white.setAttribute('stroke','none');pupil.setAttribute('fill',CROWD_PALETTE.ink);
    if(traits.eyes==='blue'){pupil.setAttribute('stroke',CROWD_PALETTE.iris);pupil.setAttribute('stroke-width','4');}
    projected.push({x:nx,y:ny,scale:eyeScale,transform});
   }
