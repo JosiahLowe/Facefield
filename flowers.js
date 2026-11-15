@@ -1,4 +1,4 @@
-import {flowerGrouping,groupGeometry} from './flower-groups.js?v=original-groups-12';
+import {flowerGrouping,groupGeometry,groupStemPaths} from './flower-groups.js?v=rooted-flower-groups-13';
 import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
@@ -297,10 +297,10 @@ function geometry(f, style, crowd=false) {
     petals += `<g transform="rotate(${i*360/count})">${petal}</g>`;
   }
   const leaves = a.leaves.map(l=>`<ellipse cx="${l.x}" cy="${l.y}" rx="${l.rx}" ry="${l.ry}" transform="rotate(${l.angle} ${l.x} ${l.y})"/>`).join('');
-  return `<g class="flower-stem" ${crowd?'mask="url(#crowd-stem-fade)"':''} fill="${a.stemColor}"><path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/>
-    <g class="flower-leaves">${leaves}</g></g>
+  const stems=grouping?`<g class="flower-group-stems" stroke="${a.stemColor}" stroke-width=".018" stroke-linecap="round" fill="none">${groupStemPaths(kind,{headX:0,headOffset:-.7,headTilt:0}).map(d=>`<path d="${d}"/>`).join('')}</g>${grouping.foliage}`
+    :`<path class="flower-stem-path" d="M0 0 Q0 -.35 0 -.70" fill="none" stroke="${a.stemColor}" stroke-width=".036" stroke-linecap="round"/><g class="flower-leaves">${leaves}</g>`;
+  return `<g class="flower-stem" ${crowd?'mask="url(#crowd-stem-fade)"':''} fill="${a.stemColor}">${stems}</g>
     <g class="flower-head" transform="translate(0 -.70)">
-    ${grouping?.foliage||''}
     <g class="flower-head-shadow" fill="${PALETTE.ink}" transform="translate(.16 .16)"><circle r=".28" opacity=".065"/><circle r=".24" opacity=".14"/></g>
     <g class="flower-petals" fill="${color}"><g class="flower-spin">${grouping?.petals||petals}</g></g>
     <circle class="flower-center" r="${grouping?.center??.08}" fill="${PALETTE.flowers.center}"/></g>`;
@@ -415,7 +415,7 @@ export function createFlowers(world, grid) {
         stem: root.querySelector('.flower-stem'), head: root.querySelector('.flower-head'), headShadow: root.querySelector('.flower-head-shadow'),
         petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
         stemPath: root.querySelector('.flower-stem-path'), leaves:[...root.querySelectorAll('.flower-leaves ellipse')],
-        groupFoliage:root.querySelector('.flower-group-foliage'),groupBranches:root.querySelector('.flower-group-branches'),
+        groupFoliage:root.querySelector('.flower-group-foliage'),groupStemGroup:root.querySelector('.flower-group-stems'),groupStems:[...root.querySelectorAll('.flower-group-stems path')],
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
       if(display){
         // Keep a single animated head, but paint it in the foreground SVG.
@@ -449,7 +449,7 @@ export function createFlowers(world, grid) {
       const growthTransform=`rotate(${number(pose.angle)}) scale(${number(pose.growthScale)})`;
       node.growth.setAttribute('transform',growthTransform);
       if(node.frontRoot){node.frontRoot.setAttribute('opacity',number(life.opacity));node.frontGrowth.setAttribute('transform',growthTransform);}
-      node.stemPath.setAttribute('d',`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
+      node.stemPath?.setAttribute('d',`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
       node.leaves.forEach((leaf,i)=>{
         const l=f.appearance.leaves[i],t=-l.y/.70;
         const x=l.x+pose.headX*t*t,y=l.y+(pose.headOffset+.70)*t*t;
@@ -460,6 +460,7 @@ export function createFlowers(world, grid) {
       node.head.setAttribute('transform',`translate(${number(pose.headX)} ${number(pose.headOffset)}) rotate(${number(pose.headTilt)})`);
       const petalScale = number(.18+life.bloom*.82+motion.expansion);
       node.petals.setAttribute('transform',`scale(${petalScale})`);
+      if(node.groupStems.length)groupStemPaths(node.root.dataset.group,pose,+petalScale).forEach((d,i)=>node.groupStems[i].setAttribute('d',d));
       const turn = reduced.matches||node.root.dataset.group!=='single' ? 0 : flowerHeadTurn(f,life.dry ? (f.retiredAt??0) : now/1000);
       node.spin.setAttribute('transform',`rotate(${number(turn%360)})`);
       // Cancel the parent stem/head tilt so the shadow stays at 4:30 in world
@@ -471,10 +472,10 @@ export function createFlowers(world, grid) {
       const dryLevel = Math.round(life.dryProgress*20);
       if (node.dryLevel !== dryLevel) {
         node.stem.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
-        node.stemPath.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
+        node.stemPath?.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.petals.setAttribute('fill',presentation||flowerGrouping(f)!=='single'?crowdFlowerColor(f):PALETTE.flowers.petals[0]);
         node.groupFoliage?.setAttribute('fill',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
-        node.groupBranches?.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
+        node.groupStemGroup?.setAttribute('stroke',mixColor(node.stemColor,PALETTE.flowers.dried,dryLevel/20));
         node.dryLevel = dryLevel;
       }
     }

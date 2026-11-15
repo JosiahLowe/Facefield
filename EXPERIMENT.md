@@ -101,3 +101,11 @@ Original singing mouths are 50% taller and show a pink tongue clipped to the
 animated opening. Tongues hide for closed, silent and story-specific mouths.
 Validation: 59 unit tests pass; browser assertions were updated but could not be
 executed because browser preview infrastructure is unavailable in this environment.
+
+Cluster posture correction: grouped plants no longer use a single stalk. Mounds
+have seven separate ground-rooted stems; spike clusters have independent stems
+for each raceme and their central landing floret. Foliage originates at ground
+level. Stem endpoints follow each bloom during sway, growth, notes and moth load.
+Small flowers and Crowd mode retain their previous stems. Validation: 60 unit
+tests pass, including independent roots and animated endpoint checks. Browser
+visual validation remains unavailable.
