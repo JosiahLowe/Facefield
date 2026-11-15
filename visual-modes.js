@@ -1,4 +1,4 @@
-import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=moth-pigment-10';
+import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=moth-pigment-outline-11';
 const NS='http://www.w3.org/2000/svg';
 export function createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector}){
  const originalLayout=layout,crowd=crowdLayout(layout),records=new Map();let mode='original';

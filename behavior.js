@@ -111,6 +111,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const level=Math.round(pigmentLevel(s.pigment,now)*100)/100;
     if(!force&&s.pigmentPaint===level)return;
     s.pigmentPaint=level;s.tile.dataset.pigment=String(level);
+    s.pigmentSkin.setAttribute('stroke','#000000');s.pigmentSkin.setAttribute('stroke-width','.8');
+    s.pigmentSkin.setAttribute('vector-effect','non-scaling-stroke');
+    s.pigmentSkin.setAttribute('stroke-opacity',String(1-level));
     for(const stop of s.pigmentStops)stop.element.setAttribute('stop-color',mixColor('#FFFFFF',stop.color,level));
     s.tile.style.backgroundColor=mixColor('#FFFFFF',s.svg.dataset.skin,level);
     s.lidColor=mixColor('#FFFFFF',s.originalLidColor,level);
@@ -121,9 +124,9 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const elapsed=lastPigment?Math.min(500,now-lastPigment):100;lastPigment=now;
     const moth=getFlyPosition(),unit=grid.clientWidth/48;
     if(moth&&!moth.dead&&unit){
-      const x=moth.x/unit,y=moth.y/unit,r=MOTH_BLUSH.radius/unit;
+      const x=moth.x/unit,y=moth.y/unit,r=FLY_TRACKING.detectionRadius/unit;
       for(let bx=Math.floor((x-r)/4);bx<=Math.floor((x+r)/4);bx++)for(let by=Math.floor((y-r)/4);by<=Math.floor((y+r)/4);by++)for(const s of pigmentBins.get(`${bx}:${by}`)||[]){
-        const attention=flyAttention((x-s.pigmentPoint.x)*unit,(y-s.pigmentPoint.y)*unit,MOTH_BLUSH.radius,MOTH_BLUSH.fullRadius);
+        const attention=flyAttention((x-s.pigmentPoint.x)*unit,(y-s.pigmentPoint.y)*unit);
         if(attention>0)s.pigment=depositPigment(s.pigment,attention,now,elapsed);
       }
     }
@@ -551,6 +554,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       s.geometryVersion = -1;
       s.minLookY = Math.max(-.88, ...eyes.filter(e => e.lidSide === 'top').map(e => (e.cut - e.y - e.pupilRadius * .5) / e.travel));
       s.maxLookY = Math.min(.88, ...eyes.filter(e => e.lidSide === 'bottom').map(e => (e.cut - e.y + e.pupilRadius * .5) / e.travel));
+      s.pigmentSkin=svg.querySelector('[data-feature=skin]');
       s.pigmentStops=[...svg.querySelectorAll('defs linearGradient stop')].map(element=>({element,color:element.getAttribute('stop-color')}));
       const [row,column,height,width]=tile.style.gridArea.match(/[\d.]+/g).map(Number),u=Math.min(width,height);
       s.pigmentPoint={x:column-1+width/2,y:row-1+(height-u)/2+eyes[0].y/100*u};
