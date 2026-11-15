@@ -3,7 +3,7 @@ import {randomFrom} from './faces.js';
 // Saturated cool blooms and emerald foliage stay apart from the muted earth
 // pigments of Original faces. Avoid cream/white, ochre, peach and orange.
 export const INDIVIDUAL_FLOWER_COLORS=['#D938AB','#9652D4','#C34BD1','#D92D57','#B64BC5','#D74D79'];
-export const INDIVIDUAL_FLOWER_CENTERS=['#51237A','#F187D4','#642668','#6D2CA0'];
+export const INDIVIDUAL_FLOWER_CENTERS=['#F9D43B'];
 export const INDIVIDUAL_FLOWER_DRIED='#61386C';
 export const INDIVIDUAL_FLOWER_GREENS=['#196A3C','#238A4A','#28733F','#21865B','#1D754D','#398B49'];
 export function individualFlowerStyle(f){
@@ -49,7 +49,7 @@ export function individualFlowerGeometry(f,id){
   const initialBell=style.form==='bell'?bellStemGeometry({headX:0,headOffset:-.7,headTilt:0},0,1,f.rotation<0?-1:1,f.appearance.leaves):null;
   const leaves=f.appearance.leaves.map((l,i)=>{const anchor=initialBell?.anchors[i]||l;return `<g class="flower-leaf" transform="translate(${anchor.x} ${anchor.y}) rotate(${anchor.angle})"><path d="M${-l.rx} 0 Q0 ${-l.ry*2} ${l.rx} 0 Q0 ${l.ry*2} ${-l.rx} 0Z" stroke="none"/></g>`;}).join('');
   const center=style.form==='cone'?`<path id="${id}-center" d="M-.11 -.02 C-.10 -.20 .10 -.20 .11 -.02 Q0 .04 -.11 -.02Z"/>`
-    :`<circle id="${id}-center" r="${style.form==='bell'?0:style.form==='ray'?'.08':'.065'}"/>`;
+    :`<circle id="${id}-center" cy="${style.form==='bell'?'.045':0}" r="${style.form==='bell'?'.045':style.form==='ray'?'.08':'.065'}"/>`;
   // Uncolored source geometry is shared by colored uses and shadow uses.
   // Source path/leaf/spin updates therefore animate both without DOM cloning,
   // per-frame shadow geometry copies, or a filter that Safari must rasterize.

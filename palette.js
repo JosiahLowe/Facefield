@@ -12,7 +12,7 @@ export const PALETTE = {
   flowers: {
     stems: ['#65746B', '#494B3D', '#6F805B', '#526B48', '#87956A'],
     petals: ['#FFFFFF'],
-    center: '#D0A35B',
+    center: '#F9D43B',
     dried: '#95836B',
   },
   moth: { wing: '#EBD3AB', eyespot: '#BC8F3C', body: '#8D7958', antenna: '#A28C70' },

@@ -1,7 +1,7 @@
-import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix,bellStemGeometry} from './individual-flowers.js?v=compact-gardens-19';
+import {individualFlowerGeometry,individualFlowerStyle,stickerShadowMatrix,bellStemGeometry} from './individual-flowers.js?v=yellow-centers-20';
 import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=compact-gardens-19';
 import { randomFrom } from './faces.js';
-import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
+import { PALETTE, mixColor } from './palette.js?v=yellow-centers-20';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };

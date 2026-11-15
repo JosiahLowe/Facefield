@@ -8,10 +8,10 @@ const fixture=i=>({id:`single-${i}`,phase:i*.193,appearance:flowerAppearance('st
 test('individual flowers retain stable shapes and cool palettes without multi-bloom clusters',()=>{
  const forms=new Set();for(let i=0;i<160;i++){
   const f=fixture(i),s=individualFlowerStyle(f);assert.deepEqual(s,individualFlowerStyle(f));forms.add(s.form);
-  assert.ok(INDIVIDUAL_FLOWER_COLORS.includes(s.color));assert.ok(INDIVIDUAL_FLOWER_CENTERS.includes(s.center));assert.ok(INDIVIDUAL_FLOWER_GREENS.includes(s.green));
+  assert.ok(INDIVIDUAL_FLOWER_COLORS.includes(s.color));assert.ok(INDIVIDUAL_FLOWER_CENTERS.includes(s.center));assert.equal(s.center,'#F9D43B');assert.ok(INDIVIDUAL_FLOWER_GREENS.includes(s.green));
   const svg=individualFlowerGeometry(f,`test-${i}`);
   assert.equal((svg.match(/class="flower-head"/g)||[]).length,1);assert.equal((svg.match(/class="flower-stem-path"/g)||[]).length,1);
-  assert.ok(!svg.includes('flower-group'));assert.ok(!svg.includes('<filter'));
+  assert.ok(!svg.includes('flower-group'));if(s.form==='bell')assert.ok(svg.includes('cy=".045" r=".045"'),'bell center is visible');assert.ok(!svg.includes('<filter'));
  }assert.deepEqual([...forms].sort(),['bell','cone','daisy','ray']);
 });
 test('every sticker shadow shares the live stem, leaves, petals and center geometry',()=>{
