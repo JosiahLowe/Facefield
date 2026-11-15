@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {crowdTraits,crowdLayout,CROWD_PALETTE} from '../crowd-art.js';
+import {crowdTraits,crowdLayout,crowdDecorations,CROWD_PALETTE} from '../crowd-art.js';
 import {mosaicLayout} from '../mosaic.js';
 test('crowd presentation preserves all stable model identities in staggered bounded slots',()=>{
  const model=mosaicLayout('crowd',48,1152),before=JSON.stringify(model),a=crowdLayout(model);
@@ -14,4 +14,12 @@ test('crowd traits use independent deterministic variation and the coordinated p
  const a=crowdTraits('crowd',i);assert.deepEqual(a,crowdTraits('crowd',i));assert.notDeepEqual(a,crowdTraits('other',i));
  assert.ok(CROWD_PALETTE.skin.includes(a.skin));assert.ok(CROWD_PALETTE.hair.includes(a.hair));styles.add(a.style);eyes.add(a.eyes);
  }assert.equal(styles.size,6);assert.equal(eyes.size,2);
+});
+
+test('refined crowd has narrower heads, larger eyes, varied facing and white oval bodies without permanent blush',()=>{
+ const directions=new Set();for(let i=0;i<200;i++){
+  const t=crowdTraits('refinement',i);assert.ok(t.rx>=27&&t.rx<31);assert.ok(t.eyeScale>=.30&&t.eyeScale<.345);
+  directions.add(t.facing< -2?'left':t.facing>2?'right':'front');
+  const svg=crowdDecorations(t,`test-${i}`);assert.match(svg,/data-crowd-torso[^>]+ry="75" fill="#FFFFFF"/);assert.ok(!svg.includes('data-crowd-base-cheek'));
+ }assert.equal(directions.size,3);
 });

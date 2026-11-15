@@ -1,4 +1,4 @@
-import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=crowd-experiment-1';
+import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=crowd-refinement-2';
 const NS='http://www.w3.org/2000/svg';
 export function createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector}){
  const originalLayout=layout,crowd=crowdLayout(layout),records=new Map();let mode='original';
@@ -27,12 +27,14 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
   const svg=tile.querySelector('svg'),features=svg.querySelector('[data-features]'),mouth=svg.querySelector('[data-feature=mouth]');
   const eyes=[...svg.querySelectorAll('circle:not([data-feature=cheek])')];
   const all=[svg,features,mouth,svg.querySelector('[data-feature=skin]'),svg.querySelector('[data-feature=nose]'),svg.querySelector('[data-feature=cheeks]'),...eyes,...svg.querySelectorAll('[data-feature=eyelid]')];
-  const attrs=new Map(all.map(el=>[el,new Map(['transform','fill','stroke','stroke-width','viewBox','preserveAspectRatio','id','visibility'].map(a=>[a,el.getAttribute(a)]))]));
+  const attrs=new Map(all.map(el=>[el,new Map(['transform','fill','stroke','stroke-width','viewBox','preserveAspectRatio','id','visibility','vector-effect','stroke-linecap'].map(a=>[a,el.getAttribute(a)]))]));
+  const nose=svg.querySelector('[data-feature=nose]');attrs.get(nose).set('d',nose.getAttribute('d'));
   const traits=crowdTraits(seed,i),id=`crowd-${i}`,holder=document.createElementNS(NS,'g');holder.innerHTML=crowdDecorations(traits,id);
   const decorations=[...holder.children];for(const el of decorations)svg.insertBefore(el,features);
   for(const el of decorations)el.setAttribute('display','none');
   const tongue=document.createElementNS(NS,'ellipse');tongue.dataset.crowdDecoration='';tongue.dataset.crowdTongue='';tongue.setAttribute('cx','50');tongue.setAttribute('cy','75');tongue.setAttribute('rx','4.8');tongue.setAttribute('ry','3.2');tongue.setAttribute('fill','#DDAEAA');tongue.setAttribute('clip-path',`url(#${id}-mouth-clip)`);tongue.setAttribute('display','none');features.append(tongue);decorations.push(tongue);
-  const value={svg,features,mouth,eyes,attrs,traits,id,decorations,tongue};records.set(tile,value);return value;
+  const oval=document.createElementNS(NS,'ellipse');oval.dataset.crowdSingingMouth='';oval.id=`${id}-oval`;const clip=document.createElementNS(NS,'clipPath');clip.id=`${oval.id}-clip`;const use=document.createElementNS(NS,'use');use.setAttribute('href',`#${oval.id}`);clip.append(use);decorations[0].append(clip);oval.setAttribute('fill',CROWD_PALETTE.ink);oval.setAttribute('display','none');features.insertBefore(oval,tongue);decorations.push(oval);
+  const value={svg,features,mouth,eyes,attrs,traits,id,decorations,tongue,oval};records.set(tile,value);return value;
  }
  function art(tile,i){
   const r=record(tile,i),{svg,features,mouth,traits,id}=r;
@@ -51,7 +53,7 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
   const projected=[];
   for(let j=0;j<2;j++){
    const white=r.eyes[j*2],pupil=r.eyes[j*2+1],x=+white.getAttribute('cx'),y=+white.getAttribute('cy');
-   const nx=50+(j?1:-1)*traits.eyeGap,ny=traits.eyeY;
+   const nx=50+traits.facing+(j?1:-1)*traits.eyeGap,ny=traits.eyeY;
    const transform=`translate(${nx} ${ny}) scale(${traits.eyeScale}) translate(${-x} ${-y})`;
    for(const el of [white,pupil])el.setAttribute('transform',transform);
    white.setAttribute('fill',CROWD_PALETTE.eye);pupil.setAttribute('fill',CROWD_PALETTE.ink);
@@ -59,10 +61,14 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
    projected.push({x:nx,y:ny,scale:traits.eyeScale,transform});
   }
   [...svg.querySelectorAll('[data-feature=eyelid]')].forEach((el,j)=>{el.setAttribute('transform',projected[j].transform);el.setAttribute('fill',traits.skin);});
-  svg.querySelector('[data-feature=nose]').setAttribute('transform','translate(50 49) scale(.14) translate(-50 -54)');
-  const cheeks=svg.querySelector('[data-feature=cheeks]');cheeks.setAttribute('transform','translate(50 54) scale(.55 .48) translate(-50 -55)');cheeks.setAttribute('fill',CROWD_PALETTE.cheek);
+  const nose=svg.querySelector('[data-feature=nose]');
+  nose.setAttribute('d','M46 42 L46 50 C46 56 54 56 54 50 L54 42');
+  nose.setAttribute('transform',`translate(${traits.facing} 0)`);
+  for(const line of [nose,mouth]){line.setAttribute('stroke',CROWD_PALETTE.ink);line.setAttribute('stroke-width','.8');line.setAttribute('vector-effect','non-scaling-stroke');line.setAttribute('stroke-linecap','round');}
+
+  const cheeks=svg.querySelector('[data-feature=cheeks]');cheeks.setAttribute('transform',`translate(${50+traits.facing} 54) scale(.48 .48) translate(-50 -55)`);cheeks.setAttribute('fill',CROWD_PALETTE.cheek);
   mouth.setAttribute('id',`${id}-mouth`);mouth.setAttribute('stroke',CROWD_PALETTE.ink);
-  return {mode,eyes:projected,skin:traits.skin,mouthWidth:traits.mouthWidth,tongue:r.tongue,baseCheeks:[...svg.querySelectorAll('[data-crowd-base-cheek]')]};
+  return {mode,eyes:projected,skin:traits.skin,mouthWidth:traits.mouthWidth,facing:traits.facing,tongue:r.tongue,oval:r.oval};
  }
  function apply(next){
   if(!['original','crowd'].includes(next)||next===mode&&records.size)return;

@@ -53,3 +53,10 @@ Changed files: app.js, behavior.js, butterfly.js, flowers.js, index.html,
 styles.css, crowd-art.js, visual-modes.js, EXPERIMENT.md,
 tests/controls-browser.cjs, tests/crowd.test.mjs, tests/crowd-browser.cjs,
 and tests/crowd-interactions-browser.cjs.
+
+Crowd refinement: narrower heads, seeded facing offsets, larger eyes, long U-shaped
+black noses, matching thin mouth strokes, true elliptical singing mouths, and
+long white oval torsos behind the next row. Blush now uses only the existing
+moth-proximity reaction, with no permanent decorative cheeks. Original mode is
+unchanged. Refinement validation: 54 unit tests plus Crowd interaction/story and
+Original animation/control browser regressions passed.

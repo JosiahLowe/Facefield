@@ -201,12 +201,20 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
   function visualPose(s){
     const v=s.visual;if(!v)return;
     const attr=(el,name,value)=>{if(el.getAttribute(name)!==value)el.setAttribute(name,value);};
-    for(const cheek of v.baseCheeks)attr(cheek,'display',s.story?'none':'inline');
     for(let i=0;i<s.eyes.length;i++)for(const lid of s.eyes[i].blinkLids){attr(lid,'transform',v.eyes[i].transform);attr(lid,'fill',v.skin);}
     const m=s.mouth,filled=m.element.getAttribute('fill')!=='none',scream=s.story?.mode==='scream';
     const sx=v.mouthWidth/(scream?10:m.right-m.left),sy=filled?(scream?1.45:2.35):.48;
-    attr(m.element,'transform',`translate(50 68) scale(${sx} ${sy}) translate(${-m.center} ${-m.y})`);
+    attr(m.element,'transform',`translate(${50+v.facing} 68) scale(${sx} ${sy}) translate(${-m.center} ${-m.y})`);
     if(filled)attr(m.element,'fill',m.element.getAttribute('stroke'));
+    const singing=filled&&m.singing&&!s.story;
+    attr(m.element,'visibility',singing?'hidden':'visible');
+    attr(v.oval,'display',singing?'inline':'none');
+    if(singing){
+      attr(v.oval,'cx',String(50+v.facing));attr(v.oval,'cy','68');
+      attr(v.oval,'rx',String(v.mouthWidth/2));attr(v.oval,'ry',String(1+(m.opening||0)*12));
+      attr(v.tongue,'cx',String(50+v.facing));attr(v.tongue,'cy',String(68+(1+(m.opening||0)*12)*.65));
+      attr(v.tongue,'clip-path',`url(#${v.oval.id}-clip)`);
+    }else {attr(v.tongue,'cx',String(50+v.facing));attr(v.tongue,'cy','75');attr(v.tongue,'clip-path',`url(#crowd-${s.tile.dataset.index}-mouth-clip)`);}
     attr(v.tongue,'display',filled?'inline':'none');
   }
   function paintMood(s,bend,corner=0) {
@@ -248,7 +256,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const scale=tile.width/box.width;
       if(s.visual){
         const matrix=s.features.getScreenCTM();if(!matrix)return null;
-        const p=new DOMPoint(50,s.visual.eyes[0].y).matrixTransform(matrix);
+        const p=new DOMPoint(50+s.visual.facing,s.visual.eyes[0].y).matrixTransform(matrix);
         s.center={x:p.x-origin.left+world.scrollLeft,y:p.y-origin.top+world.scrollTop};
       }else s.center={x:tile.left-origin.left+world.scrollLeft+tile.width/2,
         y:tile.top-origin.top+world.scrollTop+((box.height-100)/2+s.eyes[0].y)*scale};
@@ -446,7 +454,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const s = states.get(tile);
       if (!s || s.story) return;
       const mouth = s.mouth;
-      mouth.singing = opening !== null;
+      mouth.singing = opening !== null;mouth.opening=opening;
       mouth.motion = null;
       if (opening === null || reduced.matches || opening <= 0) {
         paintMood(s,s.nearMoth?s.smileBend*s.warmth:mouth.restBend);
