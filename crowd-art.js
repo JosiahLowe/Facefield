@@ -38,5 +38,5 @@ export function crowdDecorations(traits,id){
  const p=CROWD_PALETTE;
  return `<defs data-crowd-decoration><clipPath id="${id}-mouth-clip"><use href="#${id}-mouth"/></clipPath></defs>
  <g data-crowd-decoration data-crowd-body><ellipse data-crowd-torso cx="50" cy="132" rx="43" ry="75" fill="#FFFFFF" stroke="url(#crowd-body-outline)" stroke-width=".7"/></g>
- <g data-crowd-decoration data-crowd-head><path data-crowd-hair d="${HAIR[traits.style]}" transform="translate(50 42) scale(.8 .88) translate(-50 -42)" fill="${traits.hair}"/><ellipse data-crowd-head-shape cx="50" cy="52" rx="${traits.rx}" ry="${traits.ry}" fill="url(#crowd-skin-${p.skin.indexOf(traits.skin)})"/></g>`;
+ <g data-crowd-decoration data-crowd-head><path data-crowd-hair d="${HAIR[traits.style]}" transform="translate(50 34) scale(.8 .88) translate(-50 -42)" fill="${traits.hair}"/><ellipse data-crowd-head-shape cx="50" cy="52" rx="${traits.rx}" ry="${traits.ry}" fill="url(#crowd-skin-${p.skin.indexOf(traits.skin)})"/></g>`;
 }
