@@ -214,12 +214,23 @@ export function createButterfly(world,grid,flowers) {
     occupancy();draw(dt);
   }
   return {
+    reproject(from,to){
+      if(!flight)return;
+      const delta=index=>{const a=from[index],b=to[index];return a&&b?{x:b.column+b.width/2-a.column-a.width/2,y:b.row+b.height/2-a.row-a.height/2}:{x:0,y:0};};
+      const shift=(p,d)=>p?{...p,x:p.x+d.x,y:p.y+d.y}:p;
+      const d=delta(flight.singer);flight.x+=d.x;flight.y+=d.y;
+      flight.center=shift(flight.center,d);flight.target=shift(flight.target,d);
+      flight.flowers=flight.flowers.map(p=>shift(p,d));
+      if(flight.pending){const p=flight.pending.patch,q=delta(p.singer);flight.pending.patch={...p,center:shift(p.center,q),flowers:p.flowers.map(f=>shift(f,q))};}
+      if(story){const c=to[story.singer];story.rest=grid.dataset.visualMode==='crowd'?{x:c.column-1+c.width*.7,y:c.row-1+c.height*.73}:{x:c.column-1+c.width-.1,y:c.row-1+c.height-.12};if(story.phase==='dead'){flight.x=story.rest.x;flight.y=story.rest.y;}}
+      nextPatch=0;last=0;draw(0);
+    },
     followSinger,
     beginChorus(tile){
       const patch=flowers.patch();if(!flight||!patch)return;
       const unit=grid.clientWidth/48;
       story={phase:'living',singer:patch.singer,arrived:false,
-        rest:{x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12}};
+        rest:grid.dataset.visualMode==='crowd'?{x:(tile.offsetLeft+tile.offsetWidth*.7)/unit,y:(tile.offsetTop+tile.offsetHeight*.73)/unit}:{x:(tile.offsetLeft+tile.offsetWidth)/unit-.10,y:(tile.offsetTop+tile.offsetHeight)/unit-.12}};
     },
     storyArrived:()=>!!story?.arrived,
     bounds:()=>element.getBoundingClientRect(),

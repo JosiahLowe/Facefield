@@ -18,7 +18,7 @@ const assert = require('node:assert/strict');
         let covered=true;
         for(let y=0;y<innerHeight;y+=19)for(let x=0;x<innerWidth;x+=17){
           const hit=document.elementFromPoint(x,y);
-          if(!hit?.closest('.face,.sound-control'))covered=false;
+          if(!hit?.closest('.face,.sound-control,.visual-control'))covered=false;
         }
         const sound=document.querySelector('#enable-sound').getBoundingClientRect();
         return {square,covered,soundFits:sound.left>=0&&sound.right<=innerWidth};

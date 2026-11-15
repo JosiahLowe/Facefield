@@ -82,7 +82,7 @@ const smooth = t => t * t * (3 - 2 * t);
 // A single frame loop serves visible faces. Sleeping and hidden faces do no work.
 export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) {
   const states = new Map(), visible = new Set();
-  let geometryVersion = 0;
+  let geometryVersion = 0, crowdMode=false, crowdFrameAt=-Infinity;
   new ResizeObserver(() => {
     geometryVersion++;
     if (reduced.matches&&!document.hidden) for (const s of visible) refreshStaticReaction(s);
@@ -198,11 +198,22 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       s.nextMouth = now + mouthPause(s.profile.name, s.mouth.current.bend === 0);
     }
   }
+  function visualPose(s){
+    const v=s.visual;if(!v)return;
+    const attr=(el,name,value)=>{if(el.getAttribute(name)!==value)el.setAttribute(name,value);};
+    for(const cheek of v.baseCheeks)attr(cheek,'display',s.story?'none':'inline');
+    for(let i=0;i<s.eyes.length;i++)for(const lid of s.eyes[i].blinkLids){attr(lid,'transform',v.eyes[i].transform);attr(lid,'fill',v.skin);}
+    const m=s.mouth,filled=m.element.getAttribute('fill')!=='none',scream=s.story?.mode==='scream';
+    const sx=v.mouthWidth/(scream?10:m.right-m.left),sy=filled?(scream?1.45:2.35):.48;
+    attr(m.element,'transform',`translate(50 68) scale(${sx} ${sy}) translate(${-m.center} ${-m.y})`);
+    if(filled)attr(m.element,'fill',m.element.getAttribute('stroke'));
+    attr(v.tongue,'display',filled?'inline':'none');
+  }
   function paintMood(s,bend,corner=0) {
     const m=s.mouth;
     m.current={bend,corner};
     m.element.setAttribute('d',`M ${m.left} ${m.y-corner} Q ${m.center} ${m.y+bend} ${m.right} ${m.y+corner}`);
-    m.element.setAttribute('fill','none');
+    m.element.setAttribute('fill','none');visualPose(s);
   }
   function updateEmotion(s,now,instant=false) {
     const near=s.proximity>0,target=near?Math.sqrt(s.proximity):0;
@@ -235,7 +246,11 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const box=s.svg.viewBox.baseVal,tile=s.tile.getBoundingClientRect();
       const world=grid.closest('#world')||grid.parentElement,origin=world.getBoundingClientRect();
       const scale=tile.width/box.width;
-      s.center={x:tile.left-origin.left+world.scrollLeft+tile.width/2,
+      if(s.visual){
+        const matrix=s.features.getScreenCTM();if(!matrix)return null;
+        const p=new DOMPoint(50,s.visual.eyes[0].y).matrixTransform(matrix);
+        s.center={x:p.x-origin.left+world.scrollLeft,y:p.y-origin.top+world.scrollTop};
+      }else s.center={x:tile.left-origin.left+world.scrollLeft+tile.width/2,
         y:tile.top-origin.top+world.scrollTop+((box.height-100)/2+s.eyes[0].y)*scale};
       s.geometryVersion=geometryVersion;
     }
@@ -298,6 +313,10 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     frame = 0;
     if (reduced.matches || document.hidden) { resetActivity(); return; }
     if (onFrame) onFrame(now);
+    // The denser experimental crowd paints facial details at 30 Hz. World,
+    // music and insect clocks keep their existing cadence.
+    if(crowdMode&&now-crowdFrameAt<32){wake();return;}
+    crowdFrameAt=now;
     const fly = getFlyPosition();
     for (const s of visible) {
       syncMourning(s,fly);
@@ -311,7 +330,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       }
       updateLook(s, now, fly);
       updateEmotion(s,now);
-      updateMouth(s,now);
+      updateMouth(s,now);visualPose(s);
       if (!s.blink && now >= s.nextBlink) s.blink = now;
       if (s.blink !== null) {
         const progress = (now - s.blink) / s.profile.blink;
@@ -327,7 +346,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
           s.nextBlink = now + (double ? between(90, 160) : between(2000, 8000));
         } else {
           const closure = progress < .35 ? progress / .35 : progress < .55 ? 1 : (1 - progress) / .45;
-          blink(s, smooth(Math.max(0, closure)));
+          blink(s, smooth(Math.max(0, closure)));visualPose(s);
         }
       }
     }
@@ -357,7 +376,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const half=(m.right-m.left)*.33,left=m.center-half,right=m.center+half,y=m.y+2;
     m.element.setAttribute('d',`M ${left} ${y} Q ${m.center} ${y-10-opening*7} ${right} ${y} Q ${m.center} ${y+8+opening*16} ${left} ${y} Z`);
     m.element.setAttribute('fill',m.element.getAttribute('stroke'));
-    s.tile.dataset.sobOpening=opening.toFixed(3);
+    s.tile.dataset.sobOpening=opening.toFixed(3);visualPose(s);
   }
   function paintStory(s,now){
     const m=s.mouth,crying=s.story.mode==='crying'||s.story.mode==='mourning';
@@ -373,12 +392,18 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
         const drop=s.tearProfile[i];
         const t=reduced.matches?.12+drop.phase*.72:((now-s.story.at)/drop.period+drop.phase)%1;
         const pose=cryingTearPose(s.eyes[drop.eye],t);
+        if(s.visual){
+          const eye=s.eyes[drop.eye],v=s.visual.eyes[drop.eye],start=cryingTearPose(eye,0).y;
+          const progress=(pose.y-start)/(93-start),newStart=v.y+(start-eye.y)*v.scale;
+          pose.x=v.x;pose.y=newStart+progress*(89-newStart);pose.size*=.55;
+        }
         tear.setAttribute('transform',`translate(${pose.x} ${pose.y}) scale(${pose.size})`);
       }
     }else{
       m.element.setAttribute('d',`M ${m.center-5} ${m.y} a5 8 0 1 0 10 0 a5 8 0 1 0 -10 0`);
       m.element.setAttribute('fill',m.element.getAttribute('stroke'));
     }
+    visualPose(s);
   }
   function setStoryExpression(tile,mode){
     const s=states.get(tile);if(!s)return;
@@ -395,6 +420,20 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     tile.dataset.storyExpression=mode;paintStory(s,performance.now());
   }
   return {
+    setVisualMode(poses){
+      crowdMode=[...poses.values()].some(Boolean);crowdFrameAt=-Infinity;
+      geometryVersion++;
+      for(const s of states.values()){
+        s.visual=poses.get(s.tile)||null;s.lidColor=s.visual?.skin||s.originalLidColor;s.geometryVersion=-1;
+        if(!s.visual){
+          s.mouth.element.removeAttribute('transform');
+          for(const eye of s.eyes)for(const cap of eye.blinkLids){cap.removeAttribute('transform');cap.setAttribute('fill',s.lidColor);}
+        }
+        if(s.story)paintStory(s,performance.now());else visualPose(s);
+      }
+      if(reduced.matches)for(const s of visible)refreshStaticReaction(s);
+      wake();
+    },
     setCryingMouth(tile,opening){
       const s=states.get(tile);if(s?.story?.mode!=='crying')return;
       s.story.opening=Math.max(0,Math.min(1,opening));paintCryingMouth(s);
@@ -416,7 +455,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       }
       const amount = Math.max(0, Math.min(1, opening));
       mouth.element.setAttribute('d', `M ${mouth.left} ${mouth.y} Q ${mouth.center} ${mouth.y - amount * 8} ${mouth.right} ${mouth.y} Q ${mouth.center} ${mouth.y + amount * 12} ${mouth.left} ${mouth.y} Z`);
-      mouth.element.setAttribute('fill', mouth.element.getAttribute('stroke'));
+      mouth.element.setAttribute('fill', mouth.element.getAttribute('stroke'));visualPose(s);
     },
     changeMouths() {
       const now = performance.now();
@@ -466,7 +505,7 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
       const mouth = { element: mouthElement, original, left, y, center, right, restBend,
         current: { bend: restBend, corner: 0 }, motion: null, sinceNeutral: 0 };
       const s = { tile, svg, eyes, lidColor, mouth, profile: personality(seed, index, revision), gaze: null, blink: null };
-      s.tearProfile=tearProfile(seed,index,revision);
+      s.tearProfile=tearProfile(seed,index,revision);s.originalLidColor=lidColor;s.features=svg.querySelector('[data-features]');
       s.cheeks=svg.querySelector('[data-feature=cheeks]');
       s.warmth=0;s.proximity=0;s.blushProximity=0;s.blushStrength=0;s.nearMoth=false;s.lastEmotion=0;
       s.smileBend=10+randomFrom(`${seed}:${index}:${revision}:moth-smile`)()*6;

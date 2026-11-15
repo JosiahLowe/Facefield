@@ -1,21 +1,25 @@
-import { createButterfly } from './butterfly.js?v=nearby-chorus-27';
+import {createVisualModes} from './visual-modes.js?v=crowd-experiment-1';
+import { createButterfly } from './butterfly.js?v=crowd-experiment-1';
 import { createSinger } from './singing.js?v=nearby-chorus-27';
-import { createFlowers } from './flowers.js?v=nearby-chorus-27';
+import { createFlowers } from './flowers.js?v=crowd-experiment-1';
 import { applyPalette } from './palette.js';
 import { mosaicLayout } from './mosaic.js';
 import { createMothStory } from './story.js?v=nearby-chorus-27';
 applyPalette();
 import { renderFace } from './faces.js?v=nearby-chorus-27';
-import { animateFaces } from './behavior.js?v=nearby-chorus-27';
+import { animateFaces } from './behavior.js?v=crowd-experiment-1';
 const WORLD_COLUMNS = 48;
 const WORLD_FACE_COUNT = WORLD_COLUMNS * WORLD_COLUMNS / 2;
 const world = document.querySelector('#world');
 const grid = document.querySelector('#grid');
-function sizeWorld() {
-  const viewportColumns = world.clientWidth >= 1000 ? 12 : world.clientWidth >= 600 ? 8 : 4;
+let visuals=null;
+function sizeWorld(mode=visuals?.mode||'original') {
+  const crowd=mode==='crowd';
+  const viewportColumns = crowd?(world.clientWidth>=1000?15:world.clientWidth>=600?12:9): world.clientWidth >= 1000 ? 12 : world.clientWidth >= 600 ? 8 : 4;
   const cellSize = world.clientWidth / viewportColumns;
   grid.style.width = `${WORLD_COLUMNS * cellSize}px`;
   grid.style.gridAutoRows = `${cellSize}px`;
+  if(crowd)grid.style.height=`${48*cellSize}px`;else grid.style.removeProperty('height');
 }
 const flowers = createFlowers(world, grid);
 const butterfly = createButterfly(world, grid, flowers);
@@ -74,7 +78,7 @@ function populate() {
   singer.setFace(grid.children[singerIndex]);
 }
 grid.addEventListener('click', event => {
-  const tile = event.target.closest('.face');
+  const tile = visuals?.hitFace(event)||event.target.closest('.face');
   if (tile?.dataset.singer !== 'true') return;
   if(story.state==='discovered')story.resume();
   else if(story.state==='idle')advanceSinger();
@@ -85,9 +89,10 @@ populate();
 requestAnimationFrame(() => {
   world.scrollTo((world.scrollWidth - world.clientWidth) / 2, (world.scrollHeight - world.clientHeight) / 2);
   butterfly.place();
+  visuals=createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector:document.querySelector('#visual-style')});
 });
 
-new ResizeObserver(sizeWorld).observe(world);
+new ResizeObserver(()=>sizeWorld()).observe(world);
 
 function advanceSinger() {
   singer.advanceAfterPhrase(offscreenCandidates);
@@ -103,7 +108,7 @@ function offscreenCandidates() {
   const unit = grid.clientWidth / WORLD_COLUMNS;
   const offscreen = [...grid.children].filter((tile, index) => {
     if (tile.dataset.singer === 'true') return false;
-    const cell = layout[index];
+    const cell = (visuals?.layout||layout)[index];
     const x = (cell.column - 1) * unit, y = (cell.row - 1) * unit;
     return x + cell.width * unit <= left - width || x >= left + width * 2
       || y + cell.height * unit <= top - height || y >= top + height * 2;

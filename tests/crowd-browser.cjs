@@ -1,0 +1,23 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),h=require('./story-helpers.cjs');
+(async()=>{const b=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});try{
+ const {page:p,errors}=await h.setup(b);await p.clock.runFor(100);
+ await p.evaluate(()=>{window.kept={tile:document.querySelector('[data-singer]'),eye:document.querySelector('.face circle'),skin:document.querySelector('.face [data-feature=skin]').outerHTML};});
+ await p.selectOption('#visual-style','crowd');await p.clock.runFor(500);
+ assert.equal(await p.locator('[data-crowd-head-shape]').count(),1152);
+ assert.ok(await p.evaluate(()=>kept.tile===document.querySelector('[data-singer]')&&kept.eye===document.querySelector('.face circle')));
+ await p.selectOption('#visual-style','original');await p.clock.runFor(100);
+ assert.equal(await p.evaluate(()=>document.querySelector('.face [data-feature=skin]').outerHTML),await p.evaluate(()=>kept.skin));
+ await p.selectOption('#visual-style','crowd');
+ console.log('crowd start');await h.start(p);console.log('crowd travel');await h.arrive(p);console.log('crowd arrived');assert.equal(await p.locator('[data-chorus-voice]').count(),3);
+ const singer=await p.locator('[data-singer]').getAttribute('data-index');
+ await p.selectOption('#visual-style','original');await p.selectOption('#visual-style','crowd');
+ assert.equal(await p.locator('[data-singer]').getAttribute('data-index'),singer);assert.equal(await h.state(p),'chorus_active');
+ console.log('crowd investigate');await h.die(p);console.log('crowd dead');await h.move(p);await p.clock.runFor(500);
+ assert.equal(await h.state(p),'discovered');assert.ok(await p.locator('[data-singer] [data-feature=tears] path').count()>0);
+ await p.screenshot({path:'/tmp/crowd-story.png'});
+ await p.selectOption('#visual-style','original');assert.equal(await h.state(p),'discovered');
+ await p.locator('[data-singer]').evaluate(t=>t.click());await p.clock.runFor(100);assert.equal(await h.state(p),'idle');
+ await p.selectOption('#visual-style','crowd');await p.reload();await p.clock.runFor(100);
+ assert.equal(await p.locator('#visual-style').inputValue(),'crowd');assert.deepEqual(errors,[]);
+ console.log('PASS Crowd: stable nodes, Original restoration, live chorus switching, moth death/crying/discovery/resolution, session persistence.');
+ }finally{await b.close();}})();
