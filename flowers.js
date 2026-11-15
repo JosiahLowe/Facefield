@@ -386,7 +386,7 @@ export function createFlowers(world, grid) {
       right: x+(view?.width || world.clientWidth)/unit+(presentation?2:.6),
       bottom: y+(view?.height || world.clientHeight)/unit+(presentation?2.5:.6) },now/1000,offset).filter(({f,patch})=>{const d=offset(patch?.singer??f.singer);return presentation?allowed(f,patch):clearHead(f.x+d.x,f.y+d.y-f.size*.7);});
     const keys = new Set(visible.map(item => item.key));
-    for (const [key,node] of nodes) if (!keys.has(key)) { node.root.remove(); nodes.delete(key); }
+    for (const [key,node] of nodes) if (!keys.has(key)) { node.root.remove(); node.frontRoot?.remove(); nodes.delete(key); }
     for (const item of visible) {
       if (nodes.has(item.key)) continue;
       const root = document.createElementNS(NS,'g');
@@ -403,6 +403,15 @@ export function createFlowers(world, grid) {
         petals: root.querySelector('.flower-petals'), spin: root.querySelector('.flower-spin'),
         stemPath: root.querySelector('.flower-stem-path'), leaves:[...root.querySelectorAll('.flower-leaves ellipse')],
         stemColor: root.querySelector('.flower-stem').getAttribute('fill'), dryLevel: -1, energy: 0 });
+      if(display){
+        // Keep a single animated head, but paint it in the foreground SVG.
+        // Matching base/growth transforms keep it attached to the layered stem.
+        const node=nodes.get(item.key),frontRoot=document.createElementNS(NS,'g'),frontGrowth=document.createElementNS(NS,'g');
+        frontRoot.classList.add('crowd-flower-head-foreground');frontRoot.dataset.flowerHead=item.key;
+        frontRoot.setAttribute('transform',root.getAttribute('transform'));
+        frontGrowth.append(node.head);frontRoot.append(frontGrowth);layer.append(frontRoot);
+        node.frontRoot=frontRoot;node.frontGrowth=frontGrowth;
+      }
     }
     for(const [depth,row] of rows)if(!row.childElementCount){row.remove();rows.delete(depth);}
     const live=new Set([field.active,...field.companions,...field.retiring].filter(Boolean).map(p=>p.id));for(const id of placements.keys())if(!live.has(id))placements.delete(id);
@@ -423,7 +432,9 @@ export function createFlowers(world, grid) {
       node.root.dataset.stage = life.dry ? 'dry' : life.bloom<.95 ? 'growing' : 'bloom';
       node.root.dataset.load=number(pose.weight);
       node.root.setAttribute('opacity',number(life.opacity));
-      node.growth.setAttribute('transform',`rotate(${number(pose.angle)}) scale(${number(pose.growthScale)})`);
+      const growthTransform=`rotate(${number(pose.angle)}) scale(${number(pose.growthScale)})`;
+      node.growth.setAttribute('transform',growthTransform);
+      if(node.frontRoot){node.frontRoot.setAttribute('opacity',number(life.opacity));node.frontGrowth.setAttribute('transform',growthTransform);}
       node.stemPath.setAttribute('d',`M0 0 Q0 -.35 ${number(pose.headX)} ${number(pose.headOffset)}`);
       node.leaves.forEach((leaf,i)=>{
         const l=f.appearance.leaves[i],t=-l.y/.70;
