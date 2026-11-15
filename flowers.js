@@ -1,4 +1,4 @@
-import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-flowers-7';
+import {crowdFlowerPlacement,crowdFlowerColor} from './crowd-flowers.js?v=crowd-petal-colors-9';
 import { randomFrom } from './faces.js';
 import { PALETTE, mixColor } from './palette.js?v=botanical-variety-8';
 
