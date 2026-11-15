@@ -1,7 +1,7 @@
 import {randomFrom} from './faces.js';
 import {mixColor} from './palette.js';
 
-export const CROWD_PALETTE={skin:['#FFDCBB','#FFE0C4','#FAD4B1','#FFDBB8'],hair:['#95551F','#321C0F','#B1870B','#B87931','#D4A858','#D8946F'],ink:'#111111',eye:'#FFFFFF',iris:'#B9DDE1',cheek:'#DDAEAA',back:'#FFFFFF'};
+export const CROWD_PALETTE={skin:['#FFDCBB','#FFE0C4','#FAD4B1','#FFDBB8'],hair:['#95551F','#321C0F','#B1870B','#B87931','#D4A858','#D8946F'],ink:'#111111',eye:'#FFFFFF',iris:'#B9DDE1',cheek:'#DDAEAA',back:'#000000'};
 export function crowdTraits(seed,index,revision=0){
  const r=randomFrom(`${seed}:${index}:${revision}:crowd`);
  return {skin:CROWD_PALETTE.skin[Math.floor(r()*4)],hair:CROWD_PALETTE.hair[Math.floor(r()*6)],style:Math.floor(r()*6),
@@ -32,11 +32,11 @@ const HAIR=[
 // Shared paint servers avoid thousands of identical gradient/stop nodes.
 export function crowdPaintDefinitions(){
  const skins=CROWD_PALETTE.skin.map((skin,i)=>`<radialGradient id="crowd-skin-${i}" cx="38%" cy="25%" r="82%"><stop stop-color="${mixColor(skin,'#FFF9EE',.025)}"/><stop offset=".68" stop-color="${skin}"/><stop offset="1" stop-color="${mixColor(skin,'#E8B38C',.035)}"/></radialGradient>`).join('');
- return `<defs><linearGradient id="crowd-body-outline" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#25211E" stop-opacity="1"/><stop offset=".22" stop-color="#25211E" stop-opacity=".9"/><stop offset=".5" stop-color="#25211E" stop-opacity=".25"/><stop offset=".7" stop-color="#25211E" stop-opacity="0"/><stop offset="1" stop-color="#25211E" stop-opacity="0"/></linearGradient>${skins}</defs>`;
+ return `<defs><linearGradient id="crowd-body-fill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#FFFFFF"/><stop offset=".18" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#8A8A8A"/><stop offset=".82" stop-color="#111111"/><stop offset="1" stop-color="#000000"/></linearGradient><linearGradient id="crowd-body-outline" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#25211E" stop-opacity="1"/><stop offset=".22" stop-color="#25211E" stop-opacity=".9"/><stop offset=".5" stop-color="#25211E" stop-opacity=".25"/><stop offset=".7" stop-color="#25211E" stop-opacity="0"/><stop offset="1" stop-color="#25211E" stop-opacity="0"/></linearGradient>${skins}</defs>`;
 }
 export function crowdDecorations(traits,id){
  const p=CROWD_PALETTE;
  return `<defs data-crowd-decoration><clipPath id="${id}-mouth-clip"><use href="#${id}-mouth"/></clipPath></defs>
- <g data-crowd-decoration data-crowd-body><ellipse data-crowd-torso cx="50" cy="132" rx="43" ry="75" fill="#FFFFFF" stroke="url(#crowd-body-outline)" stroke-width=".7"/></g>
+ <g data-crowd-decoration data-crowd-body><ellipse data-crowd-torso cx="50" cy="132" rx="43" ry="75" fill="url(#crowd-body-fill)" stroke="url(#crowd-body-outline)" stroke-width=".7"/></g>
  <g data-crowd-decoration data-crowd-head><path data-crowd-hair d="${HAIR[traits.style]}" transform="translate(50 34) scale(.8 .88) translate(-50 -42)" fill="${traits.hair}"/><ellipse data-crowd-head-shape cx="50" cy="52" rx="${traits.rx}" ry="${traits.ry}" fill="url(#crowd-skin-${p.skin.indexOf(traits.skin)})"/></g>`;
 }
