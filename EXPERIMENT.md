@@ -41,3 +41,15 @@ their existing cadence. Headless emulation is not a device performance guarantee
 A separate Pages repository could not be created: the GitHub integration returned
 HTTP 403 (Resource not accessible by integration). Production Pages settings were
 not changed. The experiment is available on its own branch.
+
+The fallback private preview was published successfully using the Sites plugin:
+https://facefield-crowd-experiment.restedbough.chatgpt.site/?style=crowd
+
+It requires the owner's ChatGPT sign-in. The hosting service reported a successful
+publication. App behavior was validated locally in Chromium; the authenticated
+published app was not browser-tested because cloud browser tools are unavailable.
+
+Changed files: app.js, behavior.js, butterfly.js, flowers.js, index.html,
+styles.css, crowd-art.js, visual-modes.js, EXPERIMENT.md,
+tests/controls-browser.cjs, tests/crowd.test.mjs, tests/crowd-browser.cjs,
+and tests/crowd-interactions-browser.cjs.
