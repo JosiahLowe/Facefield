@@ -29,10 +29,10 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     assert.deepEqual(await read(),before,'scroll return preserves flower positions and appearance');
     assert.ok(Object.keys(before).length>farCount*2,'vegetation visibly increases toward the singer');
     assert.equal(farCount,0,'no flowers far from any singer patch');
-    assert.ok(await page.locator('.flower[data-group=single] .flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'retained small flowers have white petals');
-    assert.ok(await page.locator('.flower[data-group=single] .flower-petals').evaluateAll(ps=>ps.every(p=>[...p.querySelector('.flower-spin').children].every(g=>['ellipse','circle'].includes(g.firstElementChild.tagName)))),'every petal is rounded');
-    assert.ok(await page.locator('.flower-center').evaluateAll(cs=>cs.every(c=>c.getAttribute('fill')==='#D0A35B'&&getComputedStyle(c).stroke==='none')),'yellow centers have no outline');
-    assert.ok(await page.locator('.flower[data-group=single] .flower-spin').evaluateAll(gs=>gs.every(g=>new Set([...g.children].map(p=>p.firstElementChild.outerHTML)).size===1)),'all petals on a single flower have identical size and shape');
+    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>f.dataset.group==='single'&&!f.querySelector('.flower-group-stems'))),'all plants are individual flowers');
+    assert.ok(await page.locator('.flower-petals').evaluateAll((ps,colors)=>ps.every(p=>colors.includes(p.getAttribute('fill'))),INDIVIDUAL_FLOWER_COLORS),'petals use the distinct flower palette');
+    assert.ok(await page.locator('.flower-center').evaluateAll((cs,colors)=>cs.every(c=>colors.includes(c.getAttribute('fill'))&&getComputedStyle(c).stroke==='none'),INDIVIDUAL_FLOWER_CENTERS),'centers use distinct colors with no outline');
+    assert.ok(await page.locator('.flower[data-form=daisy] .flower-spin,.flower[data-form=ray] .flower-spin').evaluateAll(gs=>gs.every(g=>new Set([...g.children].map(p=>p.firstElementChild.outerHTML)).size===1)),'petals on a single daisy have identical size and shape');
     assert.ok(await page.locator('.flower-stem').evaluateAll(gs=>new Set(gs.map(g=>g.getAttribute('fill'))).size>5),'stems have varied greens');
     assert.ok(await page.locator('.flower-leaves').evaluateAll(gs=>new Set(gs.map(g=>g.children.length)).size>2),'leaf counts vary');
     assert.ok(await page.locator('.flower-spin').evaluateAll(gs=>new Set(gs.map(g=>g.children.length)).size>2),'petal counts vary');
@@ -51,8 +51,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     }
     assert.deepEqual(await clearance(),[],'flower geometry clears eyes, noses and mouths');
     assert.equal(await page.locator('.flowers [filter],.flowers filter').count(),0,'petal visibility never depends on SVG filters');
-    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>
-      f.querySelector('.flower-head-shadow circle') && !f.querySelector('.flower-leaf-shadow'))),'only flower heads cast shadows');
+    assert.ok(await page.locator('.flower').evaluateAll(fs=>fs.every(f=>f.querySelector('.flower-sticker-shadow use')&&f.querySelector('.flower-sticker-stem-shadow'))),'the whole plant casts a shared-geometry sticker shadow');
     const quietPetals=()=>page.locator('.flower-petals').evaluateAll(ps=>ps.map(p=>+p.getAttribute('transform').match(/[\d.]+/)[0]));
     const postures=await page.locator('.flower').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,f.dataset.posture])));
     assert.ok(Object.values(postures).includes('left')&&Object.values(postures).includes('right')&&Object.values(postures).includes('upright'),'all three postures render');
@@ -60,7 +59,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     const rotations=await page.locator('.flower-growth').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     const headTurns=await page.locator('.flower-spin').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform')));
     async function shadowsAt430(){return page.locator('.flower').evaluateAll(fs=>fs.every(f=>{
-      const a=f.querySelector('.flower-center').getBoundingClientRect(),b=f.querySelector('.flower-head-shadow circle').getBoundingClientRect();
+      const a=f.querySelector('.flower-head').getBoundingClientRect(),b=f.querySelector('.flower-sticker-head-shadow').getBoundingClientRect();
       const dx=b.x+b.width/2-a.x-a.width/2,dy=b.y+b.height/2-a.y-a.height/2;
       return dx>0 && dy>0 && Math.abs(dx-dy)<.02;
     }));}
@@ -95,7 +94,7 @@ const base = process.env.FACEFIELD_URL || 'http://127.0.0.1:8000/';
     const oldSizes=await page.locator('.flower[data-stage=dry]').evaluateAll(fs=>Object.fromEntries(fs.map(f=>[f.dataset.flower,+f.querySelector('.flower-growth').getAttribute('transform').match(/scale\(([\d.]+)/)[1]])));
     await page.clock.fastForward(4000); await page.waitForTimeout(200);
     assert.ok(await page.locator('.flower[data-stage=dry]').evaluateAll((fs,old)=>fs.every(f=>+f.querySelector('.flower-growth').getAttribute('transform').match(/scale\(([\d.]+)/)[1]<old[f.dataset.flower]),oldSizes),'previous patch visibly shrinks after changing singers');
-    assert.ok(await page.locator('.flower[data-group=single] .flower-petals').evaluateAll(ps=>ps.every(p=>p.getAttribute('fill')==='#FFFFFF')),'wilting petals stay white');
+    assert.ok(await page.locator('.flower-petals').evaluateAll((ps,colors)=>ps.every(p=>colors.includes(p.getAttribute('fill'))),INDIVIDUAL_FLOWER_COLORS),'wilting petals retain their distinct colors');
     assert.deepEqual(await page.locator('.flower[data-stage=dry] .flower-spin').evaluateAll(gs=>gs.map(g=>g.getAttribute('transform'))),frozenTurns,'retired heads stop turning while they wilt');
     await page.locator('[data-singer]').evaluate(t=>{
       const w=document.querySelector('#world');w.scrollTo(t.offsetLeft-w.clientWidth/2+t.offsetWidth/2,t.offsetTop-w.clientHeight/2+t.offsetHeight/2);

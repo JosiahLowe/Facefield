@@ -109,3 +109,17 @@ level. Stem endpoints follow each bloom during sway, growth, notes and moth load
 Small flowers and Crowd mode retain their previous stems. Validation: 60 unit
 tests pass, including independent roots and animated endpoint checks. Browser
 visual validation remains unavailable.
+
+Individual flower / sticker-shadow pass (Original only): removed the cluster
+renderer and restored one bloom per stem at the existing deterministic sites.
+Seeded daisy, ray-petal, bell and drooping cone silhouettes follow the reference;
+small flowers, singer density, lifecycles, moth landings, and face pigment remain.
+Cool saturated petals, contrasting centers and emerald foliage stay apart from
+sampled Original face pigments, including the white-to-color transition.
+The whole plant casts a crisp down-right sticker shadow, including the stem,
+leaves, petals and center. Colored shapes and their shadow share uncolored SVG
+source geometry through use elements; no blur/filter or copied animation loop.
+The shadow direction stays fixed during swaying/wilting. Crowd mode is unchanged.
+Validation: 62 unit tests pass; a standalone SVG gallery was rendered and inspected
+with librsvg, including colored shapes and full shadows. Browser regression scripts
+were updated, but live browser/mobile Safari validation remains unavailable here.
