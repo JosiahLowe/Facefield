@@ -32,11 +32,11 @@ const HAIR=[
 // Shared paint servers avoid thousands of identical gradient/stop nodes.
 export function crowdPaintDefinitions(){
  const skins=CROWD_PALETTE.skin.map((skin,i)=>`<radialGradient id="crowd-skin-${i}" cx="38%" cy="25%" r="82%"><stop stop-color="${mixColor(skin,'#FFF9EE',.025)}"/><stop offset=".68" stop-color="${skin}"/><stop offset="1" stop-color="${mixColor(skin,'#E8B38C',.035)}"/></radialGradient>`).join('');
- return `<defs><linearGradient id="crowd-body" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#8E8479"/><stop offset=".52" stop-color="#D1D0CB"/><stop offset="1" stop-color="#ACA59C"/></linearGradient>${skins}</defs>`;
+ return `<defs><linearGradient id="crowd-body-outline" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#25211E" stop-opacity="1"/><stop offset=".22" stop-color="#25211E" stop-opacity=".9"/><stop offset=".5" stop-color="#25211E" stop-opacity=".25"/><stop offset=".7" stop-color="#25211E" stop-opacity="0"/><stop offset="1" stop-color="#25211E" stop-opacity="0"/></linearGradient>${skins}</defs>`;
 }
 export function crowdDecorations(traits,id){
  const p=CROWD_PALETTE;
  return `<defs data-crowd-decoration><clipPath id="${id}-mouth-clip"><use href="#${id}-mouth"/></clipPath></defs>
- <g data-crowd-decoration data-crowd-body><ellipse data-crowd-torso cx="50" cy="132" rx="43" ry="75" fill="#FFFFFF" stroke="#25211E" stroke-width=".7"/></g>
- <g data-crowd-decoration data-crowd-head><path data-crowd-hair d="${HAIR[traits.style]}" fill="${traits.hair}"/><ellipse data-crowd-head-shape cx="50" cy="52" rx="${traits.rx}" ry="${traits.ry}" fill="url(#crowd-skin-${p.skin.indexOf(traits.skin)})"/></g>`;
+ <g data-crowd-decoration data-crowd-body><ellipse data-crowd-torso cx="50" cy="132" rx="43" ry="75" fill="#FFFFFF" stroke="url(#crowd-body-outline)" stroke-width=".7"/></g>
+ <g data-crowd-decoration data-crowd-head><path data-crowd-hair d="${HAIR[traits.style]}" transform="translate(50 42) scale(.8 .88) translate(-50 -42)" fill="${traits.hair}"/><ellipse data-crowd-head-shape cx="50" cy="52" rx="${traits.rx}" ry="${traits.ry}" fill="url(#crowd-skin-${p.skin.indexOf(traits.skin)})"/></g>`;
 }
