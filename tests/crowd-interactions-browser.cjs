@@ -6,7 +6,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict');
  assert.equal(await page.locator('[data-crowd-hair]').count(),1152);
  assert.ok(await page.locator('[data-singer]').evaluate(t=>{const eye=t.querySelector('[data-features] circle');return Math.abs(+eye.getAttribute('r')*+eye.getAttribute('transform').match(/scale\(([^)]+)/)[1]-4.8)<.001;}),'reference eye whites have a consistent larger radius');
  assert.equal(await page.locator('[data-crowd-base-cheek]').count(),0,'no permanent blush');
- assert.equal(await page.locator('[data-crowd-torso][fill="url(#crowd-body-fill)"]').count(),1152);
+ assert.equal(await page.locator('[data-crowd-torso][fill="#FFFFFF"]').count(),1152);
  const lines=await page.locator('[data-singer]').evaluate(t=>['nose','mouth'].map(f=>{const p=t.querySelector(`[data-feature=${f}]`);return [p.getAttribute('stroke'),p.getAttribute('stroke-width'),p.getAttribute('vector-effect')];}));
  assert.deepEqual(lines,[['#111111','.8','non-scaling-stroke'],['#111111','.8','non-scaling-stroke']]);
  const originalNose=await page.locator('[data-singer] [data-feature=nose]').getAttribute('d');assert.equal(originalNose,'M46 42 L46 50 C46 56 54 56 54 50 L54 42');

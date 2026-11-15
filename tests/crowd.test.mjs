@@ -16,11 +16,11 @@ test('crowd traits use independent deterministic variation and the coordinated p
  }assert.equal(styles.size,6);assert.equal(eyes.size,2);
 });
 
-test('refined crowd has narrower heads, larger eyes, varied facing and gradient oval bodies without permanent blush',()=>{
+test('refined crowd has narrower heads, larger eyes, varied facing and white oval bodies without permanent blush',()=>{
  const directions=new Set();for(let i=0;i<200;i++){
   const t=crowdTraits('refinement',i);assert.ok(t.rx>=27&&t.rx<31);assert.ok(t.eyeScale>=.30&&t.eyeScale<.345);
   directions.add(t.facing< -2?'left':t.facing>2?'right':'front');
-  const svg=crowdDecorations(t,`test-${i}`);assert.match(svg,/data-crowd-torso[^>]+ry="75" fill="url\(#crowd-body-fill\)"/);assert.ok(!svg.includes('data-crowd-base-cheek'));
+  const svg=crowdDecorations(t,`test-${i}`);assert.match(svg,/data-crowd-torso[^>]+ry="75" fill="#FFFFFF"/);assert.ok(!svg.includes('data-crowd-base-cheek'));
  }assert.equal(directions.size,3);
 });
 
