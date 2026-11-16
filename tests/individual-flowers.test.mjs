@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {flowerAppearance} from '../flowers.js';
 import {renderFace} from '../faces.js';
 import {mixColor} from '../palette.js';
-import {individualFlowerStyle,individualFlowerGeometry,bellStemGeometry,stickerShadowMatrix,INDIVIDUAL_FLOWER_COLORS,INDIVIDUAL_FLOWER_CENTERS,INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED} from '../individual-flowers.js';
+import {individualFlowerStyle,individualFlowerGeometry,stickerShadowMatrix,INDIVIDUAL_FLOWER_COLORS,INDIVIDUAL_FLOWER_CENTERS,INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED} from '../individual-flowers.js';
 const fixture=i=>({id:`single-${i}`,phase:i*.193,appearance:flowerAppearance('sticker',`single-${i}`)});
 test('individual flowers retain stable shapes and cool palettes without multi-bloom clusters',()=>{
  const forms=new Set();for(let i=0;i<160;i++){
@@ -11,8 +11,8 @@ test('individual flowers retain stable shapes and cool palettes without multi-bl
   assert.ok(INDIVIDUAL_FLOWER_COLORS.includes(s.color));assert.ok(INDIVIDUAL_FLOWER_CENTERS.includes(s.center));assert.equal(s.center,'#F9D43B');assert.ok(INDIVIDUAL_FLOWER_GREENS.includes(s.green));
   const svg=individualFlowerGeometry(f,`test-${i}`);
   assert.equal((svg.match(/class="flower-head"/g)||[]).length,1);assert.equal((svg.match(/class="flower-stem-path"/g)||[]).length,1);
-  assert.ok(!svg.includes('flower-group'));if(s.form==='bell')assert.ok(svg.includes('cy=".045" r=".045"'),'bell center is visible');assert.ok(!svg.includes('<filter'));
- }assert.deepEqual([...forms].sort(),['bell','cone','daisy','ray']);
+  assert.ok(!svg.includes('flower-group'));assert.ok(!svg.includes('<filter'));
+ }assert.deepEqual([...forms].sort(),['cone','daisy','ray']);
 });
 test('every sticker shadow shares the live stem, leaves, petals and center geometry',()=>{
  for(let i=0;i<24;i++){
@@ -43,17 +43,5 @@ test('flower paints remain distinct from sampled white-to-pigmented face colors'
    const face=rgb(mixColor('#FFFFFF',paint,step/20));
    for(const flower of colors)assert.ok(Math.hypot(...flower.map((v,j)=>v-face[j]))>45,'flower color is too close to a face pigment');
   }
- }
-});
-
-test('bell stems hook into the rotated top of the flower through blooming and sway',()=>{
- const leaves=[{x:.1,y:-.3,angle:-30},{x:-.1,y:-.5,angle:25}];
- for(const tilt of [-24,0,24])for(const turn of [-7,7])for(const expansion of [.18,.6,1.1])for(const side of [-1,1]){
-  const pose={headX:.12,headOffset:-.68,headTilt:tilt},bell=bellStemGeometry(pose,turn,expansion,side,leaves),r=(tilt+turn)*Math.PI/180;
-  assert.ok(Math.abs(bell.end.x-(pose.headX+Math.sin(r)*.2275*expansion))<1e-12);
-  assert.ok(Math.abs(bell.end.y-(pose.headOffset-Math.cos(r)*.2275*expansion))<1e-12);
-  assert.ok(bell.path.startsWith('M0 0 C'));assert.equal((bell.path.match(/C/g)||[]).length,2);
-  assert.ok(bell.path.endsWith(`${bell.end.x} ${bell.end.y}`));
-  assert.equal(bell.anchors.length,leaves.length);assert.ok(bell.anchors.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.angle)));
  }
 });
