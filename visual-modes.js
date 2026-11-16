@@ -1,4 +1,4 @@
-import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=grayscale-saturation-22';
+import {crowdTraits,crowdLayout,crowdDecorations,crowdPaintDefinitions,CROWD_PALETTE} from './crowd-art.js?v=crowd-crops-skin-23';
 const NS='http://www.w3.org/2000/svg';
 export function createVisualModes({world,grid,animation,flowers,butterfly,seed,layout,sizeWorld,selector}){
  const originalLayout=layout,crowd=crowdLayout(layout),records=new Map();let mode='original';
@@ -86,12 +86,14 @@ export function createVisualModes({world,grid,animation,flowers,butterfly,seed,l
   const oldAnchor=center(old[anchor]),newAnchor=center(cells[anchor]),unit=grid.clientWidth/48;
   world.scrollTo((newAnchor.x+oldPoint.x-oldAnchor.x)*unit-world.clientWidth/2,(newAnchor.y+oldPoint.y-oldAnchor.y)*unit-world.clientHeight/2);
   try{sessionStorage.setItem('facefield-visual-mode',mode);}catch{}
+  const nextURL=new URL(location.href);nextURL.searchParams.set('style',mode);history.replaceState(null,'',nextURL);
   world.dispatchEvent(new Event('scroll'));world.dispatchEvent(new CustomEvent('visualmodechange',{detail:{mode}}));
  }
  selector.addEventListener('change',()=>apply(selector.value));
  // The Original startup path leaves every original SVG and layout untouched.
  const requested=new URL(location.href).searchParams.get('style');
- if(requested!=='original'&&(saved==='crowd'||saved!=='original'&&requested==='crowd'))apply('crowd');
+ if(requested==='crowd'||requested!=='original'&&saved==='crowd')apply('crowd');
+ else if(requested==='original'){try{sessionStorage.setItem('facefield-visual-mode','original');}catch{}}
  return {get mode(){return mode;},get layout(){return mode==='crowd'?crowd:originalLayout;},set:apply,
   hitFace(event){
    const fallback=event.target.closest('.face');if(mode!=='crowd'||event.detail===0)return fallback;

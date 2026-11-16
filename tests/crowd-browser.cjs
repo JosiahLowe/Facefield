@@ -18,6 +18,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),h=re
  await p.selectOption('#visual-style','original');assert.equal(await h.state(p),'discovered');
  await p.locator('[data-singer]').evaluate(t=>t.click());await p.clock.runFor(100);assert.equal(await h.state(p),'idle');
  await p.selectOption('#visual-style','crowd');await p.reload();await p.clock.runFor(100);
- assert.equal(await p.locator('#visual-style').inputValue(),'crowd');assert.deepEqual(errors,[]);
+ assert.equal(await p.locator('#visual-style').inputValue(),'crowd');
+ await p.selectOption('#visual-style','original');await p.reload();await p.clock.runFor(100);assert.equal(await p.locator('#visual-style').inputValue(),'original');
+ const crowdURL=await p.evaluate(()=>{const u=new URL(location.href);u.searchParams.set('style','crowd');return u.href;});await p.goto(crowdURL);await p.clock.runFor(100);assert.equal(await p.locator('#visual-style').inputValue(),'crowd','explicit Crowd preview link overrides a previous Original session');assert.deepEqual(errors,[]);
  console.log('PASS Crowd: stable nodes, Original restoration, live chorus switching, moth death/crying/discovery/resolution, session persistence.');
  }finally{await b.close();}})();

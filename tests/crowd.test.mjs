@@ -34,3 +34,14 @@ test('reference hairstyles are complete silhouettes behind the peach head',()=>{
   assert.equal([...path.matchAll(/M/g)].length,1);assert.ok(path.endsWith('Z'));
  }
 });
+
+test('Crowd favors simple cropped cuts and has a broad stable range of skin tones',()=>{
+ const people=Array.from({length:1152},(_,i)=>crowdTraits('crowd-crops',i));
+ const crops=people.filter(p=>['cropped','close-cropped'].includes(p.hairKind)).length;
+ const curls=people.filter(p=>p.hairKind==='curly').length;
+ assert.ok(crops>people.length*.5&&crops<people.length*.7,'short crops should be the dominant hairstyle');
+ assert.ok(curls>0&&curls<people.length*.15,'curly silhouettes should be occasional');
+ assert.equal(new Set(people.map(p=>p.skin)).size,CROWD_PALETTE.skin.length);assert.ok(CROWD_PALETTE.skin.length>=8);
+ const brightness=CROWD_PALETTE.skin.map(c=>c.slice(1).match(/../g).map(v=>parseInt(v,16)).reduce((s,v)=>s+v,0)/3);
+ assert.ok(Math.max(...brightness)-Math.min(...brightness)>140,'skin values should span light through deep tones');
+});

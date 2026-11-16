@@ -156,3 +156,13 @@ color instead of starting white or fully grayscale. Moth proximity builds toward
 full saturation with the existing radius, hold and fade times. Saturation changes
 preserve luminance, and all added face/eye outlines are removed. Validation:
 66 unit tests pass; browser/device validation remains unavailable.
+
+Crowd hair/skin refinement: simple short-cropped silhouettes now account for
+roughly 60% of people, with occasional swept, bob, short spiky and curly styles.
+Bumpy curls occur about 10% of the time. All hair stays behind the head. Nine
+seeded skin tones span light peach, tan, caramel and deeper brown values, using
+shared gradient definitions. Original face color and pigment behavior are unchanged.
+Explicit visual-mode URLs now select that mode; selector changes update the URL
+so reloads preserve the active choice. Validation: 67 unit tests pass; a standalone
+Crowd SVG sample was rendered and visually inspected. Live browser/mobile Safari
+validation remains unavailable; the browser regression was updated but not run.
