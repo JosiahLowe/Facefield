@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {flowerAppearance} from '../flowers.js';
 import {renderFace} from '../faces.js';
-import {mixColor} from '../palette.js';
+import {pigmentColor} from '../pigment.js';
 import {individualFlowerStyle,individualFlowerGeometry,stickerShadowMatrix,INDIVIDUAL_FLOWER_COLORS,INDIVIDUAL_FLOWER_CENTERS,INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED} from '../individual-flowers.js';
 const fixture=i=>({id:`single-${i}`,phase:i*.193,appearance:flowerAppearance('sticker',`single-${i}`)});
 test('individual flowers retain stable shapes and cool palettes without multi-bloom clusters',()=>{
@@ -34,13 +34,13 @@ test('angled sticker shadows remain rooted during sway and wilt',()=>{
   assert.ok(dx>0&&dy>0);assert.ok(Math.abs(dx-dy)<1e-12);
  }
 });
-test('flower paints remain distinct from sampled white-to-pigmented face colors',()=>{
+test('flower paints remain distinct from sampled grayscale-to-pigmented face colors',()=>{
  const rgb=c=>c.slice(1).match(/../g).map(x=>parseInt(x,16));
  const colors=[...INDIVIDUAL_FLOWER_COLORS,...INDIVIDUAL_FLOWER_CENTERS,...INDIVIDUAL_FLOWER_GREENS,INDIVIDUAL_FLOWER_DRIED].map(rgb);
  for(let i=0;i<180;i++){
   const f=renderFace('facefield',i),paints=[f.color,...[...f.svg.matchAll(/stop-color="(#[A-Fa-f0-9]+)"/g)].map(m=>m[1])];
   for(const paint of paints)for(let step=0;step<=20;step++){
-   const face=rgb(mixColor('#FFFFFF',paint,step/20));
+   const face=rgb(pigmentColor(paint,step/20));
    for(const flower of colors)assert.ok(Math.hypot(...flower.map((v,j)=>v-face[j]))>45,'flower color is too close to a face pigment');
   }
  }

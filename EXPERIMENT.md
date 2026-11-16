@@ -150,3 +150,9 @@ The five sampled inner gardens increased from 267 to 472 plants. Original singin
 mouths open about 45% taller again, with a small upward shift to protect the lower
 face boundary and a synchronized clipped tongue. Validation: 65 unit tests pass.
 Browser/device visual validation remains unavailable.
+
+Resting-face saturation update: Original faces now retain 30% of their seeded
+color instead of starting white or fully grayscale. Moth proximity builds toward
+full saturation with the existing radius, hold and fade times. Saturation changes
+preserve luminance, and all added face/eye outlines are removed. Validation:
+66 unit tests pass; browser/device validation remains unavailable.

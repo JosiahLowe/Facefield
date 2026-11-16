@@ -1,5 +1,5 @@
-import {pigmentLevel,depositPigment} from './pigment.js?v=moth-pigment-10';
-import { mixColor, eyelidColor } from './palette.js';
+import {pigmentLevel,depositPigment,facePigmentColor} from './pigment.js?v=grayscale-saturation-22';
+import { eyelidColor } from './palette.js';
 import { randomFrom } from './faces.js';
 
 const PROFILES = {
@@ -111,13 +111,13 @@ export function animateFaces(grid, onFrame = null, getFlyPosition = () => null) 
     const level=Math.round(pigmentLevel(s.pigment,now)*100)/100;
     if(!force&&s.pigmentPaint===level)return;
     s.pigmentPaint=level;s.tile.dataset.pigment=String(level);
-    s.pigmentSkin.setAttribute('stroke','#000000');s.pigmentSkin.setAttribute('stroke-width','.8');
-    s.pigmentSkin.setAttribute('vector-effect','non-scaling-stroke');
-    s.pigmentSkin.setAttribute('stroke-opacity',String(1-level));
-    for(const eye of s.eyes){eye.white.setAttribute('stroke','#000000');eye.white.setAttribute('stroke-width','.7');eye.white.setAttribute('vector-effect','non-scaling-stroke');eye.white.setAttribute('stroke-opacity',String(1-level));}
-    for(const stop of s.pigmentStops)stop.element.setAttribute('stop-color',mixColor('#FFFFFF',stop.color,level));
-    s.tile.style.backgroundColor=mixColor('#FFFFFF',s.svg.dataset.skin,level);
-    s.lidColor=mixColor('#FFFFFF',s.originalLidColor,level);
+    for(const shape of [s.pigmentSkin,...s.eyes.map(eye=>eye.white)]){
+      shape.setAttribute('stroke','none');
+      for(const attribute of ['stroke-width','stroke-opacity','vector-effect'])shape.removeAttribute(attribute);
+    }
+    for(const stop of s.pigmentStops)stop.element.setAttribute('stop-color',facePigmentColor(stop.color,level));
+    s.tile.style.backgroundColor=facePigmentColor(s.svg.dataset.skin,level);
+    s.lidColor=facePigmentColor(s.originalLidColor,level);
     for(const eye of s.eyes){if(eye.lid)eye.lid.setAttribute('fill',s.lidColor);for(const lid of eye.blinkLids)lid.setAttribute('fill',s.lidColor);}
   }
   function pigmentFrame(now){
