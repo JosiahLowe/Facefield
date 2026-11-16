@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {crowdTraits,crowdLayout,crowdDecorations,CROWD_PALETTE} from '../crowd-art.js';
 import {mosaicLayout} from '../mosaic.js';
+import {contrastRatio} from '../palette.js';
 test('crowd presentation preserves all stable model identities in staggered bounded slots',()=>{
  const model=mosaicLayout('crowd',48,1152),before=JSON.stringify(model),a=crowdLayout(model);
  assert.deepEqual(a,crowdLayout(model));assert.equal(JSON.stringify(model),before);assert.equal(a.length,1152);
@@ -43,5 +44,7 @@ test('Crowd favors simple cropped cuts and has a broad stable range of skin tone
  assert.ok(curls>0&&curls<people.length*.15,'curly silhouettes should be occasional');
  assert.equal(new Set(people.map(p=>p.skin)).size,CROWD_PALETTE.skin.length);assert.ok(CROWD_PALETTE.skin.length>=8);
  const brightness=CROWD_PALETTE.skin.map(c=>c.slice(1).match(/../g).map(v=>parseInt(v,16)).reduce((s,v)=>s+v,0)/3);
- assert.ok(Math.max(...brightness)-Math.min(...brightness)>140,'skin values should span light through deep tones');
+ assert.ok(Math.max(...brightness)-Math.min(...brightness)>65,'skin values should still vary visibly');
+ assert.ok(Math.min(...brightness)>140,'skin tones should stay in the lighter range');
+ assert.ok(people.every(p=>contrastRatio(p.skin,p.hair)>=2),'hair must stand apart from its skin tone');
 });

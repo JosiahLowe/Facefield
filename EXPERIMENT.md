@@ -166,3 +166,9 @@ Explicit visual-mode URLs now select that mode; selector changes update the URL
 so reloads preserve the active choice. Validation: 67 unit tests pass; a standalone
 Crowd SVG sample was rendered and visually inspected. Live browser/mobile Safari
 validation remains unavailable; the browser regression was updated but not run.
+
+Crowd palette adjustment: deep brown skin entries are replaced with lighter tan
+variations. Seeded hair selection now filters each face to hair colors with at
+least 2:1 luminance contrast against its skin, avoiding blended hair/skin pairs.
+Original mode is unchanged. Validation: 67 unit tests pass and a standalone SVG
+palette sample was rendered and inspected. Live browser validation is unverified.

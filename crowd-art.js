@@ -1,12 +1,14 @@
 import {randomFrom} from './faces.js';
-import {mixColor} from './palette.js';
+import {mixColor,contrastRatio} from './palette.js';
 
-export const CROWD_PALETTE={skin:['#F8DFC9','#EBC6A5','#D7AB86','#C69268','#BD9A78','#AD7854','#98633F','#794C36','#5C392D'],hair:['#95551F','#321C0F','#B1870B','#B87931','#D4A858','#D8946F'],ink:'#111111',eye:'#FFFFFF',iris:'#B9DDE1',cheek:'#DDAEAA',back:'#FFFFFF'};
+export const CROWD_PALETTE={skin:['#F8DFC9','#EBC6A5','#D7AB86','#C69268','#BD9A78','#EED3BA','#DDB593','#CFA27F','#BE8B6B'],hair:['#95551F','#321C0F','#B1870B','#B87931','#D4A858','#D8946F'],ink:'#111111',eye:'#FFFFFF',iris:'#B9DDE1',cheek:'#DDAEAA',back:'#FFFFFF'};
 export const CROWD_HAIR_STYLES=['cropped','close-cropped','swept','bob','short-spiky','curly'];
 const HAIR_WEIGHTS=[0,0,0,1,1,1,2,3,4,5];
 export function crowdTraits(seed,index,revision=0){
  const r=randomFrom(`${seed}:${index}:${revision}:crowd`);
- const skin=CROWD_PALETTE.skin[Math.floor(r()*CROWD_PALETTE.skin.length)],hair=CROWD_PALETTE.hair[Math.floor(r()*CROWD_PALETTE.hair.length)],style=HAIR_WEIGHTS[Math.floor(r()*HAIR_WEIGHTS.length)];
+ const skin=CROWD_PALETTE.skin[Math.floor(r()*CROWD_PALETTE.skin.length)];
+ const hairChoice=r(),hairColors=CROWD_PALETTE.hair.filter(color=>contrastRatio(skin,color)>=2);
+ const hair=hairColors[Math.floor(hairChoice*hairColors.length)],style=HAIR_WEIGHTS[Math.floor(r()*HAIR_WEIGHTS.length)];
  return {skin,hair,style,hairKind:CROWD_HAIR_STYLES[style],
   rx:27+r()*4,ry:39+r()*4,tilt:(r()-.5)*22,shiftX:(r()-.5)*3,shiftY:(r()-.5)*3,scale:.98+r()*.09,
   eyes: r()<.08?'blue':'brown',eyeScale:.30+r()*.045,eyeGap:10+r()*1.5,eyeY:37+r()*2,mouthWidth:18+r()*3,facing:(r()-.5)*13};
